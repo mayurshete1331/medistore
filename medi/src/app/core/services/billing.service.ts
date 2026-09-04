@@ -2,6 +2,7 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { Batch, Medicine } from '../models/medicine.model';
 import { CartItem, CustomerInfo, Invoice, PaymentMode, SaleUnitType } from '../models/bill.model';
 import { InventoryService } from './inventory.service';
+import { ApiService } from './api.service';
 import { INITIAL_INVOICES } from '../data/initial-data';
 
 @Injectable({
@@ -10,10 +11,97 @@ import { INITIAL_INVOICES } from '../data/initial-data';
 export class BillingService {
   private readonly INVOICE_STORAGE_KEY = 'medi_invoices_v1';
   private inventoryService = inject(InventoryService);
+  private api = inject(ApiService);
 
   readonly cart = signal<CartItem[]>([]);
   readonly invoices = signal<Invoice[]>(this.loadInvoices());
   readonly activeInvoice = signal<Invoice | null>(null);
+
+  constructor() {
+    this.syncInvoicesFromBackend();
+  }
+
+  syncInvoicesFromBackend(): void {
+    this.api.getAllInvoices().subscribe({
+      next: (backendInvs) => {
+        if (backendInvs && backendInvs.length > 0) {
+          const mapped: Invoice[] = backendInvs.map((inv: any) => ({
+            id: String(inv.id || inv.invoiceNumber),
+            invoiceNumber: inv.invoiceNumber,
+            timestamp: inv.timestamp || new Date().toISOString(),
+            customer: {
+              name: inv.customerName,
+              phone: inv.customerPhone,
+              email: inv.customerEmail,
+              address: inv.customerAddress,
+              doctorName: inv.doctorName,
+              doctorRegNo: inv.doctorRegNo
+            },
+            items: (inv.items || []).map((item: any) => ({
+              id: String(item.id || Math.random()),
+              medicine: {
+                id: String(item.medicineId),
+                brandName: item.medicineName,
+                genericName: item.genericName,
+                category: 'Tablet',
+                manufacturer: 'Standard',
+                hsnCode: item.hsnCode || '3004',
+                gstRate: Number(item.gstRate) || 12,
+                packaging: 'Standard',
+                unitsPerPack: 10,
+                unitLabel: 'Tablet',
+                rackLocation: 'Rack A-1',
+                isScheduleH: false,
+                isScheduleH1: false,
+                isNarcotic: false,
+                reorderLevel: 10,
+                defaultReorderQty: 20,
+                batches: [],
+                totalStockPacks: 100
+              },
+              selectedBatch: {
+                id: String(item.batchId),
+                batchNumber: item.batchNumber,
+                mfgDate: '2024-01',
+                expiryDate: item.expiryDate || '2026-12',
+                purchasePrice: Number(item.costPrice) || 50,
+                mrp: Number(item.mrp) || 100,
+                salePrice: Number(item.unitPrice) || 90,
+                stockPacks: 100
+              },
+              saleType: item.saleType,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              mrp: item.mrp,
+              costPrice: item.costPrice,
+              discountPercent: item.discountPercent,
+              gstRate: item.gstRate,
+              taxAmount: item.taxAmount,
+              subtotal: item.subtotal,
+              total: item.total
+            })),
+            subtotal: Number(inv.subtotal),
+            totalDiscount: Number(inv.totalDiscount),
+            cgst: Number(inv.cgst),
+            sgst: Number(inv.sgst),
+            totalTax: Number(inv.totalTax),
+            roundOff: Number(inv.roundOff),
+            grandTotal: Number(inv.grandTotal),
+            totalCostPrice: Number(inv.totalCostPrice),
+            grossProfit: Number(inv.grossProfit),
+            paymentMode: inv.paymentMode,
+            paymentStatus: inv.paymentStatus,
+            hasScheduleH: !!inv.hasScheduleH,
+            dispensedBy: inv.dispensedBy
+          }));
+          this.invoices.set(mapped);
+          this.saveInvoices(mapped);
+        }
+      },
+      error: () => {}
+    });
+  }
+
 
   // Cart Calculations
   readonly cartItemsCount = computed(() => this.cart().length);
@@ -236,6 +324,33 @@ export class BillingService {
     // Save invoice
     const updatedInvoices = [invoice, ...this.invoices()];
     this.saveInvoices(updatedInvoices);
+
+    // Sync checkout with Spring Boot backend
+    const checkoutReq = {
+      customerName: customer.name || 'Walk-in Customer',
+      customerPhone: customer.phone || '',
+      customerEmail: customer.email || '',
+      customerAddress: customer.address || '',
+      doctorName: customer.doctorName || '',
+      doctorRegNo: customer.doctorRegNo || '',
+      paymentMode,
+      items: this.cart().map(i => ({
+        medicineId: parseInt(i.medicine.id.replace(/\D/g, ''), 10) || 1,
+        batchId: parseInt(i.selectedBatch.id.replace(/\D/g, ''), 10) || 1,
+        saleType: i.saleType,
+        quantity: i.quantity,
+        discountPercent: i.discountPercent
+      }))
+    };
+
+    this.api.checkout(checkoutReq).subscribe({
+      next: (backendInv) => {
+        if (backendInv?.invoiceNumber) {
+          console.log('Invoice registered in Spring Boot MySQL:', backendInv.invoiceNumber);
+        }
+      },
+      error: () => {}
+    });
 
     // Set as active invoice for preview & clear cart
     this.activeInvoice.set(invoice);

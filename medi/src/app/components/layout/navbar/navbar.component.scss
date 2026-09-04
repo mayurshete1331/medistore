@@ -133,6 +133,107 @@
   .user-role-section {
     display: flex;
     align-items: center;
+    gap: 0.75rem;
+
+    .backend-status-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      background: #ffffff;
+      border: 1px solid var(--slate-200);
+      padding: 0.35rem 0.75rem;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s ease;
+      text-align: left;
+
+      &:hover {
+        box-shadow: var(--shadow-sm);
+        transform: translateY(-1px);
+      }
+
+      .status-indicator-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--slate-400);
+        transition: background 0.3s ease;
+      }
+
+      .backend-info {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.1;
+
+        .backend-label {
+          font-size: 0.65rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          color: var(--slate-500);
+        }
+
+        .backend-port {
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: var(--slate-700);
+        }
+      }
+
+      &.status-online {
+        background: rgba(16, 185, 129, 0.08);
+        border-color: rgba(16, 185, 129, 0.35);
+
+        .status-indicator-dot {
+          background: #10b981;
+          box-shadow: 0 0 8px #10b981;
+        }
+
+        .backend-label {
+          color: #047857;
+        }
+
+        .backend-port {
+          color: #065f46;
+        }
+      }
+
+      &.status-offline {
+        background: rgba(245, 158, 11, 0.08);
+        border-color: rgba(245, 158, 11, 0.35);
+
+        .status-indicator-dot {
+          background: #f59e0b;
+        }
+
+        .backend-label {
+          color: #b45309;
+        }
+
+        .backend-port {
+          color: #92400e;
+        }
+      }
+
+      &.status-checking {
+        background: rgba(14, 165, 233, 0.08);
+        border-color: rgba(14, 165, 233, 0.35);
+
+        .status-indicator-dot {
+          background: #0ea5e9;
+          animation: pulseAlert 1s infinite alternate;
+        }
+
+        .backend-label {
+          color: #0369a1;
+        }
+
+        .backend-port {
+          color: #075985;
+        }
+      }
+    }
 
     .active-user-pill {
       display: flex;

@@ -22,6 +22,8 @@ export interface CartItem {
 export interface CustomerInfo {
   name: string;
   phone: string;
+  email?: string;
+  address?: string;
   doctorName?: string;
   doctorRegNo?: string;
   patientAge?: number;

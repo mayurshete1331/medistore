@@ -8,6 +8,10 @@ export interface Supplier {
   gstin: string;
   drugLicenseNo: string;
   address: string;
+  dlNumber?: string;
+  paymentTerms?: string;
+  rating?: number;
+  leadTimeDays?: number;
 }
 
 export interface ReorderItem {

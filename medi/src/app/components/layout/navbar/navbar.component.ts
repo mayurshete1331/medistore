@@ -6,6 +6,8 @@ import { BillingService } from '../../../core/services/billing.service';
 import { AnalyticsService } from '../../../core/services/analytics.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { OrderService } from '../../../core/services/order.service';
+import { ReorderService } from '../../../core/services/reorder.service';
+import { ApiService } from '../../../core/services/api.service';
 import { LoginModalComponent } from '../../auth/login-modal/login-modal.component';
 
 @Component({
@@ -21,6 +23,8 @@ export class NavbarComponent {
   analyticsService = inject(AnalyticsService);
   authService = inject(AuthService);
   orderService = inject(OrderService);
+  reorderService = inject(ReorderService);
+  apiService = inject(ApiService);
 
   showLoginModal = signal(false);
 
@@ -33,10 +37,24 @@ export class NavbarComponent {
   cartCount = this.billingService.cartItemsCount;
   financials = this.analyticsService.financialSummary;
   pendingStoreOrdersCount = this.orderService.pendingOrders;
+  backendStatus = this.apiService.backendStatus;
 
   quickDate = new Date().toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric'
   });
+
+  checkBackend(): void {
+    this.apiService.checkHealth().subscribe(isOnline => {
+      if (isOnline) {
+        this.inventoryService.syncWithBackend();
+        this.billingService.syncInvoicesFromBackend();
+        this.orderService.syncOrdersFromBackend();
+        this.authService.syncWithBackend();
+        this.reorderService.syncSuppliersFromBackend();
+      }
+    });
+  }
 }
+

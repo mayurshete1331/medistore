@@ -2,6 +2,7 @@ import { Injectable, computed, inject } from '@angular/core';
 import { BillingService } from './billing.service';
 import { InventoryService } from './inventory.service';
 import { FinancialSummary, TopSellingMedicine, SalesTrendPoint, StockHealthOverview } from '../models/analytics.model';
+import { ApiService } from './api.service';
 
 @Injectable({
   providedIn: 'root'
@@ -9,6 +10,7 @@ import { FinancialSummary, TopSellingMedicine, SalesTrendPoint, StockHealthOverv
 export class AnalyticsService {
   private billingService = inject(BillingService);
   private inventoryService = inject(InventoryService);
+  private api = inject(ApiService);
 
   readonly invoices = this.billingService.invoices;
   readonly medicines = this.inventoryService.medicines;

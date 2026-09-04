@@ -1,14 +1,63 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { Medicine, Batch, MedicineCategory } from '../models/medicine.model';
 import { INITIAL_MEDICINES } from '../data/initial-data';
+import { ApiService } from './api.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class InventoryService {
   private readonly STORAGE_KEY = 'medi_inventory_v1';
+  private api = inject(ApiService);
 
   readonly medicines = signal<Medicine[]>(this.loadMedicines());
+
+  constructor() {
+    this.syncWithBackend();
+  }
+
+  syncWithBackend(): void {
+    this.api.getMedicines().subscribe({
+      next: (backendMeds) => {
+        if (backendMeds && backendMeds.length > 0) {
+          const mapped: Medicine[] = backendMeds.map((m: any) => ({
+            id: String(m.id || m.brandName),
+            brandName: m.brandName,
+            genericName: m.genericName,
+            category: m.category,
+            manufacturer: m.manufacturer,
+            hsnCode: m.hsnCode,
+            gstRate: Number(m.gstRate),
+            packaging: m.packaging,
+            unitsPerPack: Number(m.unitsPerPack) || 1,
+            unitLabel: m.unitLabel || 'Unit',
+            rackLocation: m.rackLocation || 'Rack A-1',
+            isScheduleH: !!m.isScheduleH,
+            isScheduleH1: !!m.isScheduleH1,
+            isNarcotic: !!m.isNarcotic,
+            reorderLevel: Number(m.reorderLevel) || 10,
+            defaultReorderQty: Number(m.defaultReorderQty) || 20,
+            batches: (m.batches || []).map((b: any) => ({
+              id: String(b.id || b.batchNumber),
+              batchNumber: b.batchNumber,
+              mfgDate: b.mfgDate,
+              expiryDate: b.expiryDate,
+              purchasePrice: Number(b.purchasePrice),
+              mrp: Number(b.mrp),
+              salePrice: Number(b.salePrice),
+              stockPacks: Number(b.stockPacks)
+            })),
+            totalStockPacks: Number(m.totalStockPacks) || 0
+          }));
+          this.medicines.set(mapped);
+          this.saveMedicines(mapped);
+        }
+      },
+      error: () => {
+        // Backend offline, fallback to local storage smoothly
+      }
+    });
+  }
 
   readonly categories: MedicineCategory[] = [
     'Tablet',
@@ -139,6 +188,43 @@ export class InventoryService {
 
     const updated = [newMedicine, ...this.medicines()];
     this.saveMedicines(updated);
+
+    // Sync with Spring Boot backend
+    this.api.addMedicine({
+      brandName: data.brandName.trim(),
+      genericName: data.genericName.trim(),
+      category: data.category,
+      manufacturer: data.manufacturer.trim(),
+      hsnCode: data.hsnCode.trim(),
+      gstRate: Number(data.gstRate),
+      packaging: data.packaging.trim(),
+      unitsPerPack: Number(data.unitsPerPack) || 1,
+      unitLabel: data.unitLabel.trim() || 'Unit',
+      rackLocation: data.rackLocation.trim(),
+      isScheduleH: !!data.isScheduleH,
+      isScheduleH1: !!data.isScheduleH1,
+      isNarcotic: !!data.isNarcotic,
+      reorderLevel: Number(data.reorderLevel) || 10,
+      defaultReorderQty: Number(data.defaultReorderQty) || 20,
+      initialBatch: {
+        batchNumber: data.initialBatch.batchNumber.toUpperCase().trim(),
+        mfgDate: data.initialBatch.mfgDate,
+        expiryDate: data.initialBatch.expiryDate,
+        purchasePrice: Number(data.initialBatch.purchasePrice),
+        mrp: Number(data.initialBatch.mrp),
+        salePrice: Number(data.initialBatch.salePrice),
+        stockPacks: Number(data.initialBatch.stockPacks)
+      }
+    }).subscribe({
+      next: (created) => {
+        if (created?.id) {
+          newMedicine.id = String(created.id);
+          this.saveMedicines([...this.medicines()]);
+        }
+      },
+      error: () => {}
+    });
+
     return newMedicine;
   }
 
@@ -161,6 +247,22 @@ export class InventoryService {
     });
 
     this.saveMedicines(updated);
+
+    const numericId = parseInt(medicineId.replace(/\D/g, ''), 10);
+    if (numericId) {
+      this.api.addBatch(numericId, {
+        batchNumber: batchData.batchNumber.toUpperCase().trim(),
+        mfgDate: batchData.mfgDate,
+        expiryDate: batchData.expiryDate,
+        purchasePrice: Number(batchData.purchasePrice),
+        mrp: Number(batchData.mrp),
+        salePrice: Number(batchData.salePrice),
+        stockPacks: Number(batchData.stockPacks)
+      }).subscribe({
+        next: () => {},
+        error: () => {}
+      });
+    }
   }
 
   deductStock(medicineId: string, batchId: string, packsToDeduct: number): void {

@@ -2,6 +2,7 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { StoreOrder, PrescribedOrderItem, OrderPatientInfo, OrderStatus, OrderPaymentMethod } from '../models/order.model';
 import { User } from '../models/auth.model';
 import { AuthService } from './auth.service';
+import { ApiService } from './api.service';
 
 export const INITIAL_ORDERS: StoreOrder[] = [
   {
@@ -137,8 +138,74 @@ export const INITIAL_ORDERS: StoreOrder[] = [
 export class OrderService {
   private readonly ORDERS_STORAGE_KEY = 'medi_store_orders_v1';
   private authService = inject(AuthService);
+  private api = inject(ApiService);
 
   readonly orders = signal<StoreOrder[]>(this.loadOrders());
+
+  constructor() {
+    this.syncOrdersFromBackend();
+  }
+
+  syncOrdersFromBackend(): void {
+    this.api.getOrders().subscribe({
+      next: (backendOrders) => {
+        if (backendOrders && backendOrders.length > 0) {
+          const mapped: StoreOrder[] = backendOrders.map((o: any) => ({
+            id: String(o.id || o.orderNumber),
+            orderNumber: o.orderNumber,
+            orderType: o.orderType,
+            storeId: String(o.storeId || 'store-1'),
+            storeName: o.storeName || 'MediCare Pharmacy',
+            placedBy: {
+              userId: String(o.userId || ''),
+              userName: o.userName || '',
+              userRole: o.userRole || 'CUSTOMER',
+              userPhone: o.userPhone || '',
+              doctorRegNo: o.doctorRegNo,
+              doctorSpecialty: o.doctorSpecialty
+            },
+            patient: {
+              patientName: o.patientName,
+              patientAge: o.patientAge,
+              patientGender: o.patientGender,
+              patientPhone: o.patientPhone,
+              diagnosis: o.diagnosis
+            },
+            items: (o.items || []).map((i: any) => ({
+              medicineId: String(i.medicineId),
+              medicineName: i.medicineName,
+              genericName: i.genericName,
+              packaging: i.packaging,
+              quantity: Number(i.quantity),
+              unitPrice: Number(i.unitPrice),
+              total: Number(i.total),
+              dosage: i.dosage,
+              timing: i.timing,
+              durationDays: i.durationDays
+            })),
+            prescriptionNotes: o.prescriptionNotes,
+            deliveryAddress: o.deliveryAddress,
+            paymentMethod: o.paymentMethod,
+            paymentStatus: o.paymentStatus,
+            orderStatus: o.orderStatus,
+            totalAmount: Number(o.totalAmount),
+            createdAt: o.createdAt || new Date().toISOString(),
+            packedAt: o.packedAt,
+            dispatchedAt: o.dispatchedAt,
+            completedAt: o.completedAt,
+            auditTrail: (o.auditTrail || []).map((a: any) => ({
+              timestamp: a.timestamp,
+              action: a.action,
+              performedBy: a.performedBy
+            }))
+          }));
+          this.orders.set(mapped);
+          this.saveOrders(mapped);
+        }
+      },
+      error: () => {}
+    });
+  }
 
   // Computeds for Store Owner
   readonly pendingOrders = computed(() => {
@@ -225,6 +292,46 @@ export class OrderService {
 
     const updated = [newOrder, ...this.orders()];
     this.saveOrders(updated);
+
+    // Sync doctor order to Spring Boot backend
+    const storeNum = parseInt(data.storeId.replace(/\D/g, ''), 10) || 1;
+    const docUserIdNum = parseInt(data.doctorUser.id.replace(/\D/g, ''), 10) || 2;
+    this.api.createDoctorOrder({
+      storeId: storeNum,
+      storeName: data.storeName,
+      doctorUserId: docUserIdNum,
+      doctorName: data.doctorUser.name,
+      doctorRegNo: data.doctorUser.doctorRegNo || '',
+      doctorSpecialty: data.doctorUser.doctorSpecialty || '',
+      doctorPhone: data.doctorUser.phone || '',
+      patientName: data.patient.patientName,
+      patientAge: data.patient.patientAge,
+      patientGender: data.patient.patientGender,
+      patientPhone: data.patient.patientPhone,
+      diagnosis: data.patient.diagnosis,
+      prescriptionNotes: data.prescriptionNotes,
+      deliveryAddress: data.deliveryAddress,
+      paymentMethod: data.paymentMethod,
+      items: data.items.map(i => ({
+        medicineId: parseInt(i.medicineId.replace(/\D/g, ''), 10) || 1,
+        medicineName: i.medicineName,
+        genericName: i.genericName,
+        packaging: i.packaging,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        dosage: i.dosage,
+        timing: i.timing,
+        durationDays: i.durationDays
+      }))
+    }).subscribe({
+      next: (res) => {
+        if (res?.orderNumber) {
+          console.log('Doctor prescription registered in Spring Boot MySQL:', res.orderNumber);
+        }
+      },
+      error: () => {}
+    });
+
     return newOrder;
   }
 
@@ -273,6 +380,43 @@ export class OrderService {
 
     const updated = [newOrder, ...this.orders()];
     this.saveOrders(updated);
+
+    // Sync customer order to Spring Boot backend
+    const storeNum = parseInt(data.storeId.replace(/\D/g, ''), 10) || 1;
+    const custUserIdNum = parseInt(data.customerUser.id.replace(/\D/g, ''), 10) || 3;
+    this.api.createCustomerOrder({
+      storeId: storeNum,
+      storeName: data.storeName,
+      customerUserId: custUserIdNum,
+      customerName: data.customerUser.name,
+      customerPhone: data.customerUser.phone || '',
+      patientName: data.patient.patientName,
+      patientAge: data.patient.patientAge,
+      patientGender: data.patient.patientGender,
+      patientPhone: data.patient.patientPhone,
+      diagnosis: data.patient.diagnosis,
+      deliveryAddress: data.deliveryAddress,
+      paymentMethod: data.paymentMethod,
+      items: data.items.map(i => ({
+        medicineId: parseInt(i.medicineId.replace(/\D/g, ''), 10) || 1,
+        medicineName: i.medicineName,
+        genericName: i.genericName,
+        packaging: i.packaging,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        dosage: i.dosage,
+        timing: i.timing,
+        durationDays: i.durationDays
+      }))
+    }).subscribe({
+      next: (res) => {
+        if (res?.orderNumber) {
+          console.log('Customer order registered in Spring Boot MySQL:', res.orderNumber);
+        }
+      },
+      error: () => {}
+    });
+
     return newOrder;
   }
 
@@ -310,5 +454,18 @@ export class OrderService {
     });
 
     this.saveOrders(updated);
+
+    // Sync status change with Spring Boot backend
+    const numId = parseInt(orderId.replace(/\D/g, ''), 10);
+    if (numId) {
+      this.api.updateOrderStatus(numId, {
+        newStatus,
+        performedByName,
+        notes: note || ''
+      }).subscribe({
+        next: () => {},
+        error: () => {}
+      });
+    }
   }
 }

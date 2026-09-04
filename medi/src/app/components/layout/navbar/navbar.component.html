@@ -70,6 +70,30 @@
 
     <!-- Right User Profile & Role Switcher -->
     <div class="user-role-section">
+      <!-- Live Spring Boot Backend Connection Status Pill -->
+      <button 
+        type="button" 
+        class="backend-status-pill" 
+        [class.status-online]="backendStatus() === 'ONLINE'"
+        [class.status-offline]="backendStatus() === 'OFFLINE'"
+        [class.status-checking]="backendStatus() === 'CHECKING'"
+        (click)="checkBackend()" 
+        title="Spring Boot REST API (Java 21, port 8080) - Click to test connection & sync">
+        <span class="status-indicator-dot"></span>
+        <div class="backend-info">
+          <span class="backend-label">
+            @if (backendStatus() === 'ONLINE') { Spring Boot API }
+            @else if (backendStatus() === 'CHECKING') { Connecting... }
+            @else { Local Mode }
+          </span>
+          <span class="backend-port">
+            @if (backendStatus() === 'ONLINE') { :8080 Online 🟢 }
+            @else if (backendStatus() === 'CHECKING') { Probing... ⏳ }
+            @else { Click to Sync 🔄 }
+          </span>
+        </div>
+      </button>
+
       <div class="active-user-pill" (click)="showLoginModal.set(true)" title="Click to switch role (Store Owner, Doctor, Customer)">
         <div class="user-avatar-circle">{{ currentUser().avatarIcon }}</div>
         <div class="user-meta">

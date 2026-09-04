@@ -1,5 +1,6 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { User, UserRole, PartnerStore } from '../models/auth.model';
+import { ApiService } from './api.service';
 
 export const DEMO_USERS: User[] = [
   {
@@ -84,6 +85,7 @@ export const PARTNER_STORES: PartnerStore[] = [
 })
 export class AuthService {
   private readonly USER_STORAGE_KEY = 'medi_auth_user_v1';
+  private api = inject(ApiService);
 
   readonly currentUser = signal<User>(this.loadInitialUser());
   readonly partnerStores = signal<PartnerStore[]>(PARTNER_STORES);
@@ -93,6 +95,66 @@ export class AuthService {
   readonly isOwner = computed(() => this.currentUser().role === 'STORE_OWNER');
   readonly isDoctor = computed(() => this.currentUser().role === 'DOCTOR');
   readonly isCustomer = computed(() => this.currentUser().role === 'CUSTOMER');
+
+  constructor() {
+    this.syncWithBackend();
+  }
+
+  syncWithBackend(): void {
+    // Fetch partner stores from Spring Boot backend
+    this.api.getPartnerStores().subscribe({
+      next: (stores) => {
+        if (stores && stores.length > 0) {
+          const mapped: PartnerStore[] = stores.map((s: any) => ({
+            id: String(s.id),
+            name: s.name,
+            address: s.address,
+            phone: s.phone,
+            email: s.email,
+            dlNumber: s.dlNumber,
+            gstin: s.gstin,
+            distance: s.distance || '0.5 km',
+            rating: Number(s.rating) || 4.8,
+            isOpen: s.isOpen ?? true,
+            deliveryAvailable: s.deliveryAvailable ?? true,
+            codAvailable: s.codAvailable ?? true
+          }));
+          this.partnerStores.set(mapped);
+          if (!this.selectedStore() || !mapped.some(st => st.id === this.selectedStore().id)) {
+            this.selectedStore.set(mapped[0]);
+          }
+        }
+      },
+      error: () => {}
+    });
+
+    // Fetch user profiles from Spring Boot backend
+    this.api.getUsers().subscribe({
+      next: (users) => {
+        if (users && users.length > 0) {
+          const activeRole = this.currentUser().role;
+          const matching = users.find((u: any) => u.role === activeRole);
+          if (matching) {
+            this.currentUser.set({
+              id: String(matching.id),
+              name: matching.name,
+              email: matching.email,
+              role: matching.role,
+              phone: matching.phone,
+              avatarIcon: matching.avatarIcon || (matching.role === 'STORE_OWNER' ? '🏪' : matching.role === 'DOCTOR' ? '🩺' : '👤'),
+              storeId: matching.storeId ? String(matching.storeId) : undefined,
+              storeName: matching.storeName,
+              doctorRegNo: matching.doctorRegNo,
+              doctorSpecialty: matching.doctorSpecialty,
+              clinicAddress: matching.clinicAddress,
+              customerAddress: matching.customerAddress
+            });
+          }
+        }
+      },
+      error: () => {}
+    });
+  }
 
   private loadInitialUser(): User {
     try {

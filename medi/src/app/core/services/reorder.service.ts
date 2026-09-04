@@ -2,6 +2,7 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { InventoryService } from './inventory.service';
 import { Supplier, ReorderItem, PurchaseOrder } from '../models/supplier.model';
 import { INITIAL_SUPPLIERS } from '../data/initial-data';
+import { ApiService } from './api.service';
 
 @Injectable({
   providedIn: 'root'
@@ -11,9 +12,40 @@ export class ReorderService {
   private readonly REORDER_STORAGE = 'medi_reorders_v1';
 
   private inventoryService = inject(InventoryService);
+  private api = inject(ApiService);
 
   readonly suppliers = signal<Supplier[]>(this.loadSuppliers());
   readonly customReorderOverrides = signal<Record<string, { customQty: number; supplierId: string; notes: string; approved: boolean }>>(this.loadOverrides());
+
+  constructor() {
+    this.syncSuppliersFromBackend();
+  }
+
+  syncSuppliersFromBackend(): void {
+    this.api.getSuppliers().subscribe({
+      next: (backendSups) => {
+        if (backendSups && backendSups.length > 0) {
+          const mapped: Supplier[] = backendSups.map((s: any) => ({
+            id: String(s.id),
+            name: s.name,
+            contactPerson: s.contactPerson || s.name,
+            phone: s.phone || '',
+            whatsappNumber: s.whatsappNumber || s.phone || '',
+            email: s.email || '',
+            drugLicenseNo: s.drugLicenseNo || s.dlNumber || 'MH-MZ4-20B-10928',
+            dlNumber: s.dlNumber || s.drugLicenseNo || 'MH-MZ4-20B-10928',
+            address: s.address || 'Industrial Estate, Mumbai',
+            gstin: s.gstin || '27AABCS1234F1Z5',
+            paymentTerms: s.paymentTerms || '30 Days Credit',
+            rating: Number(s.rating) || 4.5,
+            leadTimeDays: Number(s.leadTimeDays) || 2
+          }));
+          this.suppliers.set(mapped);
+        }
+      },
+      error: () => {}
+    });
+  }
 
   // Compute all reorder items by looking at low-stock medicines
   readonly activeReorders = computed<ReorderItem[]>(() => {
