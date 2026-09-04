@@ -43,6 +43,7 @@ public class Medicine {
 
     private Integer reorderLevel; // Minimum threshold
     private Integer defaultReorderQty; // Suggested replenish qty
+    private String barcode; // EAN-13 or GS1 Barcode
 
     @OneToMany(mappedBy = "medicine", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonManagedReference

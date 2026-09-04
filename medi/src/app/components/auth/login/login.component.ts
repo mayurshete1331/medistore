@@ -1,0 +1,146 @@
+import { Component, inject, signal, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Router, ActivatedRoute } from '@angular/router';
+import { ApiService } from '../../../core/services/api.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { UserRole } from '../../../core/models/auth.model';
+
+@Component({
+  selector: 'app-login',
+  standalone: true,
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  templateUrl: './login.component.html',
+  styleUrls: ['./login.component.scss']
+})
+export class LoginComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private api = inject(ApiService);
+  private authService = inject(AuthService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+
+  isLoading = signal<boolean>(false);
+  errorMessage = signal<string | null>(null);
+  showPassword = signal<boolean>(false);
+  returnUrl = '/billing';
+
+  loginForm: FormGroup = this.fb.group({
+    email: ['owner@medicare.com', [Validators.required, Validators.email]],
+    password: ['123456', [Validators.required, Validators.minLength(4)]],
+    rememberMe: [true]
+  });
+
+  // Pre-configured accounts for easy one-tap filling during evaluation
+  readonly demoAccounts = [
+    {
+      role: 'STORE_OWNER' as UserRole,
+      title: 'Store Owner',
+      name: 'Rajesh Patel',
+      store: 'MediCare Pharmacy',
+      email: 'owner@medicare.com',
+      icon: '🏪',
+      badgeClass: 'badge-owner'
+    },
+    {
+      role: 'DOCTOR' as UserRole,
+      title: 'Partner Doctor',
+      name: 'Dr. Sneha Roy, MD',
+      store: 'Affiliated: MediCare Pharmacy',
+      email: 'dr.sneha@clinic.org',
+      icon: '🩺',
+      badgeClass: 'badge-doctor'
+    },
+    {
+      role: 'CUSTOMER' as UserRole,
+      title: 'Registered Customer',
+      name: 'Vikram Malhotra',
+      store: 'Affiliated: MediCare Pharmacy',
+      email: 'vikram.m@gmail.com',
+      icon: '👤',
+      badgeClass: 'badge-customer'
+    }
+  ];
+
+  ngOnInit(): void {
+    this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '';
+    // If user is already logged in, redirect them to their portal
+    if (this.authService.isLoggedIn()) {
+      this.redirectToRolePortal(this.authService.currentUser()?.role || 'STORE_OWNER');
+    }
+  }
+
+  fillAccount(acc: typeof this.demoAccounts[0]): void {
+    this.loginForm.patchValue({
+      email: acc.email,
+      password: '123456'
+    });
+    this.errorMessage.set(null);
+  }
+
+  togglePasswordVisibility(): void {
+    this.showPassword.update(v => !v);
+  }
+
+  onSubmit(): void {
+    if (this.loginForm.invalid) {
+      this.loginForm.markAllAsTouched();
+      return;
+    }
+
+    const { email, password } = this.loginForm.value;
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
+
+    this.api.login({ email, password }).subscribe({
+      next: (res) => {
+        this.isLoading.set(false);
+        if (res && res.user) {
+          const user = {
+            id: String(res.user.id),
+            name: res.user.name,
+            email: res.user.email,
+            role: res.user.role as UserRole,
+            phone: res.user.phone || '',
+            avatarIcon: res.user.avatarIcon || (res.user.role === 'STORE_OWNER' ? '🏪' : res.user.role === 'DOCTOR' ? '🩺' : '👤'),
+            storeId: res.user.storeId ? String(res.user.storeId) : undefined,
+            storeName: res.user.storeName,
+            doctorRegNo: res.user.doctorRegNo,
+            doctorSpecialty: res.user.doctorSpecialty,
+            clinicAddress: res.user.clinicAddress,
+            customerAddress: res.user.customerAddress
+          };
+          this.authService.login(user, res.token);
+          this.redirectToRolePortal(user.role);
+        } else {
+          this.errorMessage.set('Invalid login response from server.');
+        }
+      },
+      error: (err) => {
+        this.isLoading.set(false);
+        if (err.status === 401) {
+          this.errorMessage.set('Invalid email address or password. Please verify your credentials.');
+        } else if (err.status === 0 || err.name === 'TimeoutError') {
+          this.errorMessage.set('Cannot connect to backend server. Please make sure Spring Boot is running on port 8081.');
+        } else {
+          this.errorMessage.set(err.error?.message || 'Authentication failed. Please try again.');
+        }
+      }
+    });
+  }
+
+  private redirectToRolePortal(role: UserRole): void {
+    if (this.returnUrl && this.returnUrl !== '/login') {
+      this.router.navigateByUrl(this.returnUrl);
+      return;
+    }
+
+    if (role === 'DOCTOR') {
+      this.router.navigate(['/doctor']);
+    } else if (role === 'CUSTOMER') {
+      this.router.navigate(['/customer']);
+    } else {
+      this.router.navigate(['/billing']);
+    }
+  }
+}

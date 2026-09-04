@@ -6,11 +6,12 @@ import { BillingService } from '../../../core/services/billing.service';
 import { Medicine, Batch } from '../../../core/models/medicine.model';
 import { CustomerInfo, Invoice, PaymentMode, SaleUnitType } from '../../../core/models/bill.model';
 import { InvoiceModalComponent } from '../invoice-modal/invoice-modal.component';
+import { BarcodeScannerModalComponent } from '../../common/barcode-scanner-modal/barcode-scanner-modal.component';
 
 @Component({
   selector: 'app-pos-screen',
   standalone: true,
-  imports: [CommonModule, FormsModule, InvoiceModalComponent],
+  imports: [CommonModule, FormsModule, InvoiceModalComponent, BarcodeScannerModalComponent],
   templateUrl: './pos-screen.component.html',
   styleUrls: ['./pos-screen.component.scss']
 })
@@ -22,6 +23,8 @@ export class PosScreenComponent {
   selectedPaymentMode = signal<PaymentMode>('CASH');
   showUpiQrModal = signal(false);
   showInvoiceModal = signal(false);
+  showScannerModal = signal(false);
+  scanToastMessage = signal<string | null>(null);
   completedInvoice = signal<Invoice | null>(null);
 
   // Customer Form State
@@ -61,12 +64,66 @@ export class PosScreenComponent {
       event.preventDefault();
       const input = document.getElementById('pos-search-input');
       input?.focus();
+    } else if (event.key === 'F4') {
+      event.preventDefault();
+      this.showScannerModal.set(!this.showScannerModal());
     } else if (event.key === 'F9' && this.cart().length > 0) {
       event.preventDefault();
       this.completeSale('CASH');
-    } else if (event.key === 'Escape' && this.searchResults().length > 0) {
-      this.searchQuery.set('');
+    } else if (event.key === 'Escape') {
+      if (this.showScannerModal()) {
+        this.showScannerModal.set(false);
+      } else if (this.searchResults().length > 0) {
+        this.searchQuery.set('');
+      }
     }
+  }
+
+  onBarcodeScanned(code: string): void {
+    const trimmed = code.trim().toLowerCase();
+    if (!trimmed) return;
+
+    // Search by barcode, batch number, or brand name
+    const found = this.medicines().find(m => 
+      (m.barcode && m.barcode.toLowerCase() === trimmed) ||
+      m.batches.some(b => b.batchNumber.toLowerCase() === trimmed) ||
+      m.brandName.toLowerCase() === trimmed
+    ) || this.medicines().find(m => m.brandName.toLowerCase().includes(trimmed));
+
+    if (found) {
+      const targetBatch = found.batches.length > 0 ? found.batches[0] : null;
+      if (targetBatch) {
+        this.billingService.addToCart(found, targetBatch, 'FULL_PACK', 1);
+        this.showToast(`✓ Scanned & Added: ${found.brandName} (Batch: ${targetBatch.batchNumber})`);
+      } else {
+        this.showToast(`⚠️ ${found.brandName} is Out of Stock`);
+      }
+    } else {
+      this.showToast(`⚠️ No medicine found for barcode: ${code}`);
+    }
+  }
+
+  handleSearchEnter(): void {
+    const q = this.searchQuery().trim();
+    if (!q) return;
+
+    const results = this.searchResults();
+    if (results.length > 0) {
+      this.onSelectMedicine(results[0]);
+      this.showToast(`✓ Added: ${results[0].brandName} to cart`);
+    } else {
+      this.onBarcodeScanned(q);
+    }
+    this.searchQuery.set('');
+  }
+
+  private showToast(msg: string): void {
+    this.scanToastMessage.set(msg);
+    setTimeout(() => {
+      if (this.scanToastMessage() === msg) {
+        this.scanToastMessage.set(null);
+      }
+    }, 3200);
   }
 
   onSelectMedicine(med: Medicine, batch?: Batch): void {

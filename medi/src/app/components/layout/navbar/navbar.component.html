@@ -11,6 +11,7 @@
         <div class="brand-title">
           <span>Medi</span><span class="highlight">Store</span>
           <span class="store-badge">ERP & Multi-Portal</span>
+          <span class="env-badge" [class]="'env-' + currentEnv.toLowerCase()">{{ currentEnv }}</span>
         </div>
         <div class="brand-subtitle">DL: MH-MZ4-20B-10928 • GSTIN: 27AABCM1122D1Z9</div>
       </div>
@@ -49,6 +50,11 @@
           }
         </a>
 
+        <a routerLink="/history" routerLinkActive="active" class="nav-link history-link">
+          <span class="icon">📜</span>
+          <span class="label">Store History</span>
+        </a>
+
         <a routerLink="/analytics" routerLinkActive="active" class="nav-link">
           <span class="icon">📊</span>
           <span class="label">P&L Analytics</span>
@@ -78,7 +84,7 @@
         [class.status-offline]="backendStatus() === 'OFFLINE'"
         [class.status-checking]="backendStatus() === 'CHECKING'"
         (click)="checkBackend()" 
-        title="Spring Boot REST API (Java 21, port 8080) - Click to test connection & sync">
+        title="Spring Boot REST API (Java 21, port 8081 with JWT) - Click to test connection & sync">
         <span class="status-indicator-dot"></span>
         <div class="backend-info">
           <span class="backend-label">
@@ -87,30 +93,49 @@
             @else { Local Mode }
           </span>
           <span class="backend-port">
-            @if (backendStatus() === 'ONLINE') { :8080 Online 🟢 }
+            @if (backendStatus() === 'ONLINE') { :8081 Online 🟢 }
             @else if (backendStatus() === 'CHECKING') { Probing... ⏳ }
             @else { Click to Sync 🔄 }
           </span>
         </div>
       </button>
 
-      <div class="active-user-pill" (click)="showLoginModal.set(true)" title="Click to switch role (Store Owner, Doctor, Customer)">
-        <div class="user-avatar-circle">{{ currentUser().avatarIcon }}</div>
-        <div class="user-meta">
-          <span class="role-badge" [class.badge-owner]="isOwner()" [class.badge-doc]="isDoctor()" [class.badge-cust]="isCustomer()">
-            {{ isOwner() ? 'Store Owner' : (isDoctor() ? 'Doctor' : 'Customer') }}
-          </span>
-          <span class="user-name">{{ currentUser().name }}</span>
-        </div>
-        <button type="button" class="btn-switch-role">
-          Switch ⇄
+      @if (isOwner()) {
+        <button 
+          type="button" 
+          class="btn-nav-add-client" 
+          (click)="showAddClientModal.set(true)"
+          title="Affiliate a new Customer or Doctor with this Store">
+          <span class="icon">➕</span>
+          <span class="btn-text">Add Dr. / Client</span>
         </button>
-      </div>
+      }
+
+      @if (isLoggedIn()) {
+        <div class="active-user-pill">
+          <div class="user-avatar-circle">{{ currentUser().avatarIcon }}</div>
+          <div class="user-meta">
+            <span class="role-badge" [class.badge-owner]="isOwner()" [class.badge-doc]="isDoctor()" [class.badge-cust]="isCustomer()">
+              {{ isOwner() ? 'Store Owner' : (isDoctor() ? 'Doctor' : 'Customer') }}
+            </span>
+            <span class="user-name">{{ currentUser().name }}</span>
+          </div>
+          <button type="button" class="btn-logout" (click)="logout()" title="Logout and terminate session">
+            Logout ⎋
+          </button>
+        </div>
+      } @else {
+        <a routerLink="/login" class="btn-signin-nav">
+          <span class="icon">👤</span>
+          <span>Sign In</span>
+        </a>
+      }
     </div>
   </div>
 </header>
 
-<!-- Login / Role Switcher Modal -->
-@if (showLoginModal()) {
-  <app-login-modal (closed)="showLoginModal.set(false)"></app-login-modal>
+<!-- Add Customer / Doctor Modal -->
+@if (showAddClientModal()) {
+  <app-add-client-modal (closed)="showAddClientModal.set(false)"></app-add-client-modal>
 }
+

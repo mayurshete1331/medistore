@@ -1,0 +1,254 @@
+<div class="history-page">
+  <!-- Top Header Banner -->
+  <div class="page-header">
+    <div class="header-content">
+      <div class="header-icon-box">📜</div>
+      <div class="header-details">
+        <div class="title-row">
+          <h1>Store Audit & Activity History</h1>
+          <span class="live-pill"><span class="dot"></span> Live MySQL Synced</span>
+        </div>
+        <p class="store-subtitle">
+          Auditing activities for: <strong>{{ currentStore?.name || 'MediCare Pharmacy' }}</strong> (DL: {{ currentStore?.dlNumber || '20B/MH-MZ4-10928' }})
+        </p>
+      </div>
+    </div>
+
+    <!-- Quick Action Bar -->
+    <div class="header-actions">
+      <button class="btn btn-secondary" (click)="loadHistory()" [disabled]="isLoading()" title="Refresh latest history">
+        <span class="icon" [class.spinning]="isLoading()">🔄</span> Refresh
+      </button>
+      <button class="btn btn-outline" (click)="openNoteModal()">
+        <span class="icon">📝</span> Log Store Note
+      </button>
+      <button class="btn btn-primary" (click)="openAddClientModal()">
+        <span class="icon">➕</span> Add Doctor / Customer
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Summary Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card" (click)="setFilter('ALL')" [class.active-kpi]="selectedFilter() === 'ALL'">
+      <div class="kpi-icon icon-blue">📋</div>
+      <div class="kpi-body">
+        <span class="kpi-label">Total Events</span>
+        <span class="kpi-value">{{ totalEvents() }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card" (click)="setFilter('SALE_BILLING')" [class.active-kpi]="selectedFilter() === 'SALE_BILLING'">
+      <div class="kpi-icon icon-green">💳</div>
+      <div class="kpi-body">
+        <span class="kpi-label">Sales & POS Bills</span>
+        <span class="kpi-value">{{ totalSales() }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card" (click)="setFilter('CUSTOMER_ADDED')" [class.active-kpi]="selectedFilter() === 'CUSTOMER_ADDED'">
+      <div class="kpi-icon icon-purple">👥</div>
+      <div class="kpi-body">
+        <span class="kpi-label">Clients Affiliated</span>
+        <span class="kpi-value">{{ totalClients() }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card" (click)="setFilter('INVENTORY_CHANGE')" [class.active-kpi]="selectedFilter() === 'INVENTORY_CHANGE'">
+      <div class="kpi-icon icon-amber">📦</div>
+      <div class="kpi-body">
+        <span class="kpi-label">Stock & Catalog</span>
+        <span class="kpi-value">{{ totalInventory() }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter & Search Controls -->
+  <div class="controls-card">
+    <div class="filter-pills">
+      <button 
+        type="button" 
+        class="filter-pill" 
+        [class.active]="selectedFilter() === 'ALL'"
+        (click)="setFilter('ALL')">
+        All History ({{ totalEvents() }})
+      </button>
+      <button 
+        type="button" 
+        class="filter-pill" 
+        [class.active]="selectedFilter() === 'CUSTOMER_ADDED'"
+        (click)="setFilter('CUSTOMER_ADDED')">
+        👤 Customers
+      </button>
+      <button 
+        type="button" 
+        class="filter-pill" 
+        [class.active]="selectedFilter() === 'DOCTOR_ADDED'"
+        (click)="setFilter('DOCTOR_ADDED')">
+        🩺 Doctors
+      </button>
+      <button 
+        type="button" 
+        class="filter-pill" 
+        [class.active]="selectedFilter() === 'SALE_BILLING'"
+        (click)="setFilter('SALE_BILLING')">
+        💳 POS Bills
+      </button>
+      <button 
+        type="button" 
+        class="filter-pill" 
+        [class.active]="selectedFilter() === 'ORDER_RECEIVED'"
+        (click)="setFilter('ORDER_RECEIVED')">
+        📥 Prescriptions
+      </button>
+      <button 
+        type="button" 
+        class="filter-pill" 
+        [class.active]="selectedFilter() === 'INVENTORY_CHANGE'"
+        (click)="setFilter('INVENTORY_CHANGE')">
+        📊 Inventory
+      </button>
+      <button 
+        type="button" 
+        class="filter-pill" 
+        [class.active]="selectedFilter() === 'MANUAL_NOTE'"
+        (click)="setFilter('MANUAL_NOTE')">
+        📝 Store Notes
+      </button>
+    </div>
+
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input 
+        type="text" 
+        [(ngModel)]="searchTerm" 
+        placeholder="Filter logs by keyword, customer, bill #, doctor..." />
+      <button *ngIf="searchTerm()" class="clear-search" (click)="searchTerm.set('')">✕</button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="isLoading()">
+    <div class="spinner-large">⏳</div>
+    <p>Fetching store history audit from MySQL database...</p>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!isLoading() && filteredLogs().length === 0">
+    <div class="empty-icon">📂</div>
+    <h3>No store history events found</h3>
+    <p *ngIf="searchTerm() || selectedFilter() !== 'ALL'">
+      No records matched your search or category filter. Try clearing filters.
+    </p>
+    <p *ngIf="!searchTerm() && selectedFilter() === 'ALL'">
+      This store currently has no recorded events. All POS bills, customer registrations, and doctor affiliations will appear here automatically.
+    </p>
+    <button class="btn btn-primary" (click)="setFilter('ALL'); searchTerm.set('')">Reset Filters</button>
+  </div>
+
+  <!-- Chronological Timeline Stream -->
+  <div class="timeline-container" *ngIf="!isLoading() && filteredLogs().length > 0">
+    <div class="timeline-stream">
+      <div 
+        class="timeline-item" 
+        *ngFor="let log of filteredLogs()">
+        
+        <!-- Left Spine / Marker -->
+        <div class="timeline-marker">
+          <div class="marker-dot" [ngClass]="getEventBadgeClass(log.eventType)">
+            <span>{{ getEventIcon(log.eventType) }}</span>
+          </div>
+          <div class="marker-line"></div>
+        </div>
+
+        <!-- Right Content Card -->
+        <div class="timeline-card">
+          <div class="card-header">
+            <div class="header-meta">
+              <span class="event-badge" [ngClass]="getEventBadgeClass(log.eventType)">
+                {{ log.eventType.replace('_', ' ') }}
+              </span>
+              <span class="ref-tag" *ngIf="log.referenceId">
+                Ref: <strong>{{ log.referenceId }}</strong>
+              </span>
+              <span class="amount-tag" *ngIf="log.amount">
+                ₹{{ log.amount | number:'1.2-2' }}
+              </span>
+            </div>
+
+            <div class="timestamp-meta">
+              <span class="clock-icon">🕒</span>
+              <span class="timestamp-text">{{ log.timestamp | date:'dd MMM yyyy, hh:mm a' }}</span>
+            </div>
+          </div>
+
+          <div class="card-body">
+            <h3 class="event-title">{{ log.title }}</h3>
+            <p class="event-desc">{{ log.description }}</p>
+          </div>
+
+          <div class="card-footer">
+            <div class="actor-info">
+              <span class="actor-label">Performed by:</span>
+              <span class="actor-name">{{ log.performedBy }}</span>
+            </div>
+            <div class="db-audit-stamp">
+              <span class="shield-icon">🛡️</span> Audited Record #{{ log.id }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual Note Modal -->
+  <div class="modal-backdrop" *ngIf="showNoteModal()" (click)="closeNoteModal()">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-icon">📝</span>
+          <h3>Log Store Audit Note</h3>
+        </div>
+        <button class="close-x" (click)="closeNoteModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="note-title">Note Subject / Activity Title <span class="req">*</span></label>
+          <input 
+            id="note-title" 
+            type="text" 
+            [(ngModel)]="noteTitle" 
+            placeholder="e.g. Monthly Physical Stock Verification / Drug Inspector Inspection" />
+        </div>
+
+        <div class="form-group">
+          <label for="note-desc">Detailed Description & Notes <span class="req">*</span></label>
+          <textarea 
+            id="note-desc" 
+            rows="4" 
+            [(ngModel)]="noteDescription" 
+            placeholder="Document any relevant information, audit details, decisions, or store incidents..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeNoteModal()">Cancel</button>
+        <button 
+          class="btn btn-primary" 
+          (click)="submitNote()" 
+          [disabled]="isSubmittingNote() || !noteTitle().trim() || !noteDescription().trim()">
+          <span *ngIf="isSubmittingNote()">⏳ Saving...</span>
+          <span *ngIf="!isSubmittingNote()">Save Audit Note</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Client Modal -->
+  <app-add-client-modal 
+    *ngIf="showAddClientModal()" 
+    (closed)="showAddClientModal.set(false)"
+    (clientAdded)="onClientAdded()">
+  </app-add-client-modal>
+</div>

@@ -2,6 +2,13 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, map, of, tap, timeout } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import {
+  StoreClient,
+  StoreClientsResponse,
+  StoreHistoryLog,
+  AddCustomerRequest,
+  AddDoctorRequest
+} from '../models/store-client-history.model';
 
 export type BackendStatus = 'ONLINE' | 'OFFLINE' | 'CHECKING';
 
@@ -63,9 +70,19 @@ export class ApiService {
     );
   }
 
-  login(req: { email: string; role?: string }): Observable<any> {
+  login(req: { email: string; role?: string; password?: string }): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/auth/login`, req).pipe(
-      tap(() => this.backendStatus.set('ONLINE')),
+      tap(res => {
+        this.backendStatus.set('ONLINE');
+        if (res?.token) {
+          try {
+            localStorage.setItem('medi_jwt_token', res.token);
+            if (res.refreshToken) {
+              localStorage.setItem('medi_refresh_token', res.refreshToken);
+            }
+          } catch (e) {}
+        }
+      }),
       catchError(err => {
         this.backendStatus.set('OFFLINE');
         throw err;
@@ -288,6 +305,86 @@ export class ApiService {
 
   getTopSellingMedicines(): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/analytics/top-selling`).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  // ==========================================
+  // Store Clients & Affiliations (/api/stores)
+  // ==========================================
+  addStoreCustomer(storeId: number | string, data: AddCustomerRequest): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/stores/${storeId}/customers`, data).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  addStoreDoctor(storeId: number | string, data: AddDoctorRequest): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/stores/${storeId}/doctors`, data).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  getStoreClients(storeId: number | string, role?: string): Observable<StoreClientsResponse> {
+    let params = new HttpParams();
+    if (role) params = params.set('role', role);
+    return this.http.get<StoreClientsResponse>(`${this.baseUrl}/stores/${storeId}/clients`, { params }).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  getAffiliatedStores(userId: number | string): Observable<any[]> {
+    const params = new HttpParams().set('userId', userId.toString());
+    return this.http.get<any[]>(`${this.baseUrl}/auth/stores/affiliated`, { params }).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  // ==========================================
+  // Store History & Audit Log (/api/stores/{storeId}/history)
+  // ==========================================
+  getStoreHistory(storeId: number | string, filter?: { eventType?: string; search?: string; limit?: number }): Observable<StoreHistoryLog[]> {
+    let params = new HttpParams();
+    if (filter?.eventType && filter.eventType !== 'ALL') {
+      params = params.set('eventType', filter.eventType);
+    }
+    if (filter?.search && filter.search.trim()) {
+      params = params.set('search', filter.search.trim());
+    }
+    if (filter?.limit) {
+      params = params.set('limit', filter.limit.toString());
+    }
+
+    return this.http.get<StoreHistoryLog[]>(`${this.baseUrl}/stores/${storeId}/history`, { params }).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  addStoreHistoryNote(storeId: number | string, data: { title: string; description: string; performedBy: string; eventType?: string }): Observable<StoreHistoryLog> {
+    return this.http.post<StoreHistoryLog>(`${this.baseUrl}/stores/${storeId}/history`, data).pipe(
       tap(() => this.backendStatus.set('ONLINE')),
       catchError(err => {
         this.backendStatus.set('OFFLINE');

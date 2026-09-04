@@ -430,6 +430,9 @@
     .search-header {
       padding: 0.85rem 1rem;
       border-bottom: 1px solid var(--slate-200);
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
 
       .search-field-wrap {
         position: relative;
@@ -469,6 +472,64 @@
           cursor: pointer;
         }
       }
+
+      .btn-scanner-launch {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        background: linear-gradient(135deg, #0284c7, #0369a1);
+        color: #ffffff;
+        border: none;
+        padding: 0.5rem 0.9rem;
+        border-radius: var(--radius-md, 8px);
+        font-weight: 700;
+        font-size: 0.82rem;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(2, 132, 199, 0.25);
+        transition: all 0.15s ease;
+
+        &:hover {
+          background: linear-gradient(135deg, #0369a1, #075985);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 8px rgba(2, 132, 199, 0.35);
+        }
+
+        .scanner-icon {
+          font-size: 1rem;
+        }
+
+        .shortcut-pill {
+          background: rgba(255, 255, 255, 0.25);
+          padding: 1px 6px;
+          border-radius: 4px;
+          font-size: 0.68rem;
+          font-family: var(--font-mono, monospace);
+        }
+      }
+    }
+
+    .scan-toast-banner {
+      background: #f0fdf4;
+      border-bottom: 1px solid #bbf7d0;
+      color: #166534;
+      padding: 0.45rem 1rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      animation: bannerSlide 0.2s ease;
+
+      .toast-icon {
+        color: #15803d;
+        font-size: 0.9rem;
+      }
+    }
+
+    @keyframes bannerSlide {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .medicine-results-list {

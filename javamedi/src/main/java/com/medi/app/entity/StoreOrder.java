@@ -75,7 +75,7 @@ public class StoreOrder {
     private List<OrderItem> items = new ArrayList<>();
 
     @OneToMany(mappedBy = "storeOrder", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonManagedReference
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Builder.Default
     private List<OrderAuditLog> auditTrail = new ArrayList<>();
 }

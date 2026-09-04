@@ -21,11 +21,11 @@ export class DoctorPortalComponent {
 
   currentUser = this.authService.currentUser;
   partnerStores = this.authService.partnerStores;
-  selectedStoreId = signal(this.partnerStores()[0].id);
+  selectedStoreId = signal(this.authService.selectedStore()?.id || (this.partnerStores()[0]?.id || '1'));
 
   // Selected Store Object
   selectedStore = computed(() => {
-    return this.partnerStores().find(s => s.id === this.selectedStoreId()) || this.partnerStores()[0];
+    return this.partnerStores().find(s => s.id === this.selectedStoreId()) || this.authService.selectedStore() || this.partnerStores()[0] || null;
   });
 
   // Mode: DRUG_PICKER or PRESCRIPTION_PAD

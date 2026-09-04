@@ -55,6 +55,39 @@
         border: 1px solid var(--primary-200);
         font-weight: 700;
       }
+
+      .env-badge {
+        font-size: 0.65rem;
+        font-weight: 800;
+        padding: 2px 7px;
+        border-radius: 4px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+
+        &.env-dev {
+          background: #eff6ff;
+          color: #1d4ed8;
+          border: 1px solid #bfdbfe;
+        }
+
+        &.env-qa {
+          background: #fdf4ff;
+          color: #a21caf;
+          border: 1px solid #f5d0fe;
+        }
+
+        &.env-stage {
+          background: #fffbeb;
+          color: #b45309;
+          border: 1px solid #fde68a;
+        }
+
+        &.env-prod {
+          background: #f0fdf4;
+          color: #15803d;
+          border: 1px solid #bbf7d0;
+        }
+      }
     }
 
     .brand-subtitle {
@@ -235,6 +268,31 @@
       }
     }
 
+    .btn-nav-add-client {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #ffffff;
+      border: none;
+      padding: 0.45rem 0.85rem;
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+      transition: all 0.2s ease;
+
+      &:hover {
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        transform: translateY(-1px);
+      }
+
+      .icon {
+        font-size: 0.9rem;
+      }
+    }
+
     .active-user-pill {
       display: flex;
       align-items: center;
@@ -278,21 +336,44 @@
         }
       }
 
-      .btn-switch-role {
-        background: var(--slate-200);
-        border: none;
-        padding: 2px 7px;
-        border-radius: 4px;
-        font-size: 0.68rem;
+      .btn-logout {
+        background: #fee2e2;
+        border: 1px solid #fca5a5;
+        padding: 4px 9px;
+        border-radius: 6px;
+        font-size: 0.72rem;
         font-weight: 700;
-        color: var(--slate-700);
+        color: #b91c1c;
         cursor: pointer;
-        margin-left: 0.25rem;
+        margin-left: 0.4rem;
+        transition: all 0.15s ease;
 
         &:hover {
-          background: var(--slate-300);
-          color: var(--slate-900);
+          background: #ef4444;
+          color: #ffffff;
+          border-color: #ef4444;
+          box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
         }
+      }
+    }
+
+    .btn-signin-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: linear-gradient(135deg, #0f766e, #0d9488);
+      color: #ffffff;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-full);
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);
+      transition: all 0.15s ease;
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(15, 118, 110, 0.35);
       }
     }
   }

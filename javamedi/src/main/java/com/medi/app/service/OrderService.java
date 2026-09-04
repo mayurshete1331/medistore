@@ -22,6 +22,7 @@ public class OrderService {
 
     private final StoreOrderRepository storeOrderRepository;
     private final UserRepository userRepository;
+    private final StoreHistoryService storeHistoryService;
 
     public List<StoreOrder> getAllOrders() {
         return storeOrderRepository.findAllByOrderByCreatedAtDesc();
@@ -113,9 +114,19 @@ public class OrderService {
                 .performedBy(doctor.getName() + " (MCI: " + doctor.getDoctorRegNo() + ")")
                 .storeOrder(order)
                 .build();
-        order.getAuditTrail().add(auditLog);
+        StoreOrder saved = storeOrderRepository.save(order);
 
-        return storeOrderRepository.save(order);
+        storeHistoryService.recordLog(
+                saved.getStoreId(),
+                "ORDER_RECEIVED",
+                "Doctor Prescription Received: " + saved.getOrderNumber(),
+                "Doctor " + doctor.getName() + " prescribed " + saved.getItems().size() + " items for patient " + saved.getPatientName() + " (Diagnosis: " + saved.getDiagnosis() + ", Total: ₹" + saved.getTotalAmount() + ").",
+                doctor.getName(),
+                saved.getOrderNumber(),
+                saved.getTotalAmount()
+        );
+
+        return saved;
     }
 
     @Transactional
@@ -181,9 +192,19 @@ public class OrderService {
                 .performedBy(customer.getName())
                 .storeOrder(order)
                 .build();
-        order.getAuditTrail().add(auditLog);
+        StoreOrder saved = storeOrderRepository.save(order);
 
-        return storeOrderRepository.save(order);
+        storeHistoryService.recordLog(
+                saved.getStoreId(),
+                "ORDER_RECEIVED",
+                "Customer Order Placed: " + saved.getOrderNumber(),
+                "Customer " + customer.getName() + " ordered " + saved.getItems().size() + " items via " + saved.getPaymentMethod() + " for ₹" + saved.getTotalAmount() + ".",
+                customer.getName(),
+                saved.getOrderNumber(),
+                saved.getTotalAmount()
+        );
+
+        return saved;
     }
 
     @Transactional
@@ -212,8 +233,18 @@ public class OrderService {
                 .storeOrder(order)
                 .build();
 
-        order.getAuditTrail().add(auditLog);
+        StoreOrder saved = storeOrderRepository.save(order);
 
-        return storeOrderRepository.save(order);
+        storeHistoryService.recordLog(
+                saved.getStoreId(),
+                "ORDER_STATUS",
+                "Order Status: " + saved.getOrderNumber() + " -> " + req.getNewStatus(),
+                "Order " + saved.getOrderNumber() + " transitioned to " + req.getNewStatus() + " by " + (req.getPerformedBy() != null ? req.getPerformedBy() : "Store Staff") + ".",
+                req.getPerformedBy() != null ? req.getPerformedBy() : "Store Pharmacist",
+                saved.getOrderNumber(),
+                saved.getTotalAmount()
+        );
+
+        return saved;
     }
 }

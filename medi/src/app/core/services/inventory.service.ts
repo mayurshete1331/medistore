@@ -1,6 +1,5 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { Medicine, Batch, MedicineCategory } from '../models/medicine.model';
-import { INITIAL_MEDICINES } from '../data/initial-data';
 import { ApiService } from './api.service';
 
 @Injectable({
@@ -116,7 +115,7 @@ export class InventoryService {
     } catch (e) {
       console.warn('Failed to read from localStorage, using initial medicines', e);
     }
-    return INITIAL_MEDICINES;
+    return [];
   }
 
   private saveMedicines(meds: Medicine[]): void {
@@ -303,6 +302,6 @@ export class InventoryService {
 
   resetToDefault(): void {
     localStorage.removeItem(this.STORAGE_KEY);
-    this.medicines.set(INITIAL_MEDICINES);
+    this.syncWithBackend();
   }
 }

@@ -1,7 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { InventoryService } from './inventory.service';
 import { Supplier, ReorderItem, PurchaseOrder } from '../models/supplier.model';
-import { INITIAL_SUPPLIERS } from '../data/initial-data';
 import { ApiService } from './api.service';
 
 @Injectable({
@@ -103,7 +102,7 @@ export class ReorderService {
     } catch (e) {
       console.warn('Failed to load suppliers', e);
     }
-    return INITIAL_SUPPLIERS;
+    return [];
   }
 
   private loadOverrides(): Record<string, { customQty: number; supplierId: string; notes: string; approved: boolean }> {

@@ -11,17 +11,22 @@ import java.util.List;
 @Repository
 public interface MedicineRepository extends JpaRepository<Medicine, Long> {
 
-    @Query("SELECT m FROM Medicine m WHERE " +
-           "LOWER(m.brandName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(m.genericName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(m.manufacturer) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(m.rackLocation) LIKE LOWER(CONCAT('%', :query, '%'))")
-    List<Medicine> searchMedicines(@Param("query") String query);
+       @Query("SELECT m FROM Medicine m WHERE " +
+                     "LOWER(m.brandName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+                     "LOWER(m.genericName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+                     "LOWER(m.manufacturer) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+                     "LOWER(m.barcode) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+                     "LOWER(m.rackLocation) LIKE LOWER(CONCAT('%', :query, '%'))")
+       List<Medicine> searchMedicines(@Param("query") String query);
 
-    List<Medicine> findByCategory(String category);
+       java.util.Optional<Medicine> findByBarcode(String barcode);
 
-    @Query("SELECT m FROM Medicine m JOIN m.batches b " +
-           "GROUP BY m " +
-           "HAVING SUM(b.stockPacks) <= m.reorderLevel")
-    List<Medicine> findLowStockMedicines();
+       java.util.Optional<Medicine> findByBrandName(String brandName);
+
+       List<Medicine> findByCategory(String category);
+
+       @Query("SELECT m FROM Medicine m JOIN m.batches b " +
+                     "GROUP BY m " +
+                     "HAVING SUM(b.stockPacks) <= m.reorderLevel")
+       List<Medicine> findLowStockMedicines();
 }

@@ -1,0 +1,102 @@
+<div class="scanner-modal-backdrop" (click)="closeModal()">
+  <div class="scanner-modal-dialog" (click)="$event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="scanner-header">
+      <div class="title-group">
+        <span class="icon">📷</span>
+        <div>
+          <h3>Barcode & QR Drug Scanner</h3>
+          <p class="subtitle">Live Camera Viewfinder • Handheld USB Scanner Gun • Quick Simulator</p>
+        </div>
+      </div>
+      <button type="button" class="btn-close" (click)="closeModal()">✕</button>
+    </div>
+
+    <!-- Scanner Body -->
+    <div class="scanner-body">
+
+      <!-- Success Flash Banner -->
+      @if (scanSuccess()) {
+        <div class="scan-success-banner">
+          <span class="icon">✓</span>
+          <div class="text">
+            <strong>Barcode Captured!</strong>
+            <span class="barcode-num">{{ scanSuccess() }}</span>
+          </div>
+        </div>
+      }
+
+      <!-- Camera Viewfinder Box -->
+      <div class="camera-viewport-wrap" [class.success-glow]="scanSuccess()">
+        @if (isCameraActive()) {
+          <video #videoElement class="camera-video-feed" playsinline muted></video>
+        } @else {
+          <div class="camera-placeholder">
+            <span class="cam-icon">📹</span>
+            <p>{{ cameraError() || 'Initializing Camera Feed...' }}</p>
+          </div>
+        }
+
+        <!-- Sci-Fi Targeting Box & Animated Laser -->
+        <div class="viewfinder-overlay">
+          <div class="reticle-box">
+            <div class="corner-tl"></div>
+            <div class="corner-tr"></div>
+            <div class="corner-bl"></div>
+            <div class="corner-br"></div>
+            <div class="laser-scanner-line"></div>
+          </div>
+          <div class="aim-hint">Center barcode or QR code in frame</div>
+        </div>
+      </div>
+
+      <!-- Hardware USB Scanner & Manual Input -->
+      <div class="hardware-input-section">
+        <label for="manual-barcode-input">Handheld USB / Bluetooth Scanner Input:</label>
+        <div class="input-row">
+          <input 
+            id="manual-barcode-input"
+            type="text" 
+            [(ngModel)]="manualCode" 
+            (keydown.enter)="submitManual()"
+            placeholder="Scan with USB gun or type barcode (e.g. 890111700101)..." 
+            class="barcode-input"
+            autofocus
+          />
+          <button type="button" class="btn btn-primary btn-scan" (click)="submitManual()">
+            Submit Code ↵
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick-Scan Drug Simulator Pills -->
+      <div class="quick-drugs-section">
+        <div class="section-title">
+          <span>⚡ Instant Drug Scan Simulator (Click to Test):</span>
+        </div>
+        <div class="drug-pills-list">
+          @for (drug of quickDrugs; track drug.barcode) {
+            <button type="button" class="drug-pill" (click)="simulateScan(drug)">
+              <span class="pill-name">{{ drug.name }}</span>
+              <span class="pill-meta">{{ drug.packaging }}</span>
+              <span class="pill-code">🏷️ {{ drug.barcode }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="scanner-footer">
+      <div class="scanner-tip">
+        <span>💡 <strong>Tip:</strong> Point USB barcode reader gun at any physical strip. Press <kbd>Esc</kbd> to close.</span>
+      </div>
+      <button type="button" class="btn btn-secondary" (click)="closeModal()">
+        Cancel
+      </button>
+    </div>
+
+  </div>
+</div>

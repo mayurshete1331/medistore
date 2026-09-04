@@ -1,0 +1,34 @@
+server:
+  port: 8082
+
+spring:
+  config:
+    activate:
+      on-profile: qa
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:medi_db_qa}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:1234}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.MySQLDialect
+    open-in-view: false
+
+app:
+  environment: QA
+  cookies:
+    secure: false
+
+logging:
+  level:
+    com.medi.app: INFO
+    org.springframework.security: INFO
+    org.springframework.web: INFO

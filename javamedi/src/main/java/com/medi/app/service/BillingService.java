@@ -18,6 +18,7 @@ public class BillingService {
 
     private final InvoiceRepository invoiceRepository;
     private final InventoryService inventoryService;
+    private final StoreHistoryService storeHistoryService;
 
     public List<Invoice> getAllInvoices() {
         return invoiceRepository.findAllByOrderByTimestampDesc();
@@ -113,8 +114,19 @@ public class BillingService {
         for (InvoiceItem item : invoiceItems) {
             item.setInvoice(invoice);
         }
-        invoice.setItems(invoiceItems);
+        Invoice saved = invoiceRepository.save(invoice);
 
-        return invoiceRepository.save(invoice);
+        // Record in Store History
+        storeHistoryService.recordLog(
+                1L,
+                "SALE_BILLING",
+                "Counter POS Bill: " + saved.getInvoiceNumber(),
+                "Invoice " + saved.getInvoiceNumber() + " billed for ₹" + saved.getGrandTotal() + " (" + saved.getItems().size() + " items, " + saved.getPaymentMode() + ") to " + saved.getCustomerName() + ".",
+                saved.getDispensedBy(),
+                saved.getInvoiceNumber(),
+                saved.getGrandTotal()
+        );
+
+        return saved;
     }
 }

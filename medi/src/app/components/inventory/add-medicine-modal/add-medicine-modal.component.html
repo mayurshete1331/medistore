@@ -12,6 +12,44 @@
       <button type="button" class="btn-close" (click)="closed.emit()">✕</button>
     </div>
 
+    <!-- Quick Presets Bar -->
+    @if (quickPresets().length > 0) {
+      <div class="quick-presets-bar">
+        <span class="preset-label">⚡ Quick Fill Presets:</span>
+        <div class="preset-pills">
+          @for (preset of quickPresets(); track preset.brandName) {
+            <button
+              type="button"
+              class="pill-btn"
+              (click)="selectSuggestion(preset)"
+              title="Click to auto-fill {{ preset.brandName }}"
+            >
+              {{ preset.brandName }}
+            </button>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Auto-Filled Success Alert -->
+    @if (lastAutoFilledDrug(); as drug) {
+      <div class="autofill-banner">
+        <div class="banner-icon">✨</div>
+        <div class="banner-content">
+          <div class="banner-title">
+            Auto-filled details for <strong>{{ drug.brandName }}</strong>
+            <span class="source-tag" [class.source-local]="drug.source === 'LOCAL_MASTER'" [class.source-nlm]="drug.source === 'NLM_API'">
+              {{ drug.source === 'LOCAL_MASTER' ? 'Verified Indian Pharma Catalog' : 'NLM RxTerms API' }}
+            </span>
+          </div>
+          <div class="banner-sub">
+            All 14 fields (generic salt, HSN {{ drug.hsnCode }}, GST {{ drug.gstRate }}%, pack {{ drug.packaging }}, pricing) were filled. You can adjust any values below.
+          </div>
+        </div>
+        <button type="button" class="btn-dismiss-banner" (click)="clearAutoFilledNotice()" title="Dismiss">✕</button>
+      </div>
+    }
+
     <!-- Form -->
     <form [formGroup]="medicineForm" (ngSubmit)="onSubmit()" class="modal-body">
       
@@ -19,11 +57,81 @@
       <div class="form-section">
         <h3 class="section-title">1. Drug Identification & Details</h3>
         <div class="form-grid-3">
-          <div class="form-group">
-            <label>Brand Name *</label>
-            <input type="text" formControlName="brandName" placeholder="e.g. Augmentin 625 Duo" class="form-control" />
+          
+          <!-- Brand Name with Auto-Suggest -->
+          <div class="form-group brand-field-container">
+            <div class="label-row">
+              <label for="brandNameInput">Brand Name *</label>
+              @if (isLoading()) {
+                <span class="api-status-badge">
+                  <span class="pulse-dot"></span> Searching APIs...
+                </span>
+              }
+            </div>
+
+            <div class="input-wrapper">
+              <input
+                id="brandNameInput"
+                type="text"
+                formControlName="brandName"
+                placeholder="Type 2+ letters (e.g. Augmentin, Dolo, Pan...)"
+                class="form-control"
+                (focus)="onBrandFocus()"
+                (blur)="onBrandBlur()"
+                (keydown)="onKeyDown($event)"
+                autocomplete="off"
+              />
+              @if (isLoading()) {
+                <span class="input-spinner" title="Querying drug databases">⌛</span>
+              }
+            </div>
+
+            <!-- Floating Auto-Suggest Dropdown -->
+            @if (showSuggestions() && suggestions().length > 0) {
+              <div class="suggestions-dropdown" (mousedown)="$event.preventDefault()">
+                <div class="dropdown-header">
+                  <span>SUGGESTED MEDICINES ({{ suggestions().length }})</span>
+                  <span class="dropdown-tip">↑↓ navigate, Enter / Click to auto-fill</span>
+                </div>
+                <div class="suggestions-list">
+                  @for (item of suggestions(); track item.brandName + item.genericName; let i = $index) {
+                    <div
+                      class="suggestion-item"
+                      [class.highlighted]="selectedSuggestionIndex() === i"
+                      (click)="selectSuggestion(item)"
+                    >
+                      <div class="item-main">
+                        <div class="item-title-row">
+                          <span class="item-brand">{{ item.brandName }}</span>
+                          <span class="source-badge" [class.badge-local]="item.source === 'LOCAL_MASTER'" [class.badge-nlm]="item.source === 'NLM_API'">
+                            {{ item.source === 'LOCAL_MASTER' ? 'Indian Pharma' : 'NLM RxTerms API' }}
+                          </span>
+                          <span class="item-cat-badge">{{ item.category }}</span>
+                        </div>
+                        <div class="item-salt">{{ item.genericName }}</div>
+                        <div class="item-meta">
+                          <span><strong>Mfg:</strong> {{ item.manufacturer }}</span>
+                          <span>•</span>
+                          <span><strong>Pack:</strong> {{ item.packaging }}</span>
+                          <span>•</span>
+                          <span><strong>HSN:</strong> {{ item.hsnCode }} ({{ item.gstRate }}% GST)</span>
+                          @if (item.mrp) {
+                            <span>•</span>
+                            <span class="item-mrp"><strong>MRP:</strong> ₹{{ item.mrp }}</span>
+                          }
+                        </div>
+                      </div>
+                      <div class="item-btn-col">
+                        <button type="button" class="btn-autofill">Auto-fill ↵</button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
             @if (medicineForm.get('brandName')?.touched && medicineForm.get('brandName')?.invalid) {
-              <span class="err-text">Brand name is required</span>
+              <span class="err-text">Brand name is required (min 2 chars)</span>
             }
           </div>
 

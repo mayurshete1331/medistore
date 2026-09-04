@@ -8,12 +8,13 @@ import { AuthService } from '../../../core/services/auth.service';
 import { OrderService } from '../../../core/services/order.service';
 import { ReorderService } from '../../../core/services/reorder.service';
 import { ApiService } from '../../../core/services/api.service';
-import { LoginModalComponent } from '../../auth/login-modal/login-modal.component';
+import { AddClientModalComponent } from '../../clients/add-client-modal/add-client-modal.component';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive, LoginModalComponent],
+  imports: [CommonModule, RouterLink, RouterLinkActive, AddClientModalComponent],
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.scss']
 })
@@ -26,12 +27,18 @@ export class NavbarComponent {
   reorderService = inject(ReorderService);
   apiService = inject(ApiService);
 
-  showLoginModal = signal(false);
+  currentEnv = environment.envName || 'DEV';
+  showAddClientModal = signal(false);
 
   currentUser = this.authService.currentUser;
+  isLoggedIn = this.authService.isLoggedIn;
   isOwner = this.authService.isOwner;
   isDoctor = this.authService.isDoctor;
   isCustomer = this.authService.isCustomer;
+
+  logout(): void {
+    this.authService.logout();
+  }
 
   lowStockCount = this.inventoryService.lowStockMedicines;
   cartCount = this.billingService.cartItemsCount;

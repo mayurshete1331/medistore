@@ -300,6 +300,7 @@
           type="text" 
           [ngModel]="searchQuery()" 
           (ngModelChange)="searchQuery.set($event)"
+          (keydown.enter)="handleSearchEnter()"
           placeholder="Search brand, generic salt, or scan barcode..."
           class="pos-search-field"
           autofocus
@@ -308,7 +309,26 @@
           <button type="button" class="btn-clear" (click)="searchQuery.set('')">✕</button>
         }
       </div>
+
+      <!-- Live Barcode / QR Camera Scanner Launch Button -->
+      <button 
+        type="button" 
+        class="btn-scanner-launch" 
+        (click)="showScannerModal.set(true)"
+        title="Open Live Camera Barcode & QR Scanner (Press F4)">
+        <span class="scanner-icon">📷</span>
+        <span class="scanner-label">Scan Barcode / QR</span>
+        <span class="shortcut-pill">F4</span>
+      </button>
     </div>
+
+    <!-- Scanner Feedback Toast -->
+    @if (scanToastMessage()) {
+      <div class="scan-toast-banner">
+        <span class="toast-icon">⚡</span>
+        <span class="toast-text">{{ scanToastMessage() }}</span>
+      </div>
+    }
 
     <!-- Search Results / Catalog Items -->
     <div class="medicine-results-list">
@@ -472,3 +492,12 @@
     (closed)="showInvoiceModal.set(false)">
   </app-invoice-modal>
 }
+
+<!-- Live Barcode / QR Scanner Modal -->
+@if (showScannerModal()) {
+  <app-barcode-scanner-modal
+    (closed)="showScannerModal.set(false)"
+    (scanned)="onBarcodeScanned($event)">
+  </app-barcode-scanner-modal>
+}
+

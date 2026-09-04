@@ -4,133 +4,7 @@ import { User } from '../models/auth.model';
 import { AuthService } from './auth.service';
 import { ApiService } from './api.service';
 
-export const INITIAL_ORDERS: StoreOrder[] = [
-  {
-    id: 'ord-101',
-    orderNumber: 'ORD-2025-0101',
-    orderType: 'DOCTOR_PRESCRIPTION',
-    storeId: 'store-1',
-    storeName: 'MediCare Pharmacy & SuperStore (Main Branch)',
-    placedBy: {
-      userId: 'user-doctor',
-      userName: 'Dr. Sneha Roy, MBBS, MD',
-      userRole: 'DOCTOR',
-      userPhone: '+91 98201 88990',
-      doctorRegNo: 'MMC-2016-89421',
-      doctorSpecialty: 'Internal Medicine & Chronic Care'
-    },
-    patient: {
-      patientName: 'Rameshwar Sharma',
-      patientAge: 54,
-      patientGender: 'Male',
-      patientPhone: '+91 98334 11223',
-      diagnosis: 'Type 2 Diabetes Mellitus with Essential Hypertension'
-    },
-    items: [
-      {
-        medicineId: 'med-5',
-        medicineName: 'Telma 40',
-        genericName: 'Telmisartan (40mg)',
-        packaging: '15 Tablets/Strip',
-        quantity: 2,
-        unitPrice: 210.00,
-        total: 420.00,
-        dosage: '1-0-0',
-        timing: 'Morning after breakfast',
-        durationDays: 30
-      },
-      {
-        medicineId: 'med-6',
-        medicineName: 'Glycomet-GP 2',
-        genericName: 'Glimepiride (2mg) + Metformin (500mg)',
-        packaging: '15 Tablets/Strip',
-        quantity: 2,
-        unitPrice: 225.00,
-        total: 450.00,
-        dosage: '1-0-1',
-        timing: 'Before meals with water',
-        durationDays: 30
-      }
-    ],
-    prescriptionNotes: 'Patient advised low sodium diet, avoid sugar. Review HbA1c in 3 months. Dispense exact salts or approved high-grade generics.',
-    deliveryAddress: 'Home Delivery to Patient: 102/B, Sai Krupa CHS, Tilak Nagar, Mumbai',
-    paymentMethod: 'COD',
-    paymentStatus: 'PENDING_COLLECTION',
-    orderStatus: 'NEW_RECEIVED',
-    totalAmount: 870.00,
-    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    auditTrail: [
-      {
-        timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
-        action: 'Prescription Order Placed by Doctor',
-        performedBy: 'Dr. Sneha Roy (Reg: MMC-2016-89421)'
-      }
-    ]
-  },
-  {
-    id: 'ord-102',
-    orderNumber: 'ORD-2025-0102',
-    orderType: 'CUSTOMER_ORDER',
-    storeId: 'store-1',
-    storeName: 'MediCare Pharmacy & SuperStore (Main Branch)',
-    placedBy: {
-      userId: 'user-customer',
-      userName: 'Vikram Malhotra',
-      userRole: 'CUSTOMER',
-      userPhone: '+91 98199 44332'
-    },
-    patient: {
-      patientName: 'Vikram Malhotra',
-      patientAge: 38,
-      patientGender: 'Male',
-      patientPhone: '+91 98199 44332',
-      diagnosis: 'Acute Fever & Viral Cold'
-    },
-    items: [
-      {
-        medicineId: 'med-2',
-        medicineName: 'Dolo 650',
-        genericName: 'Paracetamol (650mg)',
-        packaging: '15 Tablets/Strip',
-        quantity: 2,
-        unitPrice: 32.00,
-        total: 64.00,
-        dosage: 'SOS (as needed)',
-        timing: 'After meals'
-      },
-      {
-        medicineId: 'med-7',
-        medicineName: 'Ascoril D Plus Syrup',
-        genericName: 'Dextromethorphan + Phenylephrine',
-        packaging: '100ml Bottle',
-        quantity: 1,
-        unitPrice: 130.00,
-        total: 130.00,
-        dosage: '10ml TDS',
-        timing: 'After food'
-      }
-    ],
-    deliveryAddress: 'Flat 402, Green Meadows Tower, Link Road, Andheri West, Mumbai 400053',
-    paymentMethod: 'ONLINE_PAID',
-    paymentStatus: 'PAID',
-    orderStatus: 'PACKED',
-    totalAmount: 194.00,
-    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-    packedAt: new Date(Date.now() - 3600000 * 1).toISOString(),
-    auditTrail: [
-      {
-        timestamp: new Date(Date.now() - 3600000 * 4).toISOString(),
-        action: 'Direct Order Placed by Customer (Prepaid UPI)',
-        performedBy: 'Vikram Malhotra'
-      },
-      {
-        timestamp: new Date(Date.now() - 3600000 * 1).toISOString(),
-        action: 'Order Accepted & Packed with Verified Batches',
-        performedBy: 'Store Pharmacist (Rajesh Patel)'
-      }
-    ]
-  }
-];
+export const INITIAL_ORDERS: StoreOrder[] = [];
 
 @Injectable({
   providedIn: 'root'
@@ -231,7 +105,7 @@ export class OrderService {
     } catch (e) {
       console.warn('Failed to load orders from storage', e);
     }
-    return INITIAL_ORDERS;
+    return [];
   }
 
   private saveOrders(orders: StoreOrder[]): void {

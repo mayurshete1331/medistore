@@ -1,0 +1,246 @@
+<div class="modal-backdrop" (click)="close()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="modal-header">
+      <div class="header-left">
+        <div class="header-icon">🏥</div>
+        <div>
+          <h2>Affiliate Client with Store</h2>
+          <p class="subtitle">
+            Connected Store: <strong>{{ currentStore?.name || 'Main Branch' }}</strong>
+          </p>
+        </div>
+      </div>
+      <button class="close-btn" (click)="close()" title="Close">&times;</button>
+    </div>
+
+    <!-- Alert Messages -->
+    <div class="alert alert-success" *ngIf="successMessage()">
+      <span class="icon">✅</span>
+      <span>{{ successMessage() }}</span>
+    </div>
+    <div class="alert alert-error" *ngIf="errorMessage()">
+      <span class="icon">⚠️</span>
+      <span>{{ errorMessage() }}</span>
+    </div>
+
+    <!-- Mode Selector Tabs -->
+    <div class="tab-pills">
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'CUSTOMER'"
+        (click)="setTab('CUSTOMER')">
+        <span class="icon">👤</span> Add Customer
+      </button>
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'DOCTOR'"
+        (click)="setTab('DOCTOR')">
+        <span class="icon">🩺</span> Add Doctor / Clinic
+      </button>
+    </div>
+
+    <!-- Customer Form -->
+    <form *ngIf="activeTab() === 'CUSTOMER'" [formGroup]="customerForm" (ngSubmit)="submitCustomer()" class="client-form">
+      <div class="info-badge">
+        <span>💡 Customers added here will automatically see <strong>{{ currentStore?.name }}</strong> as their authorized pharmacy and can place orders / refills.</span>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label for="cust-name">Customer Full Name <span class="req">*</span></label>
+          <div class="input-wrapper">
+            <span class="field-icon">👤</span>
+            <input 
+              id="cust-name" 
+              type="text" 
+              formControlName="name" 
+              placeholder="e.g. Ramesh Chandra" />
+          </div>
+          <span class="field-error" *ngIf="customerForm.get('name')?.touched && customerForm.get('name')?.invalid">
+            Full name is required (min 2 chars).
+          </span>
+        </div>
+
+        <div class="form-group flex-1">
+          <label for="cust-phone">Mobile / WhatsApp <span class="req">*</span></label>
+          <div class="input-wrapper">
+            <span class="field-icon">📞</span>
+            <input 
+              id="cust-phone" 
+              type="tel" 
+              formControlName="phone" 
+              placeholder="+91 98765 00000" />
+          </div>
+          <span class="field-error" *ngIf="customerForm.get('phone')?.touched && customerForm.get('phone')?.invalid">
+            Valid 10-digit mobile number required.
+          </span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="cust-email">Email Address <span class="opt">(Optional)</span></label>
+        <div class="input-wrapper">
+          <span class="field-icon">✉️</span>
+          <input 
+            id="cust-email" 
+            type="email" 
+            formControlName="email" 
+            placeholder="customer@domain.com" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="cust-address">Delivery / Residential Address <span class="req">*</span></label>
+        <div class="input-wrapper">
+          <span class="field-icon">📍</span>
+          <input 
+            id="cust-address" 
+            type="text" 
+            formControlName="address" 
+            placeholder="Flat / House No, Street, Landmark, City, Pincode" />
+        </div>
+        <span class="field-error" *ngIf="customerForm.get('address')?.touched && customerForm.get('address')?.invalid">
+          Complete address required for delivery and billing.
+        </span>
+      </div>
+
+      <div class="form-group">
+        <label for="cust-notes">Internal Store Notes / Khata Credit Limit <span class="opt">(Optional)</span></label>
+        <div class="input-wrapper">
+          <span class="field-icon">📝</span>
+          <input 
+            id="cust-notes" 
+            type="text" 
+            formControlName="notes" 
+            placeholder="e.g. Regular BP patient, monthly 1st refill, ₹5000 credit limit" />
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="isSubmitting()">
+          <span class="spinner" *ngIf="isSubmitting()">⏳</span>
+          <span>Save & Affiliate Customer</span>
+        </button>
+      </div>
+    </form>
+
+    <!-- Doctor Form -->
+    <form *ngIf="activeTab() === 'DOCTOR'" [formGroup]="doctorForm" (ngSubmit)="submitDoctor()" class="client-form">
+      <div class="info-badge doctor-info">
+        <span>🩺 Partner doctors can transmit digital prescriptions directly to <strong>{{ currentStore?.name }}</strong> for fulfillment.</span>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label for="doc-name">Doctor Name (with Degree) <span class="req">*</span></label>
+          <div class="input-wrapper">
+            <span class="field-icon">🩺</span>
+            <input 
+              id="doc-name" 
+              type="text" 
+              formControlName="name" 
+              placeholder="e.g. Dr. Alok Verma, MD" />
+          </div>
+          <span class="field-error" *ngIf="doctorForm.get('name')?.touched && doctorForm.get('name')?.invalid">
+            Doctor name is required.
+          </span>
+        </div>
+
+        <div class="form-group flex-1">
+          <label for="doc-reg">Medical Council Reg. No. <span class="req">*</span></label>
+          <div class="input-wrapper">
+            <span class="field-icon">📋</span>
+            <input 
+              id="doc-reg" 
+              type="text" 
+              formControlName="doctorRegNo" 
+              placeholder="e.g. MMC-2019-54321" />
+          </div>
+          <span class="field-error" *ngIf="doctorForm.get('doctorRegNo')?.touched && doctorForm.get('doctorRegNo')?.invalid">
+            Valid Medical Council registration number required.
+          </span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label for="doc-phone">Phone / Clinic Contact <span class="req">*</span></label>
+          <div class="input-wrapper">
+            <span class="field-icon">📞</span>
+            <input 
+              id="doc-phone" 
+              type="tel" 
+              formControlName="phone" 
+              placeholder="+91 98200 11223" />
+          </div>
+          <span class="field-error" *ngIf="doctorForm.get('phone')?.touched && doctorForm.get('phone')?.invalid">
+            Contact phone number required.
+          </span>
+        </div>
+
+        <div class="form-group flex-1">
+          <label for="doc-specialty">Specialty <span class="req">*</span></label>
+          <div class="input-wrapper">
+            <span class="field-icon">⚕️</span>
+            <select id="doc-specialty" formControlName="doctorSpecialty">
+              <option *ngFor="let s of specialties" [value]="s">{{ s }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="doc-email">Email Address <span class="opt">(Optional)</span></label>
+        <div class="input-wrapper">
+          <span class="field-icon">✉️</span>
+          <input 
+            id="doc-email" 
+            type="email" 
+            formControlName="email" 
+            placeholder="doctor.name@hospital.org" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="doc-clinic">Clinic / Hospital Address <span class="req">*</span></label>
+        <div class="input-wrapper">
+          <span class="field-icon">🏥</span>
+          <input 
+            id="doc-clinic" 
+            type="text" 
+            formControlName="clinicAddress" 
+            placeholder="Room 102, Apex Medical Centre, Station Road, Mumbai" />
+        </div>
+        <span class="field-error" *ngIf="doctorForm.get('clinicAddress')?.touched && doctorForm.get('clinicAddress')?.invalid">
+          Clinic address required for prescription verification.
+        </span>
+      </div>
+
+      <div class="form-group">
+        <label for="doc-notes">Partnership Notes / Referral Terms <span class="opt">(Optional)</span></label>
+        <div class="input-wrapper">
+          <span class="field-icon">📝</span>
+          <input 
+            id="doc-notes" 
+            type="text" 
+            formControlName="notes" 
+            placeholder="e.g. Cardiology OPD Mon-Sat 5-8pm, priority delivery for emergency orders" />
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-doctor" [disabled]="isSubmitting()">
+          <span class="spinner" *ngIf="isSubmitting()">⏳</span>
+          <span>Register & Affiliate Doctor</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

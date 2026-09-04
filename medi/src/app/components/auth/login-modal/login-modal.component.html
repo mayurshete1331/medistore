@@ -7,7 +7,7 @@
         <span class="icon">🏥</span>
         <div>
           <h2>Medi Healthcare Portal Access</h2>
-          <p>Switch role or authenticate as Store Owner, Doctor, or Customer</p>
+          <p>Authenticated database users & roles fetched live from MySQL</p>
         </div>
       </div>
       <button type="button" class="btn-close" (click)="closed.emit()">✕</button>
@@ -15,34 +15,73 @@
 
     <div class="modal-body">
       
-      <!-- 1-Click Fast Role Switcher Cards -->
+      <!-- 1-Click Fast Profile Switcher Cards from MySQL -->
       <div class="demo-section">
-        <span class="section-label">⚡ 1-Click Demo Profiles (Switch Instantly)</span>
+        <div class="section-header-row">
+          <span class="section-label">⚡ Database User Profiles ({{ allUsers().length }} Loaded from MySQL)</span>
+          <div class="filter-pills">
+            <button 
+              type="button" 
+              class="pill-btn" 
+              [class.active]="roleFilter === 'ALL'"
+              (click)="roleFilter = 'ALL'">
+              All ({{ allUsers().length }})
+            </button>
+            <button 
+              type="button" 
+              class="pill-btn" 
+              [class.active]="roleFilter === 'STORE_OWNER'"
+              (click)="roleFilter = 'STORE_OWNER'">
+              🏪 Owners ({{ storeOwners().length }})
+            </button>
+            <button 
+              type="button" 
+              class="pill-btn" 
+              [class.active]="roleFilter === 'DOCTOR'"
+              (click)="roleFilter = 'DOCTOR'">
+              🩺 Doctors ({{ doctors().length }})
+            </button>
+            <button 
+              type="button" 
+              class="pill-btn" 
+              [class.active]="roleFilter === 'CUSTOMER'"
+              (click)="roleFilter = 'CUSTOMER'">
+              👤 Customers ({{ customers().length }})
+            </button>
+          </div>
+        </div>
+
         <div class="demo-cards-grid">
-          @for (u of demoUsers; track u.id) {
+          @for (u of (roleFilter === 'ALL' ? allUsers() : (roleFilter === 'STORE_OWNER' ? storeOwners() : (roleFilter === 'DOCTOR' ? doctors() : customers()))); track u.id) {
             <div 
               class="demo-card" 
               [class.is-active]="currentUser().id === u.id"
-              (click)="selectDemoUser(u)">
+              (click)="selectUser(u)"
+              title="Click to activate {{ u.name }}">
               <div class="avatar">{{ u.avatarIcon }}</div>
               <div class="info">
-                <div class="role-tag">
+                <div class="role-tag" [class.tag-owner]="u.role === 'STORE_OWNER'" [class.tag-doc]="u.role === 'DOCTOR'" [class.tag-cust]="u.role === 'CUSTOMER'">
                   {{ u.role === 'STORE_OWNER' ? 'Store Owner' : (u.role === 'DOCTOR' ? 'Practicing Doctor' : 'Retail Customer') }}
                 </div>
                 <div class="name">{{ u.name }}</div>
                 <div class="detail tabular">
                   @if (u.role === 'DOCTOR') {
-                    Reg: {{ u.doctorRegNo }}
+                    Reg: {{ u.doctorRegNo }} • {{ u.doctorSpecialty }}
                   } @else if (u.role === 'STORE_OWNER') {
                     {{ u.storeName }}
                   } @else {
-                    {{ u.phone }}
+                    {{ u.phone }} • {{ u.customerAddress }}
                   }
                 </div>
               </div>
               @if (currentUser().id === u.id) {
                 <span class="active-badge">Active</span>
               }
+            </div>
+          }
+          @if (allUsers().length === 0) {
+            <div class="loading-users-notice">
+              <span>⏳ Fetching users from Spring Boot MySQL database...</span>
             </div>
           }
         </div>
@@ -88,7 +127,7 @@
         </div>
 
         <div class="form-group">
-          <label>Password</label>
+          <label>Password (Default: 123456)</label>
           <input 
             type="password" 
             [(ngModel)]="password" 

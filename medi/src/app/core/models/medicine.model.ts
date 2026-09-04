@@ -37,6 +37,7 @@ export interface Medicine {
   isNarcotic: boolean;
   reorderLevel: number;   // Threshold in packs
   defaultReorderQty: number; // Default suggested pack qty
+  barcode?: string;       // EAN-13, GS1 DataMatrix or QR barcode
   batches: Batch[];
   totalStockPacks: number;
 }

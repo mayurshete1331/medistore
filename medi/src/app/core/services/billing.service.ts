@@ -3,7 +3,6 @@ import { Batch, Medicine } from '../models/medicine.model';
 import { CartItem, CustomerInfo, Invoice, PaymentMode, SaleUnitType } from '../models/bill.model';
 import { InventoryService } from './inventory.service';
 import { ApiService } from './api.service';
-import { INITIAL_INVOICES } from '../data/initial-data';
 
 @Injectable({
   providedIn: 'root'
@@ -152,7 +151,7 @@ export class BillingService {
     } catch (e) {
       console.warn('Failed to load invoices from storage', e);
     }
-    return INITIAL_INVOICES;
+    return [];
   }
 
   private saveInvoices(invs: Invoice[]): void {

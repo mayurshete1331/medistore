@@ -1,0 +1,114 @@
+<div class="login-wrapper">
+  <div class="login-card">
+    
+    <!-- Top Brand Header -->
+    <div class="card-header">
+      <div class="brand-logo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M12 2v20M2 12h20"/>
+        </svg>
+      </div>
+      <h2>MediStore ERP</h2>
+      <p class="subtitle">Enter your credentials to access your store, clinic, or account</p>
+    </div>
+
+    <!-- Error Alert -->
+    <div class="alert alert-error" *ngIf="errorMessage()">
+      <span class="alert-icon">⚠️</span>
+      <span>{{ errorMessage() }}</span>
+    </div>
+
+    <!-- Login Form -->
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+      
+      <!-- Email Field -->
+      <div class="form-group">
+        <label for="login-email">Registered Email Address</label>
+        <div class="input-box">
+          <span class="field-icon">✉️</span>
+          <input 
+            id="login-email" 
+            type="email" 
+            formControlName="email" 
+            placeholder="e.g. owner@medicare.com"
+            autocomplete="email" />
+        </div>
+        <span class="field-error" *ngIf="loginForm.get('email')?.touched && loginForm.get('email')?.invalid">
+          Please enter a valid email address.
+        </span>
+      </div>
+
+      <!-- Password Field -->
+      <div class="form-group">
+        <div class="label-row">
+          <label for="login-pass">Password</label>
+          <span class="pass-hint">Default: <strong>123456</strong></span>
+        </div>
+        <div class="input-box">
+          <span class="field-icon">🔒</span>
+          <input 
+            id="login-pass" 
+            [type]="showPassword() ? 'text' : 'password'" 
+            formControlName="password" 
+            placeholder="••••••••"
+            autocomplete="current-password" />
+          <button 
+            type="button" 
+            class="btn-toggle-eye" 
+            (click)="togglePasswordVisibility()" 
+            [title]="showPassword() ? 'Hide password' : 'Show password'">
+            {{ showPassword() ? '👁️' : '👁️‍🗨️' }}
+          </button>
+        </div>
+        <span class="field-error" *ngIf="loginForm.get('password')?.touched && loginForm.get('password')?.invalid">
+          Password is required (min 4 characters).
+        </span>
+      </div>
+
+      <!-- Remember Me -->
+      <div class="form-options">
+        <label class="remember-label">
+          <input type="checkbox" formControlName="rememberMe" />
+          <span>Keep me logged in</span>
+        </label>
+      </div>
+
+      <!-- Submit Button -->
+      <button type="submit" class="btn-submit" [disabled]="isLoading()">
+        <span class="spinner" *ngIf="isLoading()">⏳</span>
+        <span>{{ isLoading() ? 'Verifying & Signing In...' : 'Sign In to Portal' }}</span>
+        <span class="arrow-icon" *ngIf="!isLoading()">→</span>
+      </button>
+    </form>
+
+    <!-- Fast Account Selector Helper for Evaluation -->
+    <div class="quick-accounts-section">
+      <div class="divider">
+        <span>or sign in as an authorized role</span>
+      </div>
+
+      <div class="accounts-grid">
+        <button 
+          type="button" 
+          class="account-chip" 
+          *ngFor="let acc of demoAccounts"
+          (click)="fillAccount(acc)"
+          [title]="'Fill ' + acc.email">
+          <span class="chip-icon">{{ acc.icon }}</span>
+          <div class="chip-details">
+            <span class="chip-title">{{ acc.title }}</span>
+            <span class="chip-email">{{ acc.email }}</span>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Security Footer -->
+    <div class="card-footer">
+      <span class="security-badge">
+        <span class="lock-icon">🛡️</span> Encrypted JWT Session • MySQL Database Protected
+      </span>
+    </div>
+
+  </div>
+</div>

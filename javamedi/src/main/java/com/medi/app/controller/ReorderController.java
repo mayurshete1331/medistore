@@ -19,6 +19,9 @@ import java.util.Map;
 public class ReorderController {
 
     private final ReorderService reorderService;
+    private final com.medi.app.service.EmailNotificationService emailNotificationService;
+    private final com.medi.app.repository.MedicineRepository medicineRepository;
+    private final com.medi.app.repository.SupplierRepository supplierRepository;
 
     @GetMapping("/low-stock")
     @Operation(summary = "Get all medicines currently below their reorder threshold")
@@ -54,5 +57,29 @@ public class ReorderController {
 
         String url = reorderService.generateEmailUrl(medicineId, customQty, supplierId, notes);
         return ResponseEntity.ok(Map.of("emailUrl", url));
+    }
+
+    @PostMapping("/send-email-po/{medicineId}")
+    @Operation(summary = "Send actual Purchase Order via Gmail SMTP to distributor and admin email")
+    public ResponseEntity<Map<String, String>> sendEmailPO(
+            @PathVariable Long medicineId,
+            @RequestParam(required = false) Integer customQty,
+            @RequestParam(required = false) Long supplierId,
+            @RequestParam(required = false) String notes) {
+
+        Medicine med = medicineRepository.findById(medicineId).orElse(null);
+        if (med == null) return ResponseEntity.notFound().build();
+
+        Supplier sup = supplierId != null
+                ? supplierRepository.findById(supplierId).orElseGet(() -> supplierRepository.findAll().stream().findFirst().orElse(null))
+                : supplierRepository.findAll().stream().findFirst().orElse(null);
+
+        String supplierEmail = sup != null ? sup.getEmail() : "orders@distributor.com";
+        int qty = customQty != null ? customQty : med.getDefaultReorderQty();
+        double estPrice = med.getBatches().isEmpty() ? 100.0 : med.getBatches().get(0).getPurchasePrice();
+        double total = qty * estPrice;
+
+        emailNotificationService.sendPurchaseOrderEmail(supplierEmail, med.getBrandName(), qty, total, notes);
+        return ResponseEntity.ok(Map.of("message", "Purchase Order dispatched via Gmail SMTP successfully"));
     }
 }

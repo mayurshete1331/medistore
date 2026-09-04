@@ -1,84 +1,18 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { User, UserRole, PartnerStore } from '../models/auth.model';
 import { ApiService } from './api.service';
 
-export const DEMO_USERS: User[] = [
-  {
-    id: 'user-owner',
-    name: 'Rajesh Patel',
-    email: 'owner@medicare.com',
-    role: 'STORE_OWNER',
-    phone: '+91 98765 43210',
-    avatarIcon: '🏪',
-    storeId: 'store-1',
-    storeName: 'MediCare Pharmacy & SuperStore (Main Branch)'
-  },
-  {
-    id: 'user-doctor',
-    name: 'Dr. Sneha Roy, MBBS, MD',
-    email: 'dr.sneha@clinic.org',
-    role: 'DOCTOR',
-    phone: '+91 98201 88990',
-    avatarIcon: '🩺',
-    doctorRegNo: 'MMC-2016-89421',
-    doctorSpecialty: 'Internal Medicine & Chronic Care',
-    clinicAddress: 'Roy Medical Chambers, Suite 204, Mumbai'
-  },
-  {
-    id: 'user-customer',
-    name: 'Vikram Malhotra',
-    email: 'vikram.m@gmail.com',
-    role: 'CUSTOMER',
-    phone: '+91 98199 44332',
-    avatarIcon: '👤',
-    customerAddress: 'Flat 402, Green Meadows Tower, Link Road, Andheri West, Mumbai 400053'
-  }
-];
-
-export const PARTNER_STORES: PartnerStore[] = [
-  {
-    id: 'store-1',
-    name: 'MediCare Pharmacy & SuperStore (Main Branch)',
-    address: 'Shop 4 & 5, Health Square, Medical Zone, Mumbai 400012',
-    phone: '+91 98765 43210',
-    email: 'orders@medicare.com',
-    dlNumber: '20B/MH-MZ4-10928, 21B/MH-MZ4-10929',
-    gstin: '27AABCM1122D1Z9',
-    distance: '0.4 km',
-    rating: 4.9,
-    isOpen: true,
-    deliveryAvailable: true,
-    codAvailable: true
-  },
-  {
-    id: 'store-2',
-    name: 'HealthFirst 24x7 Chemist & Druggists',
-    address: 'Near Ruby Hall Clinic, Shivaji Nagar, Pune 411005',
-    phone: '+91 91234 56789',
-    email: 'pune@healthfirst.in',
-    dlNumber: '20B/MH-PUN-34190, 21B/MH-PUN-34191',
-    gstin: '27AABCH9988C1Z4',
-    distance: '1.8 km',
-    rating: 4.7,
-    isOpen: true,
-    deliveryAvailable: true,
-    codAvailable: true
-  },
-  {
-    id: 'store-3',
-    name: 'Apex LifeLine Pharmacy & Surgical Store',
-    address: 'G-12, Highland Complex, Majiwada, Thane West 400601',
-    phone: '+91 99887 76655',
-    email: 'care@apexlifeline.com',
-    dlNumber: '20B/MH-THN-88120, 21B/MH-THN-88121',
-    gstin: '27AABCA7766K1Z1',
-    distance: '3.2 km',
-    rating: 4.8,
-    isOpen: true,
-    deliveryAvailable: true,
-    codAvailable: true
-  }
-];
+const DEFAULT_SKELETON_USER: User = {
+  id: '1',
+  name: 'Rajesh Patel',
+  email: 'owner@medicare.com',
+  role: 'STORE_OWNER',
+  phone: '+91 98765 43210',
+  avatarIcon: '🏪',
+  storeId: '1',
+  storeName: 'MediCare Pharmacy & SuperStore (Main Branch)'
+};
 
 @Injectable({
   providedIn: 'root'
@@ -86,10 +20,18 @@ export const PARTNER_STORES: PartnerStore[] = [
 export class AuthService {
   private readonly USER_STORAGE_KEY = 'medi_auth_user_v1';
   private api = inject(ApiService);
+  private router = inject(Router);
 
+  readonly allUsers = signal<User[]>([]);
   readonly currentUser = signal<User>(this.loadInitialUser());
-  readonly partnerStores = signal<PartnerStore[]>(PARTNER_STORES);
-  readonly selectedStore = signal<PartnerStore>(PARTNER_STORES[0]);
+  readonly partnerStores = signal<PartnerStore[]>([]);
+  readonly selectedStore = signal<PartnerStore | null>(null);
+  readonly isLoggedIn = signal<boolean>(!!localStorage.getItem('medi_auth_user_v1'));
+
+  // Computed user categories fetched from DB
+  readonly storeOwners = computed(() => this.allUsers().filter(u => u.role === 'STORE_OWNER'));
+  readonly doctors = computed(() => this.allUsers().filter(u => u.role === 'DOCTOR'));
+  readonly customers = computed(() => this.allUsers().filter(u => u.role === 'CUSTOMER'));
 
   // Computed role checks
   readonly isOwner = computed(() => this.currentUser().role === 'STORE_OWNER');
@@ -101,11 +43,51 @@ export class AuthService {
   }
 
   syncWithBackend(): void {
-    // Fetch partner stores from Spring Boot backend
-    this.api.getPartnerStores().subscribe({
-      next: (stores) => {
-        if (stores && stores.length > 0) {
-          const mapped: PartnerStore[] = stores.map((s: any) => ({
+    // 1. Fetch all user profiles (Owners, Doctors, Customers) from Spring Boot MySQL backend
+    this.api.getUsers().subscribe({
+      next: (users) => {
+        if (users && users.length > 0) {
+          const mappedUsers: User[] = users.map((u: any) => ({
+            id: String(u.id),
+            name: u.name,
+            email: u.email,
+            role: u.role as UserRole,
+            phone: u.phone || '',
+            avatarIcon: u.avatarIcon || (u.role === 'STORE_OWNER' ? '🏪' : u.role === 'DOCTOR' ? '🩺' : '👤'),
+            storeId: u.storeId ? String(u.storeId) : undefined,
+            storeName: u.storeName,
+            doctorRegNo: u.doctorRegNo,
+            doctorSpecialty: u.doctorSpecialty,
+            clinicAddress: u.clinicAddress,
+            customerAddress: u.customerAddress
+          }));
+
+          this.allUsers.set(mappedUsers);
+
+          // If current user is not in the newly loaded list, match by email or fallback to first owner
+          const currentEmail = this.currentUser().email;
+          const matching = mappedUsers.find(u => u.email === currentEmail);
+          const activeUser = matching || (mappedUsers.find(u => u.role === 'STORE_OWNER') || mappedUsers[0]);
+          this.currentUser.set(activeUser);
+
+          // Load scoped stores for the active user
+          this.loadStoresForUser(activeUser);
+        } else {
+          this.loadStoresForUser(this.currentUser());
+        }
+      },
+      error: () => {
+        this.loadStoresForUser(this.currentUser());
+      }
+    });
+  }
+
+  loadStoresForUser(user: User): void {
+    if (user.role === 'DOCTOR' || user.role === 'CUSTOMER') {
+      // Scoped store visibility: only stores that have affiliated/registered this doctor or customer
+      this.api.getAffiliatedStores(user.id).subscribe({
+        next: (stores) => {
+          const mapped: PartnerStore[] = (stores || []).map((s: any) => ({
             id: String(s.id),
             name: s.name,
             address: s.address,
@@ -120,40 +102,41 @@ export class AuthService {
             codAvailable: s.codAvailable ?? true
           }));
           this.partnerStores.set(mapped);
-          if (!this.selectedStore() || !mapped.some(st => st.id === this.selectedStore().id)) {
-            this.selectedStore.set(mapped[0]);
-          }
+          this.selectedStore.set(mapped.length > 0 ? mapped[0] : null);
+        },
+        error: (err) => {
+          console.error('Failed to load affiliated stores', err);
+          this.partnerStores.set([]);
+          this.selectedStore.set(null);
         }
-      },
-      error: () => {}
-    });
-
-    // Fetch user profiles from Spring Boot backend
-    this.api.getUsers().subscribe({
-      next: (users) => {
-        if (users && users.length > 0) {
-          const activeRole = this.currentUser().role;
-          const matching = users.find((u: any) => u.role === activeRole);
-          if (matching) {
-            this.currentUser.set({
-              id: String(matching.id),
-              name: matching.name,
-              email: matching.email,
-              role: matching.role,
-              phone: matching.phone,
-              avatarIcon: matching.avatarIcon || (matching.role === 'STORE_OWNER' ? '🏪' : matching.role === 'DOCTOR' ? '🩺' : '👤'),
-              storeId: matching.storeId ? String(matching.storeId) : undefined,
-              storeName: matching.storeName,
-              doctorRegNo: matching.doctorRegNo,
-              doctorSpecialty: matching.doctorSpecialty,
-              clinicAddress: matching.clinicAddress,
-              customerAddress: matching.customerAddress
-            });
+      });
+    } else {
+      // Store Owner: Sees all partner stores or their specific owned store
+      this.api.getPartnerStores().subscribe({
+        next: (stores) => {
+          if (stores && stores.length > 0) {
+            const mapped: PartnerStore[] = stores.map((s: any) => ({
+              id: String(s.id),
+              name: s.name,
+              address: s.address,
+              phone: s.phone,
+              email: s.email,
+              dlNumber: s.dlNumber,
+              gstin: s.gstin,
+              distance: s.distance || '0.5 km',
+              rating: Number(s.rating) || 4.8,
+              isOpen: s.isOpen ?? true,
+              deliveryAvailable: s.deliveryAvailable ?? true,
+              codAvailable: s.codAvailable ?? true
+            }));
+            this.partnerStores.set(mapped);
+            const userStore = user.storeId ? mapped.find(st => st.id === user.storeId) : null;
+            this.selectedStore.set(userStore || mapped[0]);
           }
-        }
-      },
-      error: () => {}
-    });
+        },
+        error: () => {}
+      });
+    }
   }
 
   private loadInitialUser(): User {
@@ -163,20 +146,50 @@ export class AuthService {
     } catch (e) {
       console.warn('Failed to read user from storage', e);
     }
-    return DEMO_USERS[0]; // defaults to Store Owner
+    return DEFAULT_SKELETON_USER;
   }
 
   switchUser(user: User): void {
     this.currentUser.set(user);
+    this.isLoggedIn.set(true);
     try {
       localStorage.setItem(this.USER_STORAGE_KEY, JSON.stringify(user));
     } catch (e) {
       console.error('Failed to save user', e);
     }
+    this.loadStoresForUser(user);
+  }
+
+  login(user: User, token?: string): void {
+    this.currentUser.set(user);
+    this.isLoggedIn.set(true);
+    try {
+      localStorage.setItem(this.USER_STORAGE_KEY, JSON.stringify(user));
+      if (token) {
+        localStorage.setItem('medi_jwt_token', token);
+      }
+    } catch (e) {
+      console.error('Failed to save user', e);
+    }
+    this.loadStoresForUser(user);
+  }
+
+  logout(): void {
+    try {
+      localStorage.removeItem(this.USER_STORAGE_KEY);
+      localStorage.removeItem('medi_jwt_token');
+      localStorage.removeItem('medi_refresh_token');
+    } catch (e) {}
+    this.isLoggedIn.set(false);
+    this.currentUser.set(DEFAULT_SKELETON_USER);
+    this.partnerStores.set([]);
+    this.selectedStore.set(null);
+    this.router.navigate(['/login']);
   }
 
   loginAs(role: UserRole): void {
-    const found = DEMO_USERS.find(u => u.role === role) || DEMO_USERS[0];
+    const list = role === 'STORE_OWNER' ? this.storeOwners() : (role === 'DOCTOR' ? this.doctors() : this.customers());
+    const found = list[0] || this.allUsers().find(u => u.role === role) || this.currentUser();
     this.switchUser(found);
   }
 
@@ -187,3 +200,4 @@ export class AuthService {
     }
   }
 }
+
