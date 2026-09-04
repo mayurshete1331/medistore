@@ -1,0 +1,186 @@
+<div class="modal-overlay" (click)="closed.emit()">
+  <div class="modal-content invoice-modal-container" (click)="$event.stopPropagation()">
+    
+    <!-- Modal Controls (Hidden on Print) -->
+    <div class="modal-bar no-print">
+      <div class="success-title">
+        <span class="check-icon">✓</span>
+        <span>Sale Completed Successfully!</span>
+      </div>
+      <div class="btn-group">
+        <button type="button" class="btn btn-primary" (click)="printInvoice()">
+          🖨️ Print Tax Invoice
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="closed.emit()">
+          ✕ Close / New Bill
+        </button>
+      </div>
+    </div>
+
+    <!-- Printable Tax Invoice Paper -->
+    <div class="printable-invoice">
+      <!-- Pharmacy Header -->
+      <div class="pharma-header">
+        <div class="pharma-brand">
+          <h1>MEDICARE PHARMACY & SUPERSTORE</h1>
+          <p class="subtitle">Complete Medical & Healthcare Retail Store</p>
+          <p class="address">Shop No. 4 & 5, Health Avenue, Medical Square, Mumbai - 400012</p>
+          <div class="licenses tabular">
+            <span><strong>DL No:</strong> 20B/MH-MZ4-10928, 21B/MH-MZ4-10929</span>
+            <span>•</span>
+            <span><strong>GSTIN:</strong> 27AABCM1122D1Z9</span>
+          </div>
+        </div>
+        <div class="invoice-badge-box">
+          <div class="invoice-type">RETAIL TAX INVOICE</div>
+          <div class="inv-no tabular"># {{ invoice.invoiceNumber }}</div>
+          <div class="inv-date tabular">{{ invoice.timestamp | date:'medium' }}</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Customer & Doctor Details -->
+      <div class="patient-doc-grid">
+        <div class="box">
+          <span class="box-label">PATIENT / BUYER:</span>
+          <div class="box-val font-bold">{{ invoice.customer.name || 'Walk-in Customer' }}</div>
+          <div class="box-sub tabular">Mobile: {{ invoice.customer.phone || 'N/A' }}</div>
+        </div>
+
+        <div class="box">
+          <span class="box-label">PRESCRIBING DOCTOR:</span>
+          <div class="box-val font-bold">{{ invoice.customer.doctorName || 'Self / OTC' }}</div>
+          @if (invoice.customer.doctorRegNo) {
+            <div class="box-sub tabular">Reg No: {{ invoice.customer.doctorRegNo }}</div>
+          }
+        </div>
+
+        <div class="box">
+          <span class="box-label">PAYMENT METHOD:</span>
+          <div class="box-val">
+            <span class="payment-tag font-bold">{{ invoice.paymentMode }}</span>
+            <span class="status-tag">{{ invoice.paymentStatus }}</span>
+          </div>
+          <div class="box-sub">Dispensed By: {{ invoice.dispensedBy }}</div>
+        </div>
+      </div>
+
+      @if (invoice.hasScheduleH) {
+        <div class="schedule-warning">
+          ⚠️ <strong>Prescription Drug Notice:</strong> Contains Schedule H / H1 drugs dispensed under registered medical prescription.
+        </div>
+      }
+
+      <!-- Itemized Table -->
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th style="width: 3%;">#</th>
+            <th style="width: 35%;">Medicine & Composition</th>
+            <th>Batch No.</th>
+            <th>Exp Date</th>
+            <th>HSN</th>
+            <th>Qty</th>
+            <th>MRP</th>
+            <th>Rate</th>
+            <th>Disc%</th>
+            <th>GST%</th>
+            <th style="text-align: right;">Amount (₹)</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of invoice.items; track item.id; let idx = $index) {
+            <tr>
+              <td class="tabular">{{ idx + 1 }}</td>
+              <td>
+                <div class="item-name">{{ item.medicine.brandName }}</div>
+                <div class="item-salt">{{ item.medicine.genericName }}</div>
+                <div class="item-pack-tag">
+                  {{ item.saleType === 'FULL_PACK' ? item.medicine.packaging : 'Loose (' + item.medicine.unitLabel + ')' }}
+                </div>
+              </td>
+              <td class="tabular font-bold">{{ item.selectedBatch.batchNumber }}</td>
+              <td class="tabular">{{ item.selectedBatch.expiryDate }}</td>
+              <td class="tabular">{{ item.medicine.hsnCode }}</td>
+              <td class="tabular font-bold">{{ item.quantity }} {{ item.saleType === 'FULL_PACK' ? 'Packs' : item.medicine.unitLabel }}</td>
+              <td class="tabular">₹{{ item.mrp | number:'1.2-2' }}</td>
+              <td class="tabular">₹{{ item.unitPrice | number:'1.2-2' }}</td>
+              <td class="tabular">{{ item.discountPercent }}%</td>
+              <td class="tabular">{{ item.gstRate }}%</td>
+              <td class="tabular text-right font-bold">₹{{ item.total | number:'1.2-2' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <!-- Summary & Tax Breakup -->
+      <div class="invoice-bottom-grid">
+        <div class="tax-breakup">
+          <div class="section-title">GST Tax Breakdown</div>
+          <table class="tax-subtable">
+            <thead>
+              <tr>
+                <th>Tax Type</th>
+                <th>CGST (₹)</th>
+                <th>SGST (₹)</th>
+                <th>Total Tax (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Central + State Pharma Tax</td>
+                <td class="tabular">₹{{ invoice.cgst | number:'1.2-2' }}</td>
+                <td class="tabular">₹{{ invoice.sgst | number:'1.2-2' }}</td>
+                <td class="tabular font-bold">₹{{ invoice.totalTax | number:'1.2-2' }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="terms">
+            * Medicines once sold cannot be returned without bill.<br/>
+            * Store temperature-sensitive items in cold storage as instructed.
+          </div>
+        </div>
+
+        <div class="grand-total-box">
+          <div class="total-row">
+            <span>Subtotal (Excl. Tax):</span>
+            <span class="tabular">₹{{ invoice.subtotal | number:'1.2-2' }}</span>
+          </div>
+
+          @if (invoice.totalDiscount > 0) {
+            <div class="total-row text-success">
+              <span>Total Discount:</span>
+              <span class="tabular">- ₹{{ invoice.totalDiscount | number:'1.2-2' }}</span>
+            </div>
+          }
+
+          <div class="total-row">
+            <span>Total GST Tax:</span>
+            <span class="tabular">₹{{ invoice.totalTax | number:'1.2-2' }}</span>
+          </div>
+
+          <div class="total-row">
+            <span>Round Off:</span>
+            <span class="tabular">{{ invoice.roundOff >= 0 ? '+' : '' }}₹{{ invoice.roundOff | number:'1.2-2' }}</span>
+          </div>
+
+          <div class="grand-total-final">
+            <span>Grand Total:</span>
+            <span class="final-amount tabular">₹{{ invoice.grandTotal | number:'1.2-2' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Signature -->
+      <div class="invoice-footer">
+        <div class="terms-note">Thank you for choosing MediCare. Get well soon!</div>
+        <div class="sign-box">
+          <div class="line"></div>
+          <span>Authorized Pharmacist Signature</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

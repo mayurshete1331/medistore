@@ -1,0 +1,272 @@
+<div class="reorder-container">
+  
+  <!-- Page Header -->
+  <div class="page-header">
+    <div>
+      <div class="badge-row">
+        <span class="badge badge-warning">Automated Procurement</span>
+        <span class="badge badge-teal">Owner Permission Gateway</span>
+      </div>
+      <h1 class="page-title">Low Inventory Auto-Reorder Center</h1>
+      <p class="page-subtitle">
+        Automated low-stock detection with default values, customizable order quantities, and 1-click WhatsApp/Email dispatch with Store Owner's authorization.
+      </p>
+    </div>
+
+    <!-- Quick Stats & Bulk Actions -->
+    <div class="header-actions">
+      @if (pendingCount() > 0) {
+        <button type="button" class="btn btn-primary" (click)="approveAll()">
+          🛡️ Approve All ({{ pendingCount() }} Pending)
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Toast Notification Alert -->
+  @if (toastMessage()) {
+    <div class="toast-banner">
+      <span>{{ toastMessage() }}</span>
+    </div>
+  }
+
+  <!-- KPI Summary Banner -->
+  <div class="kpi-banner medi-card">
+    <div class="kpi-item">
+      <span class="label">Low Stock Medicines</span>
+      <span class="val text-warning tabular">{{ activeReorders().length }} SKUs</span>
+      <span class="sub">Stock &le; Reorder Threshold</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="kpi-item">
+      <span class="label">Owner Approval Status</span>
+      <div class="approval-stat">
+        <span class="badge badge-success">{{ approvedCount() }} Approved</span>
+        <span class="badge badge-warning">{{ pendingCount() }} Pending</span>
+      </div>
+      <span class="sub">Requires Owner Sign-off</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="kpi-item">
+      <span class="label">Total Estimated Procurement Cost</span>
+      <span class="val text-primary tabular">₹{{ totalEstimatedCost() | number:'1.2-2' }}</span>
+      <span class="sub">Based on wholesale purchase rates</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Bulk WhatsApp Supplier Trigger -->
+    <div class="bulk-order-box">
+      <span class="box-label">Consolidated Supplier Dispatch:</span>
+      <div class="bulk-controls">
+        <select 
+          [ngModel]="selectedSupplierForBulk()" 
+          (ngModelChange)="selectedSupplierForBulk.set($event)"
+          class="form-select-sm">
+          @for (sup of suppliers(); track sup.id) {
+            <option [value]="sup.id">{{ sup.name }}</option>
+          }
+        </select>
+        <button type="button" class="btn btn-sm btn-whatsapp" (click)="dispatchBulkWhatsApp()">
+          📱 Bulk WhatsApp PO
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reorder Items Table -->
+  <div class="table-card medi-card">
+    <div class="table-header">
+      <div class="title">Active Low-Stock Orders Requiring Procurement</div>
+      <div class="legend">
+        <span>💡 <strong>Default Values:</strong> Auto-calculated based on safety stock formula</span>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="reorder-table">
+        <thead>
+          <tr>
+            <th style="width: 25%;">Medicine & Composition</th>
+            <th>Stock vs Threshold</th>
+            <th>Default Qty</th>
+            <th style="width: 14%;">Custom Order Qty</th>
+            <th>Distributor / Supplier</th>
+            <th>Est. Total (₹)</th>
+            <th>Owner Authorization</th>
+            <th style="text-align: right; width: 18%;">Dispatch Channel</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of activeReorders(); track item.medicineId) {
+            <tr [class.row-approved]="item.status === 'APPROVED'">
+              
+              <!-- Medicine Details -->
+              <td>
+                <div class="med-info">
+                  <span class="med-name">{{ item.medicineName }}</span>
+                  <span class="med-generic">{{ item.genericName }}</span>
+                  <span class="pack-badge tabular">{{ item.packaging }}</span>
+                </div>
+              </td>
+
+              <!-- Stock vs Reorder Level -->
+              <td>
+                <div class="stock-progress-cell">
+                  <div class="stock-counts tabular">
+                    <span class="curr" [class.text-danger]="item.currentStockPacks <= 5">{{ item.currentStockPacks }}</span>
+                    <span class="slash">/</span>
+                    <span class="reorder">{{ item.reorderLevel }} min</span>
+                  </div>
+                  <div class="progress-bar">
+                    <div 
+                      class="progress-fill" 
+                      [style.width.%]="(item.currentStockPacks / item.reorderLevel) * 100"
+                      [class.bg-danger]="item.currentStockPacks <= 5"
+                      [class.bg-warning]="item.currentStockPacks > 5">
+                    </div>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Default Suggested Qty -->
+              <td>
+                <div class="default-qty-box tabular">
+                  <span class="qty-num">{{ item.suggestedQty }}</span>
+                  <span class="unit">Packs</span>
+                </div>
+              </td>
+
+              <!-- Custom Order Qty (User/Owner Editable) -->
+              <td>
+                <div class="custom-qty-wrapper">
+                  <input 
+                    type="number" 
+                    [ngModel]="item.customQty" 
+                    (ngModelChange)="updateQty(item.medicineId, $event)"
+                    min="1" 
+                    class="custom-qty-input tabular" 
+                  />
+                  <span class="unit-label">Packs</span>
+                </div>
+              </td>
+
+              <!-- Supplier Picker -->
+              <td>
+                <select 
+                  [ngModel]="item.supplierId" 
+                  (ngModelChange)="updateSupplier(item.medicineId, $event)"
+                  class="supplier-dropdown">
+                  @for (sup of suppliers(); track sup.id) {
+                    <option [value]="sup.id">{{ sup.name }}</option>
+                  }
+                </select>
+              </td>
+
+              <!-- Estimated Total Cost -->
+              <td class="tabular font-bold text-primary">
+                ₹{{ item.totalCost | number:'1.2-2' }}
+              </td>
+
+              <!-- Owner Authorization Toggle -->
+              <td>
+                @if (item.status === 'APPROVED') {
+                  <div class="approved-badge-wrap">
+                    <span class="badge badge-success">✓ Authorized</span>
+                    <button type="button" class="btn-link text-danger" (click)="revokeItem(item.medicineId)" title="Revoke Authorization">
+                      Revoke
+                    </button>
+                  </div>
+                } @else {
+                  <button type="button" class="btn btn-sm btn-secondary btn-approve" (click)="approveItem(item.medicineId)">
+                    🛡️ Approve Order
+                  </button>
+                }
+              </td>
+
+              <!-- Dispatch Channels -->
+              <td style="text-align: right;">
+                <div class="actions-group">
+                  <!-- WhatsApp Dispatch -->
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-whatsapp" 
+                    [disabled]="item.status !== 'APPROVED'"
+                    (click)="dispatchWhatsApp(item)"
+                    title="{{ item.status !== 'APPROVED' ? 'Requires Owner Approval first' : 'Send Purchase Order via WhatsApp' }}">
+                    <span>📱 WhatsApp</span>
+                  </button>
+
+                  <!-- Email Dispatch -->
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-email" 
+                    [disabled]="item.status !== 'APPROVED'"
+                    (click)="dispatchEmail(item)"
+                    title="{{ item.status !== 'APPROVED' ? 'Requires Owner Approval first' : 'Send Purchase Order via Email' }}">
+                    <span>✉️ Mail</span>
+                  </button>
+
+                  <!-- Restock -->
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-secondary" 
+                    (click)="markReceived(item)"
+                    title="Stock arrived and checked in">
+                    <span>📦 Received</span>
+                  </button>
+                </div>
+              </td>
+
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8" class="empty-state-cell">
+                <div class="empty-state">
+                  <span class="icon">🎉</span>
+                  <h3>Inventory Health is Optimal!</h3>
+                  <p>All medicines currently have stock levels above their minimum reorder thresholds. No automated purchase orders required right now.</p>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Workflow Explanation Card -->
+  <div class="workflow-guide medi-card">
+    <h3 class="guide-title">How Medi Automated Procurement Works</h3>
+    <div class="steps-grid">
+      <div class="step-box">
+        <div class="step-num">1</div>
+        <h4>Continuous Monitoring</h4>
+        <p>System tracks sales in real-time from the POS. When remaining stock &le; reorder threshold, an alert is triggered automatically.</p>
+      </div>
+
+      <div class="step-box">
+        <div class="step-num">2</div>
+        <h4>Suggested vs Custom Qty</h4>
+        <p>System computes default safety replenishment, but allows the owner/manager to customize exact pack quantities as needed.</p>
+      </div>
+
+      <div class="step-box">
+        <div class="step-num">3</div>
+        <h4>Owner Authorization Gate</h4>
+        <p>No distributor is messaged without explicit authorization. The store owner approves orders with a single click.</p>
+      </div>
+
+      <div class="step-box">
+        <div class="step-num">4</div>
+        <h4>Instant WhatsApp & Email Dispatch</h4>
+        <p>1-Click generates pre-formatted, legal Purchase Orders complete with DL number, packaging spec, and direct distributor chat.</p>
+      </div>
+    </div>
+  </div>
+
+</div>

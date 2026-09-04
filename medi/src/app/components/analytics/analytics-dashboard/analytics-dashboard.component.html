@@ -1,0 +1,261 @@
+<div class="analytics-container">
+  
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Profit & Loss and Medicine Sales Analytics</h1>
+      <p class="page-subtitle">Real-time financial performance, gross margin breakdown, and best-selling drug rankings</p>
+    </div>
+  </div>
+
+  <!-- Financial KPI Metrics (P&L Overview) -->
+  <div class="financial-grid">
+    <!-- Gross Sales Revenue -->
+    <div class="fin-card">
+      <div class="fin-icon teal">💵</div>
+      <div class="fin-info">
+        <span class="fin-label">Total Gross Sales (Revenue)</span>
+        <div class="fin-val tabular">₹{{ financials().totalRevenue | number:'1.2-2' }}</div>
+        <span class="fin-sub">{{ financials().totalInvoices }} Invoices Generated</span>
+      </div>
+    </div>
+
+    <!-- COGS Cost of Goods -->
+    <div class="fin-card">
+      <div class="fin-icon blue">📦</div>
+      <div class="fin-info">
+        <span class="fin-label">Cost of Goods Sold (COGS)</span>
+        <div class="fin-val tabular">₹{{ financials().totalCostOfGoods | number:'1.2-2' }}</div>
+        <span class="fin-sub">Wholesale Procurement Cost</span>
+      </div>
+    </div>
+
+    <!-- Net Gross Profit -->
+    <div class="fin-card profit-card">
+      <div class="fin-icon green">📈</div>
+      <div class="fin-info">
+        <span class="fin-label">Gross Profit</span>
+        <div class="fin-val text-success tabular">₹{{ financials().grossProfit | number:'1.2-2' }}</div>
+        <div class="margin-pill">
+          <span class="pill-label">Net Margin:</span>
+          <span class="pill-val tabular">{{ financials().netMarginPercent }}%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Units Sold -->
+    <div class="fin-card">
+      <div class="fin-icon purple">💊</div>
+      <div class="fin-info">
+        <span class="fin-label">Total Units Dispensed</span>
+        <div class="fin-val tabular">{{ financials().totalUnitsSold }} Units</div>
+        <span class="fin-sub">Across All Prescriptions</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row 1: Top-Selling Medicines & Sales Trend -->
+  <div class="charts-row">
+    
+    <!-- Top-Selling Medicines Bar Chart -->
+    <div class="chart-card medi-card">
+      <div class="chart-header">
+        <div>
+          <h2 class="chart-title">🏆 Top-Selling Medicines (By Revenue & Volume)</h2>
+          <p class="chart-subtitle">Ranked by total retail billing volume and profit contribution</p>
+        </div>
+        <span class="badge badge-teal">High Velocity SKUs</span>
+      </div>
+
+      <div class="top-medicines-list">
+        @for (med of topMedicines(); track med.medicineId; let rank = $index) {
+          <div class="med-rank-item">
+            <div class="rank-badge" [class.gold]="rank === 0" [class.silver]="rank === 1" [class.bronze]="rank === 2">
+              #{{ rank + 1 }}
+            </div>
+
+            <div class="med-details">
+              <div class="name-row">
+                <span class="brand-name">{{ med.brandName }}</span>
+                <span class="cat-tag">{{ med.category }}</span>
+              </div>
+              <div class="generic-name">{{ med.genericName }}</div>
+
+              <!-- Bar Graph Fill -->
+              <div class="bar-track">
+                <div 
+                  class="bar-fill" 
+                  [style.width.%]="(med.revenue / maxTopMedRevenue()) * 100">
+                </div>
+              </div>
+            </div>
+
+            <div class="med-numbers tabular">
+              <div class="revenue">₹{{ med.revenue | number:'1.2-2' }}</div>
+              <div class="units-profit">
+                <span>{{ med.quantitySold }} Sold</span>
+                <span>•</span>
+                <span class="text-success">+₹{{ med.profit | number:'1.0-0' }} profit</span>
+              </div>
+            </div>
+          </div>
+        } @empty {
+          <div class="no-data">
+            <p>No sales recorded yet. Process sales in the POS to view top-selling medicine rankings.</p>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Revenue vs Profit Trend Chart (SVG Multi-Series) -->
+    <div class="chart-card medi-card">
+      <div class="chart-header">
+        <div>
+          <h2 class="chart-title">📊 Revenue & Profit Trajectory</h2>
+          <p class="chart-subtitle">Daily sales revenue vs wholesale costs vs net gross profit</p>
+        </div>
+
+        <div class="trend-legend">
+          <div class="legend-item"><span class="dot rev-dot"></span> Revenue</div>
+          <div class="legend-item"><span class="dot profit-dot"></span> Profit</div>
+          <div class="legend-item"><span class="dot cost-dot"></span> Cost</div>
+        </div>
+      </div>
+
+      <!-- Interactive SVG Chart -->
+      <div class="svg-chart-wrapper">
+        <svg [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight" class="trend-svg" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#0f766e" stop-opacity="0.25"/>
+              <stop offset="100%" stop-color="#0f766e" stop-opacity="0.0"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Grid Lines -->
+          <line x1="40" y1="50" [attr.x2]="chartWidth - 20" y2="50" stroke="#e2e8f0" stroke-dasharray="4"/>
+          <line x1="40" y1="110" [attr.x2]="chartWidth - 20" y2="110" stroke="#e2e8f0" stroke-dasharray="4"/>
+          <line x1="40" y1="170" [attr.x2]="chartWidth - 20" y2="170" stroke="#e2e8f0" stroke-dasharray="4"/>
+
+          <!-- Area under Revenue -->
+          @if (salesTrends().length > 1) {
+            <path [attr.d]="getAreaPath()" fill="url(#revenueGradient)"/>
+          }
+
+          <!-- Lines -->
+          <path [attr.d]="getTrendPointsPath('revenue')" fill="none" stroke="#0f766e" stroke-width="3.5" stroke-linecap="round"/>
+          <path [attr.d]="getTrendPointsPath('cost')" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="3" stroke-linecap="round"/>
+          <path [attr.d]="getTrendPointsPath('profit')" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round"/>
+
+          <!-- Data Point Nodes -->
+          @for (pt of salesTrends(); track pt.date; let idx = $index) {
+            <!-- Revenue Node -->
+            <circle [attr.cx]="getX(idx, salesTrends().length)" [attr.cy]="getY(pt.revenue)" r="5" fill="#0f766e" stroke="#ffffff" stroke-width="2"/>
+            <!-- Profit Node -->
+            <circle [attr.cx]="getX(idx, salesTrends().length)" [attr.cy]="getY(pt.profit)" r="4" fill="#10b981" stroke="#ffffff" stroke-width="1.5"/>
+          }
+        </svg>
+
+        <!-- X-Axis Labels -->
+        <div class="x-axis-labels">
+          @for (pt of salesTrends(); track pt.date) {
+            <div class="x-label">
+              <span class="day">{{ pt.label }}</span>
+              <span class="invoices tabular">{{ pt.invoices }} Bills</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Charts Row 2: Payment Splits & Stock Health -->
+  <div class="charts-row-split">
+    
+    <!-- Payment Mode Revenue Split -->
+    <div class="chart-card medi-card">
+      <div class="chart-header">
+        <div>
+          <h2 class="chart-title">💳 Payment Channels & Cash Flow</h2>
+          <p class="chart-subtitle">Settlement breakdown across payment gateways and store counter</p>
+        </div>
+      </div>
+
+      <div class="payment-splits-grid">
+        <div class="split-box">
+          <div class="split-top">
+            <span class="icon">📱</span>
+            <span class="name">UPI Instant</span>
+          </div>
+          <div class="amount tabular">₹{{ financials().upiRevenue | number:'1.2-2' }}</div>
+          <div class="percentage tabular">
+            {{ financials().totalRevenue > 0 ? ((financials().upiRevenue / financials().totalRevenue) * 100 | number:'1.0-0') : 0 }}% of Total
+          </div>
+        </div>
+
+        <div class="split-box">
+          <div class="split-top">
+            <span class="icon">💵</span>
+            <span class="name">Cash in Counter</span>
+          </div>
+          <div class="amount tabular">₹{{ financials().cashRevenue | number:'1.2-2' }}</div>
+          <div class="percentage tabular">
+            {{ financials().totalRevenue > 0 ? ((financials().cashRevenue / financials().totalRevenue) * 100 | number:'1.0-0') : 0 }}% of Total
+          </div>
+        </div>
+
+        <div class="split-box">
+          <div class="split-top">
+            <span class="icon">💳</span>
+            <span class="name">Card / POS</span>
+          </div>
+          <div class="amount tabular">₹{{ financials().cardRevenue | number:'1.2-2' }}</div>
+          <div class="percentage tabular">
+            {{ financials().totalRevenue > 0 ? ((financials().cardRevenue / financials().totalRevenue) * 100 | number:'1.0-0') : 0 }}% of Total
+          </div>
+        </div>
+
+        <div class="split-box">
+          <div class="split-top">
+            <span class="icon">📖</span>
+            <span class="name">Khata (Customer Credit)</span>
+          </div>
+          <div class="amount tabular">₹{{ financials().khataCreditRevenue | number:'1.2-2' }}</div>
+          <div class="percentage tabular">
+            {{ financials().totalRevenue > 0 ? ((financials().khataCreditRevenue / financials().totalRevenue) * 100 | number:'1.0-0') : 0 }}% of Total
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category Revenue Contribution -->
+    <div class="chart-card medi-card">
+      <div class="chart-header">
+        <div>
+          <h2 class="chart-title">💊 Therapeutic Category Breakdown</h2>
+          <p class="chart-subtitle">Revenue contribution by pharmaceutical category</p>
+        </div>
+      </div>
+
+      <div class="category-bars-list">
+        @for (cat of categoryRevenue(); track cat.category) {
+          <div class="cat-bar-row">
+            <div class="cat-info">
+              <span class="cat-name">{{ cat.category }}</span>
+              <span class="cat-rev tabular">₹{{ cat.revenue | number:'1.2-2' }}</span>
+            </div>
+            <div class="bar-bg">
+              <div 
+                class="bar-fill" 
+                [style.width.%]="financials().totalRevenue > 0 ? (cat.revenue / financials().totalRevenue) * 100 : 0">
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+  </div>
+
+</div>

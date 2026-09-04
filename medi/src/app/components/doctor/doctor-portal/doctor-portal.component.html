@@ -1,0 +1,421 @@
+<div class="doctor-portal-container">
+  
+  <!-- Doctor Top Banner -->
+  <div class="doctor-banner medi-card">
+    <div class="doctor-profile">
+      <div class="avatar">🩺</div>
+      <div class="info">
+        <div class="badge-row">
+          <span class="badge badge-teal">Doctor Portal</span>
+          <span class="badge badge-schedule-h">Registered Medical Practitioner (RMP)</span>
+        </div>
+        <h1 class="name">{{ currentUser().name }}</h1>
+        <p class="credentials tabular">
+          Reg No: <strong>{{ currentUser().doctorRegNo }}</strong> • Specialty: {{ currentUser().doctorSpecialty }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Pre-Selected Store Picker -->
+    <div class="store-picker-box">
+      <label class="picker-label">🏥 Select Destination Medical Store / Chemist:</label>
+      <select 
+        [ngModel]="selectedStoreId()" 
+        (ngModelChange)="selectedStoreId.set($event)"
+        class="store-select">
+        @for (store of partnerStores(); track store.id) {
+          <option [value]="store.id">
+            {{ store.name }} ({{ store.distance }} away)
+          </option>
+        }
+      </select>
+      <div class="store-meta tabular">
+        <span>📍 {{ selectedStore().address }}</span>
+        <span>•</span>
+        <span>DL: {{ selectedStore().dlNumber }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Order Creation Workspace -->
+  <div class="workspace-grid">
+    
+    <!-- Left Column: Patient Info & Prescription Builder -->
+    <div class="builder-col medi-card">
+      <div class="col-header">
+        <div class="header-title">
+          <h2>Create Patient Prescription & Order</h2>
+          <p>Orders are routed directly to {{ selectedStore().name }}</p>
+        </div>
+        <button type="button" class="btn-demo-fill" (click)="fillSamplePatient()">
+          ⚡ Auto-fill Sample Patient
+        </button>
+      </div>
+
+      <!-- Patient Information -->
+      <div class="form-section">
+        <span class="section-title">1. Patient Demographic & Clinical Info</span>
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label>Patient Full Name *</label>
+            <input 
+              type="text" 
+              [ngModel]="patientName()" 
+              (ngModelChange)="patientName.set($event)"
+              placeholder="e.g. Rameshwar Sharma" 
+              class="form-control" 
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Age & Gender</label>
+            <div class="age-gender-row">
+              <input 
+                type="number" 
+                [ngModel]="patientAge()" 
+                (ngModelChange)="patientAge.set($event)"
+                placeholder="Age" 
+                class="form-control tabular" 
+                style="width: 70px;" 
+              />
+              <select 
+                [ngModel]="patientGender()" 
+                (ngModelChange)="patientGender.set($event)"
+                class="form-control">
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Patient Mobile Number</label>
+            <input 
+              type="tel" 
+              [ngModel]="patientPhone()" 
+              (ngModelChange)="patientPhone.set($event)"
+              placeholder="+91 98765 43210" 
+              class="form-control tabular" 
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Clinical Diagnosis / Chief Complaint</label>
+          <input 
+            type="text" 
+            [ngModel]="diagnosis()" 
+            (ngModelChange)="diagnosis.set($event)"
+            placeholder="e.g. Acute Bronchitis, Type-2 Diabetes with Hypertension" 
+            class="form-control" 
+          />
+        </div>
+      </div>
+
+      <!-- Mode Selector -->
+      <div class="mode-tabs">
+        <button 
+          type="button" 
+          class="mode-btn" 
+          [class.active]="orderMode() === 'DRUG_PICKER'"
+          (click)="orderMode.set('DRUG_PICKER')">
+          💊 Drug & Dosage Selector (Structured Order)
+        </button>
+        <button 
+          type="button" 
+          class="mode-btn" 
+          [class.active]="orderMode() === 'PRESCRIPTION_PAD'"
+          (click)="orderMode.set('PRESCRIPTION_PAD')">
+          📝 e-Prescription Pad (Clinical Notes)
+        </button>
+      </div>
+
+      <!-- Section 2A: Drug Selector Mode -->
+      @if (orderMode() === 'DRUG_PICKER') {
+        <div class="form-section">
+          <span class="section-title">2. Select Medicines from Store Catalog</span>
+
+          <!-- Search Medicine -->
+          <div class="drug-search-box">
+            <input 
+              type="text" 
+              [ngModel]="searchQuery()" 
+              (ngModelChange)="searchQuery.set($event)"
+              placeholder="Search drug by brand or generic salt (e.g. Augmentin, Dolo, Telma)..." 
+              class="form-control search-input" 
+            />
+            @if (searchResults().length > 0) {
+              <div class="dropdown-results">
+                @for (med of searchResults(); track med.id) {
+                  <div class="dropdown-item" (click)="selectMedicineForAdding(med)">
+                    <div class="d-brand">{{ med.brandName }} <span class="d-pack tabular">{{ med.packaging }}</span></div>
+                    <div class="d-salt">{{ med.genericName }}</div>
+                    <div class="d-stock tabular">In Stock: {{ med.totalStockPacks }} packs • ₹{{ med.batches[0].salePrice | number:'1.2-2' }}</div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Selected Drug Dosage Customizer -->
+          @if (selectedMedForAdding(); as med) {
+            <div class="dosage-builder-card">
+              <div class="drug-header">
+                <div>
+                  <strong>{{ med.brandName }}</strong>
+                  <span class="salt-sub">({{ med.genericName }})</span>
+                </div>
+                <button type="button" class="btn-cancel" (click)="selectedMedForAdding.set(null)">✕</button>
+              </div>
+
+              <div class="dosage-grid">
+                <div class="field">
+                  <label>Dosage</label>
+                  <select [ngModel]="currentDosage()" (ngModelChange)="currentDosage.set($event)" class="form-control">
+                    <option value="1-0-1">1-0-1 (Twice Daily)</option>
+                    <option value="1-0-0">1-0-0 (Once Morning)</option>
+                    <option value="0-0-1">0-0-1 (Once Night)</option>
+                    <option value="1-1-1">1-1-1 (Thrice Daily)</option>
+                    <option value="SOS">SOS (As needed for pain/fever)</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label>Timing</label>
+                  <select [ngModel]="currentTiming()" (ngModelChange)="currentTiming.set($event)" class="form-control">
+                    <option value="After Meals">After Meals</option>
+                    <option value="Before Meals">Before Meals</option>
+                    <option value="With Milk">With Milk</option>
+                    <option value="At Bedtime">At Bedtime</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label>Duration</label>
+                  <select [ngModel]="currentDurationDays()" (ngModelChange)="currentDurationDays.set($event)" class="form-control tabular">
+                    <option [value]="3">3 Days</option>
+                    <option [value]="5">5 Days</option>
+                    <option [value]="7">7 Days</option>
+                    <option [value]="15">15 Days</option>
+                    <option [value]="30">30 Days</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label>Order Qty (Packs)</label>
+                  <input 
+                    type="number" 
+                    [ngModel]="currentQty()" 
+                    (ngModelChange)="currentQty.set($event)"
+                    min="1" 
+                    class="form-control tabular" 
+                  />
+                </div>
+              </div>
+
+              <button type="button" class="btn btn-primary btn-sm" (click)="addDrugToPrescription()">
+                + Add To Prescription
+              </button>
+            </div>
+          }
+
+          <!-- Prescribed Drugs Table -->
+          @if (prescribedItems().length > 0) {
+            <div class="prescribed-list">
+              <span class="sub-label">Prescription Drugs List ({{ prescribedItems().length }} Items):</span>
+              <table class="mini-table">
+                <thead>
+                  <tr>
+                    <th>Medicine</th>
+                    <th>Dosage & Timing</th>
+                    <th>Duration</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Total</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of prescribedItems(); track item.medicineId; let idx = $index) {
+                    <tr>
+                      <td>
+                        <strong>{{ item.medicineName }}</strong>
+                        <div class="generic-sub">{{ item.genericName }}</div>
+                      </td>
+                      <td>
+                        <span class="badge badge-teal">{{ item.dosage }}</span>
+                        <span class="timing-sub">{{ item.timing }}</span>
+                      </td>
+                      <td class="tabular">{{ item.durationDays }} Days</td>
+                      <td class="tabular font-bold">{{ item.quantity }} Pack</td>
+                      <td class="tabular">₹{{ item.unitPrice | number:'1.2-2' }}</td>
+                      <td class="tabular font-bold text-primary">₹{{ item.total | number:'1.2-2' }}</td>
+                      <td>
+                        <button type="button" class="btn-del" (click)="removePrescribedItem(idx)">✕</button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Section 2B: Freeform Prescription Pad Mode -->
+      <div class="form-section">
+        <span class="section-title">3. Clinical Prescription Notes & Advice</span>
+        <textarea 
+          rows="3"
+          [ngModel]="prescriptionNotes()" 
+          (ngModelChange)="prescriptionNotes.set($event)"
+          placeholder="e.g. Rx: Amoxicillin 500mg TDS for 5 days. Drink warm water, avoid cold beverages. Review in OPD on Saturday."
+          class="form-control notes-textarea">
+        </textarea>
+      </div>
+
+      <!-- Section 3: Delivery & Payment Options -->
+      <div class="form-section">
+        <span class="section-title">4. Patient Delivery & Payment Method</span>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label>Patient Home Delivery Address</label>
+            <input 
+              type="text" 
+              [ngModel]="deliveryAddress()" 
+              (ngModelChange)="deliveryAddress.set($event)"
+              placeholder="e.g. Flat 102, Shanti Kunj, Near Civil Hospital" 
+              class="form-control" 
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Payment Collection Option</label>
+            <div class="payment-options">
+              <label class="pay-option">
+                <input 
+                  type="radio" 
+                  name="docPay" 
+                  value="COD" 
+                  [checked]="paymentMethod() === 'COD'"
+                  (change)="paymentMethod.set('COD')" 
+                />
+                <span>💵 Cash on Delivery (Patient pays upon receiving)</span>
+              </label>
+
+              <label class="pay-option">
+                <input 
+                  type="radio" 
+                  name="docPay" 
+                  value="ONLINE_PAID" 
+                  [checked]="paymentMethod() === 'ONLINE_PAID'"
+                  (change)="paymentMethod.set('ONLINE_PAID')" 
+                />
+                <span>📱 Prepaid Online (Billed to Clinic Account)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit Action -->
+      <div class="submit-bar">
+        <div class="total-wrap tabular">
+          <span>Estimated Patient Bill:</span>
+          <span class="amount">₹{{ totalPrescriptionCost() | number:'1.2-2' }}</span>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-lg" (click)="submitOrder()">
+          🚀 Send Prescription Order to {{ selectedStore().name }}
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Doctor's Order History & Live Status -->
+    <div class="history-col medi-card">
+      <div class="col-header">
+        <div>
+          <h2>Sent Prescriptions & Orders</h2>
+          <p>Real-time fulfillment status by partner pharmacies</p>
+        </div>
+        <span class="badge badge-teal">{{ doctorOrders().length }} Orders</span>
+      </div>
+
+      <div class="orders-list">
+        @for (ord of doctorOrders(); track ord.id) {
+          <div class="order-card">
+            <div class="order-top">
+              <span class="ord-num tabular font-bold">#{{ ord.orderNumber }}</span>
+              <span class="badge" [class.badge-warning]="ord.orderStatus === 'NEW_RECEIVED'" [class.badge-info]="ord.orderStatus === 'PACKED'" [class.badge-success]="ord.orderStatus === 'COMPLETED'">
+                {{ ord.orderStatus === 'NEW_RECEIVED' ? 'Received at Store' : (ord.orderStatus === 'PACKED' ? 'Packed & Ready' : ord.orderStatus) }}
+              </span>
+            </div>
+
+            <div class="patient-name">Patient: <strong>{{ ord.patient.patientName }}</strong> ({{ ord.patient.patientAge }}y, {{ ord.patient.patientGender }})</div>
+            <div class="store-name">Pharmacy: {{ ord.storeName }}</div>
+
+            <div class="meds-summary">
+              @for (item of ord.items; track item.medicineId) {
+                <div class="item-line">
+                  <span>• {{ item.medicineName }} ({{ item.dosage }})</span>
+                  <span class="tabular font-bold">₹{{ item.total | number:'1.2-2' }}</span>
+                </div>
+              }
+            </div>
+
+            <div class="order-bottom">
+              <span class="pay-tag">{{ ord.paymentMethod === 'COD' ? '💵 Cash on Delivery' : '📱 Prepaid Online' }}</span>
+              <span class="total tabular font-bold">Total: ₹{{ ord.totalAmount | number:'1.2-2' }}</span>
+            </div>
+          </div>
+        } @empty {
+          <div class="no-orders">
+            <p>No prescriptions sent yet. Create and dispatch your first patient order using the builder on the left.</p>
+          </div>
+        }
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Success Confirmation Modal -->
+  @if (lastSubmittedOrder(); as ord) {
+    <div class="modal-overlay" (click)="lastSubmittedOrder.set(null)">
+      <div class="modal-content confirm-modal" (click)="$event.stopPropagation()">
+        <div class="modal-body text-center">
+          <div class="success-icon">✓</div>
+          <h2>Prescription Order Dispatched!</h2>
+          <p class="subtitle">
+            Order <strong>#{{ ord.orderNumber }}</strong> has been electronically transmitted to <strong>{{ ord.storeName }}</strong>.
+          </p>
+
+          <div class="details-box">
+            <div class="row">
+              <span>Patient:</span>
+              <strong>{{ ord.patient.patientName }}</strong>
+            </div>
+            <div class="row">
+              <span>Payment Mode:</span>
+              <strong>{{ ord.paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Prepaid Online' }}</strong>
+            </div>
+            <div class="row">
+              <span>Prescription Items:</span>
+              <strong>{{ ord.items.length }} Medicines</strong>
+            </div>
+            <div class="row">
+              <span>Estimated Bill:</span>
+              <strong class="tabular text-primary">₹{{ ord.totalAmount | number:'1.2-2' }}</strong>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-primary btn-lg" style="width: 100%;" (click)="lastSubmittedOrder.set(null)">
+            Done / Write Next Prescription
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>

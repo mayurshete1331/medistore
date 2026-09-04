@@ -1,0 +1,396 @@
+<div class="store-orders-container">
+  
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <div class="badge-row">
+        <span class="badge badge-teal">Store Owner Management</span>
+        <span class="badge badge-schedule-h">Drug Compliance & Dispensing Register</span>
+      </div>
+      <h1 class="page-title">Incoming Orders & Prescription Audit Register</h1>
+      <p class="page-subtitle">
+        Review who placed every order (Doctor with MCI Reg # vs Customer Direct), verify payment methods (Prepaid vs COD), and maintain compliance records.
+      </p>
+    </div>
+  </div>
+
+  <!-- KPI Metrics Bar -->
+  <div class="kpi-grid">
+    <div class="kpi-card" [class.active-filter]="activeFilter() === 'ALL'" (click)="activeFilter.set('ALL')">
+      <div class="kpi-icon teal">📦</div>
+      <div class="kpi-data">
+        <span class="label">Total Orders</span>
+        <span class="val tabular">{{ orders().length }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card" [class.active-filter]="activeFilter() === 'PENDING'" (click)="activeFilter.set('PENDING')">
+      <div class="kpi-icon amber">⏳</div>
+      <div class="kpi-data">
+        <span class="label">Awaiting Packing</span>
+        <span class="val text-warning tabular">{{ pendingCount() }}</span>
+      </div>
+      <span class="hint">Action Needed</span>
+    </div>
+
+    <div class="kpi-card" [class.active-filter]="activeFilter() === 'DOCTOR'" (click)="activeFilter.set('DOCTOR')">
+      <div class="kpi-icon blue">🩺</div>
+      <div class="kpi-data">
+        <span class="label">Doctor Prescriptions</span>
+        <span class="val text-primary tabular">{{ doctorCount() }}</span>
+      </div>
+      <span class="hint">Rx Verified</span>
+    </div>
+
+    <div class="kpi-card" [class.active-filter]="activeFilter() === 'COD'" (click)="activeFilter.set('COD')">
+      <div class="kpi-icon green">💵</div>
+      <div class="kpi-data">
+        <span class="label">Cash on Delivery (COD)</span>
+        <span class="val text-success tabular">{{ codCount() }}</span>
+      </div>
+      <span class="hint">Collect on Delivery</span>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-toolbar medi-card">
+    <div class="tabs">
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="activeFilter() === 'ALL'"
+        (click)="activeFilter.set('ALL')">
+        All Orders ({{ orders().length }})
+      </button>
+
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="activeFilter() === 'PENDING'"
+        (click)="activeFilter.set('PENDING')">
+        ⏳ Pending Review ({{ pendingCount() }})
+      </button>
+
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="activeFilter() === 'DOCTOR'"
+        (click)="activeFilter.set('DOCTOR')">
+        🩺 Doctor Prescriptions ({{ doctorCount() }})
+      </button>
+
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="activeFilter() === 'CUSTOMER'"
+        (click)="activeFilter.set('CUSTOMER')">
+        👤 Customer Orders ({{ customerCount() }})
+      </button>
+
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="activeFilter() === 'COD'"
+        (click)="activeFilter.set('COD')">
+        💵 Cash on Delivery ({{ codCount() }})
+      </button>
+    </div>
+  </div>
+
+  <!-- Orders Table -->
+  <div class="orders-table-card medi-card">
+    <div class="table-responsive">
+      <table class="orders-table">
+        <thead>
+          <tr>
+            <th style="width: 14%;">Order # & Time</th>
+            <th style="width: 25%;">Who Placed The Order</th>
+            <th style="width: 18%;">Patient Details</th>
+            <th style="width: 20%;">Prescribed Medicines</th>
+            <th>Payment Mode</th>
+            <th>Status</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (ord of filteredOrders(); track ord.id) {
+            <tr>
+              <!-- Order # & Time -->
+              <td>
+                <div class="ord-meta tabular">
+                  <span class="ord-num font-bold">#{{ ord.orderNumber }}</span>
+                  <span class="ord-type badge" [class.badge-teal]="ord.orderType === 'DOCTOR_PRESCRIPTION'" [class.badge-info]="ord.orderType === 'CUSTOMER_ORDER'">
+                    {{ ord.orderType === 'DOCTOR_PRESCRIPTION' ? 'Rx Prescription' : 'Direct Order' }}
+                  </span>
+                  <span class="ord-time">{{ ord.createdAt | date:'short' }}</span>
+                </div>
+              </td>
+
+              <!-- Who Placed the Order (Key requirement!) -->
+              <td>
+                <div class="caller-box">
+                  @if (ord.placedBy.userRole === 'DOCTOR') {
+                    <div class="caller-header">
+                      <span class="icon">🩺</span>
+                      <strong class="caller-name">{{ ord.placedBy.userName }}</strong>
+                    </div>
+                    <div class="caller-reg tabular">
+                      MCI / State Reg No: <strong>{{ ord.placedBy.doctorRegNo }}</strong>
+                    </div>
+                    <div class="caller-specialty">{{ ord.placedBy.doctorSpecialty }}</div>
+                    <div class="caller-phone tabular">Phone: {{ ord.placedBy.userPhone }}</div>
+                  } @else {
+                    <div class="caller-header">
+                      <span class="icon">👤</span>
+                      <strong class="caller-name">{{ ord.placedBy.userName }}</strong>
+                      <span class="badge badge-info">Retail Customer</span>
+                    </div>
+                    <div class="caller-phone tabular">Phone: {{ ord.placedBy.userPhone }}</div>
+                    <div class="caller-address">Delivery: {{ ord.deliveryAddress }}</div>
+                  }
+                </div>
+              </td>
+
+              <!-- Patient Details -->
+              <td>
+                <div class="patient-cell">
+                  <strong>{{ ord.patient.patientName }}</strong>
+                  @if (ord.patient.patientAge) {
+                    <span class="pat-sub tabular">{{ ord.patient.patientAge }} yrs • {{ ord.patient.patientGender }}</span>
+                  }
+                  <span class="pat-phone tabular">{{ ord.patient.patientPhone }}</span>
+                  @if (ord.patient.diagnosis) {
+                    <div class="diagnosis-badge" title="{{ ord.patient.diagnosis }}">
+                      Diag: {{ ord.patient.diagnosis }}
+                    </div>
+                  }
+                </div>
+              </td>
+
+              <!-- Prescribed Medicines -->
+              <td>
+                <div class="items-cell">
+                  @for (item of ord.items; track item.medicineId) {
+                    <div class="item-pill">
+                      <span class="name">{{ item.medicineName }}</span>
+                      @if (item.dosage) {
+                        <span class="dosage">{{ item.dosage }}</span>
+                      }
+                      <span class="qty tabular">x{{ item.quantity }}</span>
+                      <span class="price tabular font-bold">₹{{ item.total }}</span>
+                    </div>
+                  }
+                  @if (ord.prescriptionNotes) {
+                    <div class="notes-hint" title="{{ ord.prescriptionNotes }}">
+                      📝 Notes: {{ ord.prescriptionNotes }}
+                    </div>
+                  }
+                </div>
+              </td>
+
+              <!-- Payment Mode -->
+              <td>
+                <div class="payment-cell">
+                  @if (ord.paymentMethod === 'COD') {
+                    <span class="badge badge-warning">💵 Cash on Delivery</span>
+                    <span class="cod-amount tabular font-bold text-danger">Collect: ₹{{ ord.totalAmount | number:'1.2-2' }}</span>
+                  } @else {
+                    <span class="badge badge-success">📱 Prepaid Online</span>
+                    <span class="paid-amount tabular font-bold text-success">Paid: ₹{{ ord.totalAmount | number:'1.2-2' }}</span>
+                  }
+                </div>
+              </td>
+
+              <!-- Status -->
+              <td>
+                <span class="badge" [class.badge-warning]="ord.orderStatus === 'NEW_RECEIVED'" [class.badge-info]="ord.orderStatus === 'PACKED'" [class.badge-teal]="ord.orderStatus === 'OUT_FOR_DELIVERY'" [class.badge-success]="ord.orderStatus === 'COMPLETED'">
+                  {{ ord.orderStatus === 'NEW_RECEIVED' ? 'New Order' : (ord.orderStatus === 'PACKED' ? 'Packed' : (ord.orderStatus === 'OUT_FOR_DELIVERY' ? 'Out for Delivery' : 'Delivered & Billed')) }}
+                </span>
+              </td>
+
+              <!-- Actions -->
+              <td style="text-align: right;">
+                <div class="actions-col">
+                  @if (ord.orderStatus === 'NEW_RECEIVED') {
+                    <button type="button" class="btn btn-sm btn-primary" (click)="advanceStatus(ord)">
+                      ✓ Accept & Pack
+                    </button>
+                  } @else if (ord.orderStatus === 'PACKED') {
+                    <button type="button" class="btn btn-sm btn-primary" (click)="advanceStatus(ord)">
+                      🚚 Dispatch
+                    </button>
+                  } @else if (ord.orderStatus === 'OUT_FOR_DELIVERY') {
+                    <button type="button" class="btn btn-sm btn-success" (click)="advanceStatus(ord)">
+                      ✓ Mark Delivered
+                    </button>
+                  }
+
+                  <button type="button" class="btn btn-sm btn-secondary" (click)="openAuditModal(ord)">
+                    📋 Audit Trail
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="empty-state">
+                <p>No orders found matching the selected filter.</p>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detailed Compliance & Audit Modal -->
+  @if (selectedOrderForAudit(); as ord) {
+    <div class="modal-overlay" (click)="selectedOrderForAudit.set(null)">
+      <div class="modal-content audit-modal" (click)="$event.stopPropagation()">
+        
+        <div class="audit-header no-print">
+          <div class="title-wrap">
+            <span class="icon">📋</span>
+            <div>
+              <h2>Order Compliance & Dispensing Audit Trail</h2>
+              <p>Legal dispensing verification record for Order #{{ ord.orderNumber }}</p>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn btn-primary btn-sm" (click)="printOrderSlip()">
+              🖨️ Print Compliance Slip
+            </button>
+            <button type="button" class="btn-close" (click)="selectedOrderForAudit.set(null)">✕</button>
+          </div>
+        </div>
+
+        <div class="audit-body printable-slip">
+          <!-- Pharmacy Details -->
+          <div class="slip-header">
+            <h3>MEDICARE PHARMACY & SUPERSTORE</h3>
+            <p>Drug License: 20B/MH-MZ4-10928, 21B/MH-MZ4-10929 • GSTIN: 27AABCM1122D1Z9</p>
+            <div class="order-id-badge tabular font-bold">OFFICIAL DISPENSING RECORD # {{ ord.orderNumber }}</div>
+          </div>
+
+          <!-- Who gave the order audit box -->
+          <div class="audit-section-box">
+            <h4>1. Order Origin & Authentication</h4>
+            <div class="box-grid">
+              <div>
+                <span class="label">Ordered By:</span>
+                <strong>{{ ord.placedBy.userName }}</strong> ({{ ord.placedBy.userRole }})
+              </div>
+              @if (ord.placedBy.doctorRegNo) {
+                <div>
+                  <span class="label">Doctor Council Reg #:</span>
+                  <strong class="tabular">{{ ord.placedBy.doctorRegNo }}</strong>
+                </div>
+              }
+              <div>
+                <span class="label">Phone / Contact:</span>
+                <span class="tabular">{{ ord.placedBy.userPhone }}</span>
+              </div>
+              <div>
+                <span class="label">Order Type:</span>
+                <span>{{ ord.orderType }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Patient & Clinical Box -->
+          <div class="audit-section-box">
+            <h4>2. Patient Information</h4>
+            <div class="box-grid">
+              <div>
+                <span class="label">Patient Name:</span>
+                <strong>{{ ord.patient.patientName }}</strong>
+              </div>
+              <div>
+                <span class="label">Age & Gender:</span>
+                <span class="tabular">{{ ord.patient.patientAge || 'N/A' }} yrs / {{ ord.patient.patientGender || 'N/A' }}</span>
+              </div>
+              <div>
+                <span class="label">Patient Phone:</span>
+                <span class="tabular">{{ ord.patient.patientPhone }}</span>
+              </div>
+              <div>
+                <span class="label">Diagnosis / Indication:</span>
+                <span>{{ ord.patient.diagnosis || 'General Consultation' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dispensed Drugs -->
+          <div class="audit-section-box">
+            <h4>3. Dispensed Drug Schedule & Dosages</h4>
+            <table class="mini-table">
+              <thead>
+                <tr>
+                  <th>Medicine</th>
+                  <th>Packaging</th>
+                  <th>Dosage / Instructions</th>
+                  <th>Qty</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of ord.items; track item.medicineId) {
+                  <tr>
+                    <td>
+                      <strong>{{ item.medicineName }}</strong>
+                      <div class="salt">{{ item.genericName }}</div>
+                    </td>
+                    <td>{{ item.packaging }}</td>
+                    <td>{{ item.dosage || 'As directed' }} ({{ item.timing || '' }})</td>
+                    <td class="tabular font-bold">{{ item.quantity }}</td>
+                    <td class="tabular font-bold">₹{{ item.total }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Payment Reconciliation -->
+          <div class="audit-section-box">
+            <h4>4. Payment & Financial Reconciliation</h4>
+            <div class="box-grid">
+              <div>
+                <span class="label">Payment Mode:</span>
+                <strong>{{ ord.paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Prepaid Online' }}</strong>
+              </div>
+              <div>
+                <span class="label">Payment Status:</span>
+                <strong [class.text-success]="ord.paymentStatus === 'PAID'" [class.text-danger]="ord.paymentStatus === 'PENDING_COLLECTION'">
+                  {{ ord.paymentStatus }}
+                </strong>
+              </div>
+              <div>
+                <span class="label">Total Amount:</span>
+                <strong class="tabular font-bold">₹{{ ord.totalAmount | number:'1.2-2' }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chronological Audit Log -->
+          <div class="audit-section-box">
+            <h4>5. Chronological Audit Log (Immutable Events)</h4>
+            <div class="timeline">
+              @for (entry of ord.auditTrail; track entry.timestamp) {
+                <div class="timeline-item">
+                  <span class="time tabular">{{ entry.timestamp | date:'medium' }}</span>
+                  <div class="content">
+                    <strong>{{ entry.action }}</strong>
+                    <span class="by">by {{ entry.performedBy }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  }
+
+</div>

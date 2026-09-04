@@ -1,0 +1,186 @@
+<div class="modal-overlay" (click)="closed.emit()">
+  <div class="modal-content add-med-modal" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="modal-header">
+      <div class="title-wrap">
+        <div class="icon-badge">💊</div>
+        <div>
+          <h2>Add New Medicine to Master Catalog</h2>
+          <p>Register generic composition, tax rates, shelf location, and initial stock batch</p>
+        </div>
+      </div>
+      <button type="button" class="btn-close" (click)="closed.emit()">✕</button>
+    </div>
+
+    <!-- Form -->
+    <form [formGroup]="medicineForm" (ngSubmit)="onSubmit()" class="modal-body">
+      
+      <!-- Section 1: Drug Master Info -->
+      <div class="form-section">
+        <h3 class="section-title">1. Drug Identification & Details</h3>
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label>Brand Name *</label>
+            <input type="text" formControlName="brandName" placeholder="e.g. Augmentin 625 Duo" class="form-control" />
+            @if (medicineForm.get('brandName')?.touched && medicineForm.get('brandName')?.invalid) {
+              <span class="err-text">Brand name is required</span>
+            }
+          </div>
+
+          <div class="form-group span-2">
+            <label>Generic Composition / Salt *</label>
+            <input type="text" formControlName="genericName" placeholder="e.g. Amoxicillin (500mg) + Clavulanic Acid (125mg)" class="form-control" />
+            @if (medicineForm.get('genericName')?.touched && medicineForm.get('genericName')?.invalid) {
+              <span class="err-text">Generic composition is required</span>
+            }
+          </div>
+        </div>
+
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label>Dosage Form / Category *</label>
+            <select formControlName="category" (change)="onCategoryChange(medicineForm.get('category')?.value)" class="form-control">
+              @for (cat of categories; track cat) {
+                <option [value]="cat">{{ cat }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Manufacturer / Pharma Company *</label>
+            <input type="text" formControlName="manufacturer" placeholder="e.g. GlaxoSmithKline, Sun Pharma" class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label>Rack / Shelf Location *</label>
+            <input type="text" formControlName="rackLocation" placeholder="e.g. Rack A-04 or Chiller 2" class="form-control" />
+          </div>
+        </div>
+
+        <div class="form-grid-4">
+          <div class="form-group">
+            <label>HSN Code *</label>
+            <input type="text" formControlName="hsnCode" placeholder="30049099" class="form-control tabular" />
+          </div>
+
+          <div class="form-group">
+            <label>GST Slab *</label>
+            <select formControlName="gstRate" class="form-control tabular">
+              <option [value]="0">0% (Exempt)</option>
+              <option [value]="5">5% (Life Saving / Insulin)</option>
+              <option [value]="12">12% (Standard Pharma)</option>
+              <option [value]="18">18% (OTC / Devices)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Packaging Spec *</label>
+            <input type="text" formControlName="packaging" placeholder="e.g. 10 Tablets/Strip" class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label>Units per Pack *</label>
+            <input type="number" formControlName="unitsPerPack" min="1" class="form-control tabular" />
+          </div>
+        </div>
+
+        <!-- Regulatory Flags -->
+        <div class="compliance-toggles">
+          <label class="toggle-card">
+            <input type="checkbox" formControlName="isScheduleH" />
+            <div class="toggle-text">
+              <span class="toggle-title">Schedule H (Rx Required)</span>
+              <span class="toggle-desc">Requires Registered Medical Practitioner prescription</span>
+            </div>
+          </label>
+
+          <label class="toggle-card">
+            <input type="checkbox" formControlName="isScheduleH1" />
+            <div class="toggle-text">
+              <span class="toggle-title">Schedule H1 (High Antibiotics)</span>
+              <span class="toggle-desc">Maintains 3-year patient audit register</span>
+            </div>
+          </label>
+
+          <label class="toggle-card">
+            <input type="checkbox" formControlName="isNarcotic" />
+            <div class="toggle-text">
+              <span class="toggle-title">Narcotic / NDPS</span>
+              <span class="toggle-desc">Strict double-signature dispensing</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Section 2: Reorder Automation Thresholds -->
+      <div class="form-section">
+        <h3 class="section-title">2. Inventory Thresholds & Auto-Reorder</h3>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label>Minimum Reorder Threshold (Packs) *</label>
+            <input type="number" formControlName="reorderLevel" min="1" class="form-control tabular" />
+            <span class="helper-text">Triggers automated alert when stock drops to or below this level.</span>
+          </div>
+
+          <div class="form-group">
+            <label>Default Suggested Reorder Quantity (Packs) *</label>
+            <input type="number" formControlName="defaultReorderQty" min="1" class="form-control tabular" />
+            <span class="helper-text">Default pack quantity pre-filled in WhatsApp & Email orders for owner review.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Initial Stock Batch Details -->
+      <div class="form-section">
+        <h3 class="section-title">3. Initial Inward Batch (FEFO Ready)</h3>
+        <div class="form-grid-4">
+          <div class="form-group">
+            <label>Batch Number *</label>
+            <input type="text" formControlName="batchNumber" placeholder="e.g. AUG-2401" class="form-control tabular" />
+          </div>
+
+          <div class="form-group">
+            <label>Mfg Date (YYYY-MM) *</label>
+            <input type="month" formControlName="mfgDate" class="form-control tabular" />
+          </div>
+
+          <div class="form-group">
+            <label>Expiry Date (YYYY-MM) *</label>
+            <input type="month" formControlName="expiryDate" class="form-control tabular" />
+          </div>
+
+          <div class="form-group">
+            <label>Initial Stock (Packs) *</label>
+            <input type="number" formControlName="initialStockPacks" min="1" class="form-control tabular" />
+          </div>
+        </div>
+
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label>Purchase Rate (Cost/Pack) ₹ *</label>
+            <input type="number" formControlName="purchasePrice" step="0.01" min="0.1" class="form-control tabular" />
+          </div>
+
+          <div class="form-group">
+            <label>MRP (Max Retail Price) ₹ *</label>
+            <input type="number" formControlName="mrp" step="0.01" min="0.1" class="form-control tabular" />
+          </div>
+
+          <div class="form-group">
+            <label>Store Sale Price ₹ *</label>
+            <input type="number" formControlName="salePrice" step="0.01" min="0.1" class="form-control tabular" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="medicineForm.invalid">
+          <span>✓</span> Save Medicine & Initialize Batch
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>

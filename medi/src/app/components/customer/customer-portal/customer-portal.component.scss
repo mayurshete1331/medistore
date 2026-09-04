@@ -1,0 +1,585 @@
+.customer-portal-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+
+  .customer-header {
+    padding: 1.25rem 1.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    background: linear-gradient(135deg, #ffffff, #eff6ff);
+    border-color: #bfdbfe;
+
+    .user-greeting {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+
+      .user-avatar {
+        width: 52px;
+        height: 52px;
+        border-radius: var(--radius-lg);
+        background: #dbeafe;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        flex-shrink: 0;
+      }
+
+      .user-name {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: var(--slate-900);
+      }
+
+      .user-sub {
+        font-size: 0.78rem;
+        color: var(--slate-600);
+        margin-top: 0.15rem;
+      }
+    }
+
+    .pharmacy-selector-card {
+      background: #ffffff;
+      border: 1px solid #93c5fd;
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      min-width: 360px;
+
+      .label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--slate-600);
+        text-transform: uppercase;
+      }
+
+      .store-dropdown {
+        padding: 0.45rem 0.65rem;
+        border: 1px solid var(--slate-300);
+        border-radius: var(--radius-sm);
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--slate-900);
+        outline: none;
+      }
+
+      .store-features {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.2rem;
+
+        .tag {
+          font-size: 0.68rem;
+          background: #eff6ff;
+          color: #1d4ed8;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-weight: 600;
+        }
+      }
+    }
+  }
+
+  .portal-body-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 1.25rem;
+
+    .catalog-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .catalog-toolbar {
+      padding: 0.85rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+
+      .search-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+
+        .icon {
+          position: absolute;
+          left: 0.75rem;
+          color: var(--slate-400);
+        }
+
+        .search-input {
+          width: 100%;
+          padding: 0.65rem 1rem 0.65rem 2.2rem;
+          border: 1px solid var(--slate-300);
+          border-radius: var(--radius-md);
+          font-size: 0.88rem;
+          outline: none;
+          background: var(--slate-50);
+
+          &:focus {
+            background: #ffffff;
+            border-color: var(--primary-600);
+          }
+        }
+      }
+
+      .cat-chips {
+        display: flex;
+        gap: 0.4rem;
+        overflow-x: auto;
+
+        .cat-btn {
+          padding: 0.35rem 0.8rem;
+          border: 1px solid var(--slate-200);
+          background: #ffffff;
+          border-radius: var(--radius-md);
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: var(--slate-600);
+          cursor: pointer;
+
+          &:hover {
+            border-color: var(--primary-400);
+            color: var(--primary-700);
+          }
+
+          &.active {
+            background: var(--slate-900);
+            color: #ffffff;
+            border-color: var(--slate-900);
+          }
+        }
+      }
+    }
+
+    .medicines-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+
+      .product-card {
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+
+        .card-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+
+          .cat-badge {
+            font-size: 0.68rem;
+            color: var(--primary-700);
+            background: var(--primary-50);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+          }
+
+          .pack-badge {
+            font-size: 0.68rem;
+            color: var(--slate-400);
+          }
+        }
+
+        .med-name {
+          font-size: 0.95rem;
+          font-weight: 700;
+          color: var(--slate-900);
+        }
+
+        .med-salt {
+          font-size: 0.72rem;
+          color: var(--slate-500);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .card-bottom {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 0.5rem;
+          padding-top: 0.5rem;
+          border-top: 1px dashed var(--slate-200);
+
+          .price-box {
+            .sale {
+              font-size: 1.05rem;
+              font-weight: 800;
+              color: var(--primary-700);
+            }
+            .mrp {
+              font-size: 0.72rem;
+              color: var(--slate-400);
+              text-decoration: line-through;
+              margin-left: 0.3rem;
+            }
+          }
+
+          .btn-add {
+            padding: 0.35rem 0.85rem;
+            font-size: 0.8rem;
+          }
+        }
+      }
+    }
+
+    /* Checkout Sidebar */
+    .checkout-sidebar {
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      height: fit-content;
+      position: sticky;
+      top: 80px;
+
+      .cart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--slate-200);
+
+        h2 {
+          font-size: 1.1rem;
+          font-weight: 800;
+          color: var(--slate-900);
+        }
+      }
+
+      .cart-items-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        max-height: 260px;
+        overflow-y: auto;
+
+        .cart-item-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0.5rem 0;
+          border-bottom: 1px solid var(--slate-100);
+          font-size: 0.82rem;
+
+          .item-details {
+            display: flex;
+            flex-direction: column;
+            width: 50%;
+
+            .name { font-weight: 700; color: var(--slate-900); }
+            .pack { font-size: 0.68rem; color: var(--slate-400); }
+            .price { font-size: 0.72rem; color: var(--slate-500); }
+          }
+
+          .qty-control {
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--slate-200);
+            border-radius: 4px;
+
+            .btn-q {
+              background: var(--slate-100);
+              border: none;
+              width: 22px;
+              height: 22px;
+              cursor: pointer;
+              font-weight: bold;
+            }
+
+            .count {
+              width: 26px;
+              text-align: center;
+              font-weight: 700;
+            }
+          }
+
+          .item-total {
+            color: var(--primary-700);
+          }
+        }
+
+        .empty-bag {
+          text-align: center;
+          padding: 2rem 1rem;
+          color: var(--slate-400);
+
+          .bag-icon { font-size: 2.5rem; display: block; margin-bottom: 0.5rem; }
+          h3 { font-size: 1rem; color: var(--slate-700); }
+          p { font-size: 0.78rem; margin-top: 0.25rem; }
+        }
+      }
+
+      .checkout-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--slate-200);
+
+        .form-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+
+          label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--slate-600);
+          }
+
+          .form-control {
+            padding: 0.45rem 0.65rem;
+            border: 1px solid var(--slate-300);
+            border-radius: var(--radius-sm);
+            font-size: 0.82rem;
+            outline: none;
+
+            &:focus {
+              border-color: var(--primary-600);
+            }
+          }
+        }
+
+        .payment-selection-box {
+          display: flex;
+          flex-direction: column;
+          gap: 0.4rem;
+
+          .pay-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--slate-700);
+          }
+
+          .pay-radio-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid var(--slate-200);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.15s ease;
+
+            input {
+              margin-top: 0.2rem;
+              accent-color: var(--primary-600);
+            }
+
+            .radio-content {
+              display: flex;
+              flex-direction: column;
+
+              .opt-name {
+                font-size: 0.8rem;
+                font-weight: 700;
+                color: var(--slate-900);
+              }
+
+              .opt-desc {
+                font-size: 0.68rem;
+                color: var(--slate-500);
+              }
+            }
+
+            &.selected {
+              border-color: var(--primary-600);
+              background: var(--primary-50);
+            }
+          }
+        }
+
+        .bill-summary {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          font-size: 0.78rem;
+          color: var(--slate-600);
+          padding: 0.5rem 0;
+          border-top: 1px dashed var(--slate-200);
+
+          .line {
+            display: flex;
+            justify-content: space-between;
+
+            &.grand-line {
+              font-size: 0.95rem;
+              color: var(--slate-900);
+              margin-top: 0.25rem;
+              padding-top: 0.25rem;
+              border-top: 1px solid var(--slate-200);
+
+              .grand-val {
+                font-size: 1.15rem;
+                color: var(--primary-700);
+              }
+            }
+          }
+        }
+
+        .place-btn {
+          width: 100%;
+        }
+      }
+    }
+
+    /* Orders History */
+    .my-orders-section {
+      padding: 1.25rem 1.5rem;
+
+      .orders-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+
+        h2 {
+          font-size: 1.15rem;
+          font-weight: 800;
+          color: var(--slate-900);
+        }
+      }
+
+      .customer-order-card {
+        background: var(--slate-50);
+        border: 1px solid var(--slate-200);
+        border-radius: var(--radius-md);
+        padding: 0.85rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        margin-bottom: 0.75rem;
+
+        .ord-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+
+          .store { font-size: 0.75rem; color: var(--slate-500); }
+        }
+
+        .items-summary {
+          display: flex;
+          gap: 0.4rem;
+          flex-wrap: wrap;
+
+          .item-tag {
+            font-size: 0.72rem;
+            background: #ffffff;
+            border: 1px solid var(--slate-200);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--slate-700);
+          }
+        }
+
+        .ord-footer {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.78rem;
+          color: var(--slate-600);
+          padding-top: 0.35rem;
+          border-top: 1px dashed var(--slate-200);
+
+          .total { color: var(--primary-700); font-size: 0.88rem; }
+        }
+      }
+
+      .empty-orders {
+        text-align: center;
+        padding: 2rem;
+        color: var(--slate-400);
+        font-size: 0.85rem;
+      }
+    }
+  }
+
+  .confirm-modal {
+    max-width: 440px;
+
+    .modal-body {
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      text-align: center;
+
+      .success-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: #10b981;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        font-weight: bold;
+      }
+
+      h2 {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--slate-900);
+      }
+
+      .subtitle {
+        font-size: 0.85rem;
+        color: var(--slate-600);
+      }
+
+      .summary-box {
+        width: 100%;
+        background: var(--slate-50);
+        border: 1px solid var(--slate-200);
+        border-radius: var(--radius-md);
+        padding: 0.85rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        font-size: 0.82rem;
+
+        .row {
+          display: flex;
+          justify-content: space-between;
+        }
+      }
+
+      .track-hint {
+        font-size: 0.78rem;
+        color: var(--slate-500);
+      }
+    }
+  }
+}
+
+@media (max-width: 1100px) {
+  .customer-portal-container {
+    .customer-header {
+      flex-direction: column;
+      align-items: stretch;
+      .pharmacy-selector-card { min-width: auto; }
+    }
+    .portal-body-grid {
+      grid-template-columns: 1fr;
+      .checkout-sidebar { position: static; }
+      .medicines-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  }
+}

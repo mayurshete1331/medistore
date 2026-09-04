@@ -1,0 +1,215 @@
+.add-med-modal {
+  width: 100%;
+  max-width: 860px;
+
+  .modal-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--slate-200);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--slate-50);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+
+    .title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      .icon-badge {
+        width: 42px;
+        height: 42px;
+        background: var(--primary-100);
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+      }
+
+      h2 {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--slate-900);
+      }
+
+      p {
+        font-size: 0.8rem;
+        color: var(--slate-500);
+      }
+    }
+
+    .btn-close {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      color: var(--slate-400);
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      &:hover {
+        background: var(--slate-200);
+        color: var(--slate-800);
+      }
+    }
+  }
+
+  .modal-body {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .form-section {
+    background: #ffffff;
+    border: 1px solid var(--slate-200);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+
+    .section-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--primary-800);
+      margin-bottom: 1rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--primary-100);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+  }
+
+  .form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .form-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+
+    .span-2 {
+      grid-column: span 2;
+    }
+  }
+
+  .form-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+
+    label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--slate-700);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--slate-300);
+      border-radius: var(--radius-md);
+      font-family: var(--font-main);
+      font-size: 0.88rem;
+      color: var(--slate-900);
+      background: #ffffff;
+      outline: none;
+      transition: all 0.15s ease;
+
+      &:focus {
+        border-color: var(--primary-600);
+        box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+      }
+    }
+
+    .err-text {
+      font-size: 0.72rem;
+      color: var(--danger);
+      font-weight: 500;
+    }
+
+    .helper-text {
+      font-size: 0.72rem;
+      color: var(--slate-500);
+    }
+  }
+
+  .compliance-toggles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+
+    .toggle-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      background: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-radius: var(--radius-md);
+      padding: 0.65rem 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      input {
+        margin-top: 0.2rem;
+        accent-color: var(--primary-600);
+      }
+
+      .toggle-text {
+        display: flex;
+        flex-direction: column;
+
+        .toggle-title {
+          font-size: 0.78rem;
+          font-weight: 700;
+          color: var(--slate-800);
+        }
+
+        .toggle-desc {
+          font-size: 0.68rem;
+          color: var(--slate-500);
+          line-height: 1.3;
+        }
+      }
+
+      &:hover {
+        background: #ffffff;
+        border-color: var(--primary-300);
+      }
+    }
+  }
+
+  .modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--slate-200);
+  }
+}
+
+@media (max-width: 768px) {
+  .add-med-modal {
+    .form-grid-2,
+    .form-grid-3,
+    .form-grid-4,
+    .compliance-toggles {
+      grid-template-columns: 1fr;
+    }
+    .span-2 {
+      grid-column: span 1 !important;
+    }
+  }
+}

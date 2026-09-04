@@ -1,0 +1,317 @@
+<div class="inventory-container">
+  
+  <!-- Header & KPI Cards -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Medicine Master & Inventory Catalog</h1>
+      <p class="page-subtitle">Complete pharmaceutical database with batch-level FEFO tracking, shelf locations, and tax slabs</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary btn-lg" (click)="showAddModal.set(true)">
+        <span class="plus-icon">+</span> Add New Medicine
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card" (click)="stockFilter.set('ALL')">
+      <div class="kpi-icon teal">💊</div>
+      <div class="kpi-data">
+        <span class="kpi-label">Total SKUs in Master</span>
+        <span class="kpi-val tabular">{{ medicines().length }} Items</span>
+      </div>
+    </div>
+
+    <div class="kpi-card clickable" [class.active-filter]="stockFilter() === 'LOW_STOCK'" (click)="stockFilter.set('LOW_STOCK')">
+      <div class="kpi-icon amber">⚠️</div>
+      <div class="kpi-data">
+        <span class="kpi-label">Low Stock Alerts</span>
+        <span class="kpi-val text-warning tabular">{{ lowStockList().length }} Medicines</span>
+      </div>
+      <span class="kpi-hint">Requires Reorder</span>
+    </div>
+
+    <div class="kpi-card clickable" [class.active-filter]="stockFilter() === 'EXPIRING'" (click)="stockFilter.set('EXPIRING')">
+      <div class="kpi-icon red">⏳</div>
+      <div class="kpi-data">
+        <span class="kpi-label">Expiring in < 6 Months</span>
+        <span class="kpi-val text-danger tabular">{{ expiringBatches().length }} Batches</span>
+      </div>
+      <span class="kpi-hint">FEFO Priority</span>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon blue">💰</div>
+      <div class="kpi-data">
+        <span class="kpi-label">Total Stock Valuation</span>
+        <span class="kpi-val text-primary tabular">₹{{ totalValuation() | number:'1.2-2' }}</span>
+      </div>
+      <span class="kpi-hint">At Cost Price</span>
+    </div>
+  </div>
+
+  <!-- Filter & Search Toolbar -->
+  <div class="toolbar medi-card">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input 
+        type="text" 
+        [ngModel]="searchQuery()" 
+        (ngModelChange)="searchQuery.set($event)"
+        placeholder="Search medicine brand name, generic composition / salt, manufacturer, rack..." 
+        class="search-input"
+      />
+      @if (searchQuery()) {
+        <button type="button" class="btn-clear" (click)="searchQuery.set('')">✕</button>
+      }
+    </div>
+
+    <!-- Stock Status Quick Filters -->
+    <div class="status-filters">
+      <button 
+        type="button" 
+        class="filter-pill" 
+        [class.active]="stockFilter() === 'ALL'"
+        (click)="stockFilter.set('ALL')">
+        All ({{ medicines().length }})
+      </button>
+      <button 
+        type="button" 
+        class="filter-pill" 
+        [class.active]="stockFilter() === 'IN_STOCK'"
+        (click)="stockFilter.set('IN_STOCK')">
+        In Stock
+      </button>
+      <button 
+        type="button" 
+        class="filter-pill pill-warning" 
+        [class.active]="stockFilter() === 'LOW_STOCK'"
+        (click)="stockFilter.set('LOW_STOCK')">
+        Low Stock ({{ lowStockList().length }})
+      </button>
+      <button 
+        type="button" 
+        class="filter-pill pill-danger" 
+        [class.active]="stockFilter() === 'EXPIRING'"
+        (click)="stockFilter.set('EXPIRING')">
+        Near Expiry ({{ expiringBatches().length }})
+      </button>
+    </div>
+  </div>
+
+  <!-- Category Pills -->
+  <div class="category-scroll">
+    @for (cat of categories; track cat) {
+      <button 
+        type="button" 
+        class="cat-chip" 
+        [class.active]="selectedCategory() === cat"
+        (click)="selectedCategory.set(cat)">
+        {{ cat }}
+      </button>
+    }
+  </div>
+
+  <!-- Medicine Table -->
+  <div class="table-card medi-card">
+    <div class="table-responsive">
+      <table class="medi-table">
+        <thead>
+          <tr>
+            <th style="width: 32%;">Medicine & Composition</th>
+            <th>Category & Pack</th>
+            <th>Rack / Shelf</th>
+            <th>Available Stock</th>
+            <th>Pricing (MRP / Sale)</th>
+            <th>Batches</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (med of filteredMedicines(); track med.id) {
+            <tr [class.expanded-row]="expandedMedId() === med.id" (click)="toggleExpand(med.id)" class="row-clickable">
+              
+              <!-- Medicine Brand & Generic -->
+              <td>
+                <div class="med-info-cell">
+                  <div class="med-name-row">
+                    <span class="med-name">{{ med.brandName }}</span>
+                    @if (med.isScheduleH) {
+                      <span class="badge badge-schedule-h" title="Schedule H: Prescription Required">Rx / Sched H</span>
+                    }
+                    @if (med.isScheduleH1) {
+                      <span class="badge badge-danger" title="Schedule H1: Strict Antibiotic Register">Sched H1</span>
+                    }
+                  </div>
+                  <div class="med-salt" title="{{ med.genericName }}">{{ med.genericName }}</div>
+                  <div class="med-meta">
+                    <span>{{ med.manufacturer }}</span>
+                    <span>•</span>
+                    <span class="tabular">HSN: {{ med.hsnCode }}</span>
+                    <span>•</span>
+                    <span class="tabular">GST: {{ med.gstRate }}%</span>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Category & Packaging -->
+              <td>
+                <span class="badge badge-teal">{{ med.category }}</span>
+                <div class="pack-info tabular">{{ med.packaging }}</div>
+              </td>
+
+              <!-- Rack Location -->
+              <td>
+                <div class="rack-badge">
+                  <span class="rack-icon">📍</span>
+                  <span>{{ med.rackLocation }}</span>
+                </div>
+              </td>
+
+              <!-- Stock & Health -->
+              <td>
+                <div class="stock-cell">
+                  <div class="stock-number tabular">
+                    <span class="stock-val" [class.text-danger]="med.totalStockPacks <= 5" [class.text-warning]="med.totalStockPacks <= med.reorderLevel">
+                      {{ med.totalStockPacks }}
+                    </span>
+                    <span class="stock-unit">Packs</span>
+                  </div>
+
+                  @if (med.totalStockPacks <= 5) {
+                    <span class="badge badge-danger">Critical</span>
+                  } @else if (med.totalStockPacks <= med.reorderLevel) {
+                    <span class="badge badge-warning">Low Stock</span>
+                  } @else {
+                    <span class="badge badge-success">In Stock</span>
+                  }
+                  <div class="reorder-info tabular">Min Reorder: {{ med.reorderLevel }}</div>
+                </div>
+              </td>
+
+              <!-- Pricing -->
+              <td>
+                <div class="price-cell tabular">
+                  <div class="sale-price">₹{{ med.batches[0].salePrice | number:'1.2-2' }}</div>
+                  <div class="mrp-price">MRP ₹{{ med.batches[0].mrp | number:'1.2-2' }}</div>
+                </div>
+              </td>
+
+              <!-- Batches Count -->
+              <td>
+                <div class="batches-pill">
+                  <span>{{ med.batches.length }} {{ med.batches.length === 1 ? 'Batch' : 'Batches' }}</span>
+                  <span class="chevron">{{ expandedMedId() === med.id ? '▲' : '▼' }}</span>
+                </div>
+              </td>
+
+              <!-- Actions -->
+              <td style="text-align: right;" (click)="$event.stopPropagation()">
+                <button type="button" class="btn btn-sm btn-secondary" (click)="openRestock(med.id, $event)">
+                  + Quick Stock
+                </button>
+              </td>
+            </tr>
+
+            <!-- Quick Restock inline prompt -->
+            @if (restockingMedId() === med.id) {
+              <tr class="restock-row">
+                <td colspan="7">
+                  <div class="restock-box">
+                    <span>⚡ Quick Restock <strong>{{ med.brandName }}</strong>:</span>
+                    <div class="restock-input-wrap">
+                      <label>Additional Packs:</label>
+                      <input type="number" [ngModel]="restockQuantity()" (ngModelChange)="restockQuantity.set($event)" min="1" class="tabular form-input-sm" />
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" (click)="confirmRestock(med.id)">Confirm Restock</button>
+                    <button type="button" class="btn btn-sm btn-secondary" (click)="cancelRestock()">Cancel</button>
+                  </div>
+                </td>
+              </tr>
+            }
+
+            <!-- Expanded Batches Details (FEFO View) -->
+            @if (expandedMedId() === med.id) {
+              <tr class="batches-detail-row">
+                <td colspan="7">
+                  <div class="batches-card">
+                    <div class="batches-header">
+                      <span class="title">Active Inward Batches (FEFO Prioritized)</span>
+                      <span class="subtitle">Oldest non-expired batch will be auto-selected first in Counter POS billing</span>
+                    </div>
+
+                    <div class="batch-table-wrap">
+                      <table class="batch-subtable">
+                        <thead>
+                          <tr>
+                            <th>Batch No.</th>
+                            <th>Mfg Date</th>
+                            <th>Expiry Date</th>
+                            <th>Cost Price</th>
+                            <th>MRP</th>
+                            <th>Sale Price</th>
+                            <th>Available Packs</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (batch of med.batches; track batch.id) {
+                            <tr>
+                              <td class="tabular font-bold">{{ batch.batchNumber }}</td>
+                              <td class="tabular">{{ batch.mfgDate }}</td>
+                              <td class="tabular">
+                                <span [class.text-danger]="isExpiring(batch.expiryDate)">
+                                  {{ batch.expiryDate }}
+                                  @if (isExpiring(batch.expiryDate)) {
+                                    ⚠️
+                                  }
+                                </span>
+                              </td>
+                              <td class="tabular">₹{{ batch.purchasePrice | number:'1.2-2' }}</td>
+                              <td class="tabular">₹{{ batch.mrp | number:'1.2-2' }}</td>
+                              <td class="tabular font-bold text-primary">₹{{ batch.salePrice | number:'1.2-2' }}</td>
+                              <td class="tabular font-bold">{{ batch.stockPacks }} Packs</td>
+                              <td>
+                                @if (isExpiring(batch.expiryDate)) {
+                                  <span class="badge badge-danger">Expiring Soon</span>
+                                } @else {
+                                  <span class="badge badge-success">Active</span>
+                                }
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
+          } @empty {
+            <tr>
+              <td colspan="7" class="empty-cell">
+                <div class="empty-state">
+                  <span class="empty-icon">🔍</span>
+                  <h3>No medicines found</h3>
+                  <p>No medicines matched "{{ searchQuery() }}". Try adjusting your search query or category filter.</p>
+                  <button type="button" class="btn btn-primary btn-sm" (click)="showAddModal.set(true)">
+                    + Add This Medicine
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add Medicine Modal -->
+  @if (showAddModal()) {
+    <app-add-medicine-modal 
+      (closed)="showAddModal.set(false)" 
+      (medicineAdded)="showAddModal.set(false)">
+    </app-add-medicine-modal>
+  }
+</div>

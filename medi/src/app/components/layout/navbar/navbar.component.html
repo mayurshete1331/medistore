@@ -1,0 +1,92 @@
+<header class="medi-navbar">
+  <div class="nav-container">
+    <!-- Brand Info -->
+    <div class="brand-section">
+      <div class="logo-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M12 2v20M2 12h20"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-title">
+          <span>Medi</span><span class="highlight">Store</span>
+          <span class="store-badge">ERP & Multi-Portal</span>
+        </div>
+        <div class="brand-subtitle">DL: MH-MZ4-20B-10928 • GSTIN: 27AABCM1122D1Z9</div>
+      </div>
+    </div>
+
+    <!-- Role-Aware Navigation Tabs -->
+    <nav class="nav-tabs">
+      @if (isOwner()) {
+        <!-- Store Owner Navigation -->
+        <a routerLink="/billing" routerLinkActive="active" class="nav-link">
+          <span class="icon">🛒</span>
+          <span class="label">Counter POS</span>
+          @if (cartCount() > 0) {
+            <span class="cart-pill">{{ cartCount() }}</span>
+          }
+        </a>
+
+        <a routerLink="/inventory" routerLinkActive="active" class="nav-link">
+          <span class="icon">💊</span>
+          <span class="label">Medicine Master</span>
+        </a>
+
+        <a routerLink="/store-orders" routerLinkActive="active" class="nav-link orders-link">
+          <span class="icon">📥</span>
+          <span class="label">Incoming Orders & Audit</span>
+          @if (pendingStoreOrdersCount().length > 0) {
+            <span class="badge-new-orders">{{ pendingStoreOrdersCount().length }}</span>
+          }
+        </a>
+
+        <a routerLink="/reorder" routerLinkActive="active" class="nav-link reorder-link">
+          <span class="icon">📦</span>
+          <span class="label">Auto-Reorder</span>
+          @if (lowStockCount().length > 0) {
+            <span class="badge-reorder-alert">{{ lowStockCount().length }}</span>
+          }
+        </a>
+
+        <a routerLink="/analytics" routerLinkActive="active" class="nav-link">
+          <span class="icon">📊</span>
+          <span class="label">P&L Analytics</span>
+        </a>
+      } @else if (isDoctor()) {
+        <!-- Doctor Navigation -->
+        <a routerLink="/doctor" routerLinkActive="active" class="nav-link">
+          <span class="icon">🩺</span>
+          <span class="label">Doctor e-Prescription Desk</span>
+        </a>
+      } @else {
+        <!-- Customer Navigation -->
+        <a routerLink="/customer" routerLinkActive="active" class="nav-link">
+          <span class="icon">🛍️</span>
+          <span class="label">Order Medicines (COD / Prepaid)</span>
+        </a>
+      }
+    </nav>
+
+    <!-- Right User Profile & Role Switcher -->
+    <div class="user-role-section">
+      <div class="active-user-pill" (click)="showLoginModal.set(true)" title="Click to switch role (Store Owner, Doctor, Customer)">
+        <div class="user-avatar-circle">{{ currentUser().avatarIcon }}</div>
+        <div class="user-meta">
+          <span class="role-badge" [class.badge-owner]="isOwner()" [class.badge-doc]="isDoctor()" [class.badge-cust]="isCustomer()">
+            {{ isOwner() ? 'Store Owner' : (isDoctor() ? 'Doctor' : 'Customer') }}
+          </span>
+          <span class="user-name">{{ currentUser().name }}</span>
+        </div>
+        <button type="button" class="btn-switch-role">
+          Switch ⇄
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Login / Role Switcher Modal -->
+@if (showLoginModal()) {
+  <app-login-modal (closed)="showLoginModal.set(false)"></app-login-modal>
+}

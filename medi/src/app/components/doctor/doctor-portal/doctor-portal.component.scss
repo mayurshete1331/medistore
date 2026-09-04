@@ -1,0 +1,569 @@
+.doctor-portal-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+
+  .doctor-banner {
+    padding: 1.25rem 1.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    background: linear-gradient(135deg, #ffffff, var(--primary-50));
+    border-color: var(--primary-200);
+
+    .doctor-profile {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+
+      .avatar {
+        width: 52px;
+        height: 52px;
+        border-radius: var(--radius-lg);
+        background: var(--primary-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        flex-shrink: 0;
+      }
+
+      .info {
+        .badge-row {
+          display: flex;
+          gap: 0.5rem;
+          margin-bottom: 0.25rem;
+        }
+
+        .name {
+          font-size: 1.35rem;
+          font-weight: 800;
+          color: var(--slate-900);
+        }
+
+        .credentials {
+          font-size: 0.8rem;
+          color: var(--slate-600);
+          margin-top: 0.15rem;
+        }
+      }
+    }
+
+    .store-picker-box {
+      background: #ffffff;
+      border: 1px solid var(--primary-300);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      min-width: 380px;
+      box-shadow: var(--shadow-sm);
+
+      .picker-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--primary-800);
+        text-transform: uppercase;
+      }
+
+      .store-select {
+        padding: 0.45rem 0.65rem;
+        border: 1px solid var(--slate-300);
+        border-radius: var(--radius-sm);
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--slate-900);
+        outline: none;
+        background: #ffffff;
+
+        &:focus {
+          border-color: var(--primary-600);
+        }
+      }
+
+      .store-meta {
+        font-size: 0.7rem;
+        color: var(--slate-500);
+        display: flex;
+        gap: 0.4rem;
+      }
+    }
+  }
+
+  .workspace-grid {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 1.25rem;
+
+    .col-header {
+      padding: 1.1rem 1.5rem;
+      border-bottom: 1px solid var(--slate-200);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .header-title {
+        h2 {
+          font-size: 1.15rem;
+          font-weight: 800;
+          color: var(--slate-900);
+        }
+        p {
+          font-size: 0.78rem;
+          color: var(--slate-500);
+          margin-top: 0.1rem;
+        }
+      }
+
+      .btn-demo-fill {
+        background: none;
+        border: none;
+        color: var(--primary-700);
+        font-size: 0.75rem;
+        font-weight: 700;
+        cursor: pointer;
+        &:hover { text-decoration: underline; }
+      }
+    }
+
+    .form-section {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--slate-100);
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+
+      .section-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--primary-800);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+    }
+
+    .form-grid-3 {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr 1.2fr;
+      gap: 0.75rem;
+    }
+
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .age-gender-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+
+      label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--slate-700);
+      }
+
+      .form-control {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--slate-300);
+        border-radius: var(--radius-md);
+        font-size: 0.85rem;
+        outline: none;
+
+        &:focus {
+          border-color: var(--primary-600);
+          box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+        }
+      }
+
+      .notes-textarea {
+        resize: vertical;
+        font-family: var(--font-main);
+      }
+    }
+
+    .mode-tabs {
+      display: flex;
+      background: var(--slate-100);
+      padding: 0.3rem;
+      border-radius: var(--radius-md);
+      margin: 1rem 1.5rem 0;
+      gap: 0.3rem;
+
+      .mode-btn {
+        flex: 1;
+        padding: 0.55rem;
+        border: none;
+        background: transparent;
+        border-radius: var(--radius-sm);
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--slate-600);
+        cursor: pointer;
+
+        &.active {
+          background: #ffffff;
+          color: var(--primary-800);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+      }
+    }
+
+    .drug-search-box {
+      position: relative;
+
+      .search-input {
+        background: var(--slate-50);
+      }
+
+      .dropdown-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #ffffff;
+        border: 1px solid var(--slate-300);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
+        z-index: 50;
+        margin-top: 0.25rem;
+        max-height: 250px;
+        overflow-y: auto;
+
+        .dropdown-item {
+          padding: 0.65rem 1rem;
+          cursor: pointer;
+          border-bottom: 1px solid var(--slate-100);
+          transition: background 0.15s ease;
+
+          &:hover {
+            background: var(--primary-50);
+          }
+
+          .d-brand {
+            font-weight: 700;
+            color: var(--slate-900);
+            font-size: 0.88rem;
+
+            .d-pack {
+              font-size: 0.7rem;
+              color: var(--slate-500);
+              font-weight: normal;
+              margin-left: 0.4rem;
+            }
+          }
+
+          .d-salt {
+            font-size: 0.75rem;
+            color: var(--slate-600);
+          }
+
+          .d-stock {
+            font-size: 0.7rem;
+            color: var(--primary-700);
+            font-weight: 600;
+          }
+        }
+      }
+    }
+
+    .dosage-builder-card {
+      background: var(--slate-50);
+      border: 1px solid var(--primary-200);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+
+      .drug-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        strong {
+          font-size: 0.92rem;
+          color: var(--slate-900);
+        }
+        .salt-sub {
+          font-size: 0.75rem;
+          color: var(--slate-500);
+          margin-left: 0.35rem;
+        }
+
+        .btn-cancel {
+          background: none;
+          border: none;
+          color: var(--slate-400);
+          cursor: pointer;
+        }
+      }
+
+      .dosage-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.75rem;
+
+        .field {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+
+          label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--slate-600);
+          }
+        }
+      }
+    }
+
+    .prescribed-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+
+      .sub-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--slate-600);
+      }
+
+      .mini-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+        border: 1px solid var(--slate-200);
+
+        th {
+          background: var(--slate-50);
+          padding: 0.5rem 0.65rem;
+          text-align: left;
+          font-weight: 700;
+          color: var(--slate-600);
+          border-bottom: 1px solid var(--slate-200);
+        }
+
+        td {
+          padding: 0.55rem 0.65rem;
+          border-bottom: 1px solid var(--slate-100);
+          vertical-align: middle;
+
+          .generic-sub {
+            font-size: 0.68rem;
+            color: var(--slate-400);
+          }
+
+          .timing-sub {
+            font-size: 0.68rem;
+            color: var(--slate-500);
+            display: block;
+          }
+        }
+
+        .btn-del {
+          background: none;
+          border: none;
+          color: var(--slate-400);
+          cursor: pointer;
+          &:hover { color: var(--danger); }
+        }
+      }
+    }
+
+    .payment-options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+
+      .pay-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.78rem;
+        cursor: pointer;
+
+        input {
+          accent-color: var(--primary-600);
+        }
+      }
+    }
+
+    .submit-bar {
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--slate-50);
+      border-top: 1px solid var(--slate-200);
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+
+      .total-wrap {
+        display: flex;
+        flex-direction: column;
+
+        span {
+          font-size: 0.72rem;
+          color: var(--slate-500);
+        }
+
+        .amount {
+          font-size: 1.4rem;
+          font-weight: 800;
+          color: var(--primary-700);
+        }
+      }
+    }
+
+    /* History Col */
+    .history-col {
+      display: flex;
+      flex-direction: column;
+      max-height: 800px;
+
+      .orders-list {
+        padding: 1rem;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+
+        .order-card {
+          background: var(--slate-50);
+          border: 1px solid var(--slate-200);
+          border-radius: var(--radius-md);
+          padding: 0.85rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.4rem;
+          font-size: 0.82rem;
+
+          .order-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+
+          .patient-name {
+            color: var(--slate-800);
+          }
+
+          .store-name {
+            font-size: 0.72rem;
+            color: var(--primary-700);
+            font-weight: 600;
+          }
+
+          .meds-summary {
+            background: #ffffff;
+            border: 1px solid var(--slate-200);
+            border-radius: 4px;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.74rem;
+
+            .item-line {
+              display: flex;
+              justify-content: space-between;
+            }
+          }
+
+          .order-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 0.35rem;
+            border-top: 1px dashed var(--slate-200);
+            font-size: 0.75rem;
+          }
+        }
+
+        .no-orders {
+          padding: 3rem 1rem;
+          text-align: center;
+          color: var(--slate-400);
+          font-size: 0.82rem;
+        }
+      }
+    }
+  }
+
+  /* Confirm Modal */
+  .confirm-modal {
+    max-width: 440px;
+
+    .modal-body {
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      text-align: center;
+
+      .success-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: #10b981;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        font-weight: bold;
+      }
+
+      h2 {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--slate-900);
+      }
+
+      .subtitle {
+        font-size: 0.85rem;
+        color: var(--slate-600);
+      }
+
+      .details-box {
+        width: 100%;
+        background: var(--slate-50);
+        border: 1px solid var(--slate-200);
+        border-radius: var(--radius-md);
+        padding: 0.85rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        font-size: 0.82rem;
+
+        .row {
+          display: flex;
+          justify-content: space-between;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 1100px) {
+  .doctor-portal-container {
+    .doctor-banner {
+      flex-direction: column;
+      align-items: stretch;
+      .store-picker-box { min-width: auto; }
+    }
+    .workspace-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}

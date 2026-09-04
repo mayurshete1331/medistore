@@ -1,0 +1,293 @@
+<div class="customer-portal-container">
+  
+  <!-- Store & User Header -->
+  <div class="customer-header medi-card">
+    <div class="user-greeting">
+      <div class="user-avatar">👤</div>
+      <div>
+        <span class="badge badge-teal">Customer Portal</span>
+        <h1 class="user-name">Welcome, {{ currentUser().name }}</h1>
+        <p class="user-sub tabular">Delivering to: {{ deliveryAddress() }}</p>
+      </div>
+    </div>
+
+    <!-- Store Selector -->
+    <div class="pharmacy-selector-card">
+      <span class="label">Ordering from Partner Medical Store:</span>
+      <select 
+        [ngModel]="selectedStoreId()" 
+        (ngModelChange)="selectedStoreId.set($event)"
+        class="store-dropdown">
+        @for (store of partnerStores(); track store.id) {
+          <option [value]="store.id">
+            {{ store.name }} • {{ store.distance }}
+          </option>
+        }
+      </select>
+      <div class="store-features">
+        <span class="tag">⚡ Express Delivery</span>
+        <span class="tag">💵 COD Available</span>
+        <span class="tag">⭐ {{ selectedStore().rating }} Rating</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Layout: Catalog on Left, Cart/Checkout on Right -->
+  <div class="portal-body-grid">
+    
+    <!-- Left: Medicine Browsing & Search -->
+    <div class="catalog-section">
+      
+      <!-- Search & Filters -->
+      <div class="catalog-toolbar medi-card">
+        <div class="search-wrap">
+          <span class="icon">🔍</span>
+          <input 
+            type="text" 
+            [ngModel]="searchQuery()" 
+            (ngModelChange)="searchQuery.set($event)"
+            placeholder="Search medicines, pain relief, syrups, health essentials..." 
+            class="search-input" 
+          />
+        </div>
+
+        <div class="cat-chips">
+          @for (cat of categories; track cat) {
+            <button 
+              type="button" 
+              class="cat-btn" 
+              [class.active]="selectedCategory() === cat"
+              (click)="selectedCategory.set(cat)">
+              {{ cat }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Medicine Grid -->
+      <div class="medicines-grid">
+        @for (med of catalog(); track med.id) {
+          <div class="product-card medi-card">
+            <div class="card-top">
+              <span class="cat-badge">{{ med.category }}</span>
+              <span class="pack-badge tabular">{{ med.packaging }}</span>
+            </div>
+
+            <div class="med-name">{{ med.brandName }}</div>
+            <div class="med-salt">{{ med.genericName }}</div>
+
+            <div class="card-bottom">
+              <div class="price-box tabular">
+                <span class="sale">₹{{ med.batches[0].salePrice | number:'1.2-2' }}</span>
+                <span class="mrp">₹{{ med.batches[0].mrp | number:'1.2-2' }}</span>
+              </div>
+
+              <button type="button" class="btn btn-sm btn-primary btn-add" (click)="addToCart(med)">
+                + Add
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- My Orders History Section -->
+      <div class="my-orders-section medi-card">
+        <div class="orders-header">
+          <h2>📦 My Recent Medical Orders</h2>
+          <span class="badge badge-teal">{{ myOrders().length }} Orders Placed</span>
+        </div>
+
+        <div class="orders-table-wrap">
+          @for (ord of myOrders(); track ord.id) {
+            <div class="customer-order-card">
+              <div class="ord-header">
+                <div>
+                  <span class="ord-num tabular font-bold">#{{ ord.orderNumber }}</span>
+                  <span class="store tabular">• {{ ord.storeName }}</span>
+                </div>
+
+                <div class="status-wrap">
+                  <span class="badge" [class.badge-warning]="ord.orderStatus === 'NEW_RECEIVED'" [class.badge-info]="ord.orderStatus === 'PACKED'" [class.badge-success]="ord.orderStatus === 'COMPLETED'">
+                    {{ ord.orderStatus === 'NEW_RECEIVED' ? 'Order Placed (Awaiting Packing)' : (ord.orderStatus === 'PACKED' ? 'Packed & Out for Delivery' : ord.orderStatus) }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="items-summary">
+                @for (item of ord.items; track item.medicineId) {
+                  <span class="item-tag">{{ item.medicineName }} x {{ item.quantity }}</span>
+                }
+              </div>
+
+              <div class="ord-footer tabular">
+                <span>Payment: <strong>{{ ord.paymentMethod === 'COD' ? 'Cash on Delivery (₹' + ord.totalAmount + ')' : 'Prepaid Online (Paid)' }}</strong></span>
+                <span class="total font-bold">Total: ₹{{ ord.totalAmount | number:'1.2-2' }}</span>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-orders">
+              <p>No orders placed yet. Add medicines above and choose Online Pay or Cash on Delivery.</p>
+            </div>
+          }
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right: Customer Shopping Cart & Checkout -->
+    <div class="checkout-sidebar medi-card">
+      <div class="cart-header">
+        <h2>Your Pharmacy Bag</h2>
+        <span class="badge badge-teal">{{ cartCount() }} Items</span>
+      </div>
+
+      <!-- Cart Items List -->
+      <div class="cart-items-list">
+        @for (item of cart(); track item.medicine.id) {
+          <div class="cart-item-row">
+            <div class="item-details">
+              <span class="name">{{ item.medicine.brandName }}</span>
+              <span class="pack tabular">{{ item.medicine.packaging }}</span>
+              <span class="price tabular">₹{{ item.unitPrice | number:'1.2-2' }} each</span>
+            </div>
+
+            <div class="qty-control">
+              <button type="button" class="btn-q" (click)="updateQty(item.medicine.id, -1)">-</button>
+              <span class="count tabular">{{ item.quantity }}</span>
+              <button type="button" class="btn-q" (click)="updateQty(item.medicine.id, 1)">+</button>
+            </div>
+
+            <div class="item-total tabular font-bold">
+              ₹{{ item.total | number:'1.2-2' }}
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-bag">
+            <span class="bag-icon">🛍️</span>
+            <h3>Your Bag is Empty</h3>
+            <p>Select medicines from the catalog to order from {{ selectedStore().name }}.</p>
+          </div>
+        }
+      </div>
+
+      <!-- Checkout Details Form -->
+      @if (cart().length > 0) {
+        <div class="checkout-form">
+          <div class="form-group">
+            <label>Delivery Address *</label>
+            <input 
+              type="text" 
+              [ngModel]="deliveryAddress()" 
+              (ngModelChange)="deliveryAddress.set($event)"
+              placeholder="Full delivery address with flat/street/landmark" 
+              class="form-control" 
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Contact Phone (for delivery agent)</label>
+            <input 
+              type="tel" 
+              [ngModel]="customerPhone()" 
+              (ngModelChange)="customerPhone.set($event)"
+              class="form-control tabular" 
+            />
+          </div>
+
+          <!-- Payment Options (User Requirement: Online or COD) -->
+          <div class="payment-selection-box">
+            <label class="pay-title">Choose Payment Option:</label>
+
+            <label class="pay-radio-card" [class.selected]="paymentMethod() === 'COD'">
+              <input 
+                type="radio" 
+                name="custPayment" 
+                value="COD" 
+                [checked]="paymentMethod() === 'COD'"
+                (change)="paymentMethod.set('COD')" 
+              />
+              <div class="radio-content">
+                <span class="opt-name">💵 Cash on Delivery (COD)</span>
+                <span class="opt-desc">Pay cash to delivery boy when medicines arrive</span>
+              </div>
+            </label>
+
+            <label class="pay-radio-card" [class.selected]="paymentMethod() === 'ONLINE_PAID'">
+              <input 
+                type="radio" 
+                name="custPayment" 
+                value="ONLINE_PAID" 
+                [checked]="paymentMethod() === 'ONLINE_PAID'"
+                (change)="paymentMethod.set('ONLINE_PAID')" 
+              />
+              <div class="radio-content">
+                <span class="opt-name">📱 Pay Online (UPI / Credit / Debit)</span>
+                <span class="opt-desc">Fast, contactless digital checkout</span>
+              </div>
+            </label>
+          </div>
+
+          <!-- Bill Summary -->
+          <div class="bill-summary">
+            <div class="line">
+              <span>Items Total:</span>
+              <span class="tabular">₹{{ cartTotal() | number:'1.2-2' }}</span>
+            </div>
+            <div class="line">
+              <span>Delivery Charges:</span>
+              <span class="text-success">FREE</span>
+            </div>
+            <div class="line grand-line font-bold">
+              <span>Grand Total:</span>
+              <span class="grand-val tabular">₹{{ cartTotal() | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-primary btn-lg place-btn" (click)="placeOrder()">
+            Place Order ({{ paymentMethod() === 'COD' ? 'Cash on Delivery' : 'Pay Online' }})
+          </button>
+        </div>
+      }
+    </div>
+
+  </div>
+
+  <!-- Order Confirmation Modal -->
+  @if (lastPlacedOrder(); as ord) {
+    <div class="modal-overlay" (click)="lastPlacedOrder.set(null)">
+      <div class="modal-content confirm-modal" (click)="$event.stopPropagation()">
+        <div class="modal-body text-center">
+          <div class="success-icon">✓</div>
+          <h2>Order Placed Successfully!</h2>
+          <p class="subtitle">
+            Your order <strong>#{{ ord.orderNumber }}</strong> has been forwarded to <strong>{{ ord.storeName }}</strong>.
+          </p>
+
+          <div class="summary-box">
+            <div class="row">
+              <span>Payment Mode:</span>
+              <strong>{{ ord.paymentMethod === 'COD' ? '💵 Cash on Delivery (COD)' : '📱 Prepaid Online' }}</strong>
+            </div>
+            <div class="row">
+              <span>Deliver to:</span>
+              <span>{{ ord.deliveryAddress }}</span>
+            </div>
+            <div class="row">
+              <span>Amount to Pay:</span>
+              <strong class="tabular text-primary font-bold">₹{{ ord.totalAmount | number:'1.2-2' }}</strong>
+            </div>
+          </div>
+
+          <p class="track-hint">
+            The pharmacy is verifying stock and will dispatch your package shortly.
+          </p>
+
+          <button type="button" class="btn btn-primary btn-lg" style="width: 100%;" (click)="lastPlacedOrder.set(null)">
+            Continue Shopping
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>
