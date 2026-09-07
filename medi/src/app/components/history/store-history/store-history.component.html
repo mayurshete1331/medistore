@@ -6,7 +6,7 @@
       <div class="header-details">
         <div class="title-row">
           <h1>Store Audit & Activity History</h1>
-          <span class="live-pill"><span class="dot"></span> Live MySQL Synced</span>
+          <span class="live-pill"><span class="dot"></span> Live Synced</span>
         </div>
         <p class="store-subtitle">
           Auditing activities for: <strong>{{ currentStore?.name || 'MediCare Pharmacy' }}</strong> (DL: {{ currentStore?.dlNumber || '20B/MH-MZ4-10928' }})
@@ -130,7 +130,7 @@
   <!-- Loading State -->
   <div class="loading-state" *ngIf="isLoading()">
     <div class="spinner-large">⏳</div>
-    <p>Fetching store history audit from MySQL database...</p>
+    <p>Loading store activity audit...</p>
   </div>
 
   <!-- Empty State -->

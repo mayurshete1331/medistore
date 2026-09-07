@@ -38,4 +38,18 @@ public class BillingController {
         Invoice invoice = billingService.checkout(req);
         return ResponseEntity.status(HttpStatus.CREATED).body(invoice);
     }
+
+    @GetMapping("/customers/lookup")
+    @Operation(summary = "Search and verify customers by mobile number or name with past bills stats")
+    public ResponseEntity<java.util.List<java.util.Map<String, Object>>> lookupCustomers(@RequestParam String query) {
+        return ResponseEntity.ok(billingService.lookupCustomers(query));
+    }
+
+    @GetMapping("/customers/invoices")
+    @Operation(summary = "Fetch past invoices and medicines for a customer by phone or name")
+    public ResponseEntity<List<Invoice>> getCustomerInvoices(
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String name) {
+        return ResponseEntity.ok(billingService.getCustomerInvoices(phone, name));
+    }
 }

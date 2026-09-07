@@ -7,7 +7,7 @@
         <span class="icon">🏥</span>
         <div>
           <h2>Medi Healthcare Portal Access</h2>
-          <p>Authenticated database users & roles fetched live from MySQL</p>
+          <p>Authorized healthcare accounts & role management</p>
         </div>
       </div>
       <button type="button" class="btn-close" (click)="closed.emit()">✕</button>
@@ -15,10 +15,10 @@
 
     <div class="modal-body">
       
-      <!-- 1-Click Fast Profile Switcher Cards from MySQL -->
-      <div class="demo-section">
+      <!-- Quick Profile Switcher -->
+      <div class="profiles-section">
         <div class="section-header-row">
-          <span class="section-label">⚡ Database User Profiles ({{ allUsers().length }} Loaded from MySQL)</span>
+          <span class="section-label">Active User Profiles ({{ allUsers().length }} Available)</span>
           <div class="filter-pills">
             <button 
               type="button" 
@@ -51,10 +51,10 @@
           </div>
         </div>
 
-        <div class="demo-cards-grid">
+        <div class="profiles-cards-grid">
           @for (u of (roleFilter === 'ALL' ? allUsers() : (roleFilter === 'STORE_OWNER' ? storeOwners() : (roleFilter === 'DOCTOR' ? doctors() : customers()))); track u.id) {
             <div 
-              class="demo-card" 
+              class="profile-user-card" 
               [class.is-active]="currentUser().id === u.id"
               (click)="selectUser(u)"
               title="Click to activate {{ u.name }}">
@@ -81,7 +81,7 @@
           }
           @if (allUsers().length === 0) {
             <div class="loading-users-notice">
-              <span>⏳ Fetching users from Spring Boot MySQL database...</span>
+              <span>⏳ Loading user accounts...</span>
             </div>
           }
         </div>

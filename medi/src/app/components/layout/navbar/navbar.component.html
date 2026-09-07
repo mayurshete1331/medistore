@@ -10,8 +10,6 @@
       <div class="brand-text">
         <div class="brand-title">
           <span>Medi</span><span class="highlight">Store</span>
-          <span class="store-badge">ERP & Multi-Portal</span>
-          <span class="env-badge" [class]="'env-' + currentEnv.toLowerCase()">{{ currentEnv }}</span>
         </div>
         <div class="brand-subtitle">DL: MH-MZ4-20B-10928 • GSTIN: 27AABCM1122D1Z9</div>
       </div>
@@ -76,29 +74,7 @@
 
     <!-- Right User Profile & Role Switcher -->
     <div class="user-role-section">
-      <!-- Live Spring Boot Backend Connection Status Pill -->
-      <button 
-        type="button" 
-        class="backend-status-pill" 
-        [class.status-online]="backendStatus() === 'ONLINE'"
-        [class.status-offline]="backendStatus() === 'OFFLINE'"
-        [class.status-checking]="backendStatus() === 'CHECKING'"
-        (click)="checkBackend()" 
-        title="Spring Boot REST API (Java 21, port 8081 with JWT) - Click to test connection & sync">
-        <span class="status-indicator-dot"></span>
-        <div class="backend-info">
-          <span class="backend-label">
-            @if (backendStatus() === 'ONLINE') { Spring Boot API }
-            @else if (backendStatus() === 'CHECKING') { Connecting... }
-            @else { Local Mode }
-          </span>
-          <span class="backend-port">
-            @if (backendStatus() === 'ONLINE') { :8081 Online 🟢 }
-            @else if (backendStatus() === 'CHECKING') { Probing... ⏳ }
-            @else { Click to Sync 🔄 }
-          </span>
-        </div>
-      </button>
+
 
       @if (isOwner()) {
         <button 
@@ -112,17 +88,117 @@
       }
 
       @if (isLoggedIn()) {
-        <div class="active-user-pill">
-          <div class="user-avatar-circle">{{ currentUser().avatarIcon }}</div>
-          <div class="user-meta">
-            <span class="role-badge" [class.badge-owner]="isOwner()" [class.badge-doc]="isDoctor()" [class.badge-cust]="isCustomer()">
-              {{ isOwner() ? 'Store Owner' : (isDoctor() ? 'Doctor' : 'Customer') }}
-            </span>
-            <span class="user-name">{{ currentUser().name }}</span>
-          </div>
-          <button type="button" class="btn-logout" (click)="logout()" title="Logout and terminate session">
-            Logout ⎋
+        <!-- Profile Button with Dropdown -->
+        <div class="profile-dropdown-wrapper" (click)="$event.stopPropagation()">
+          <button 
+            type="button" 
+            class="profile-btn" 
+            [class.active]="isProfileOpen()" 
+            (click)="toggleProfileDropdown($event)"
+            [title]="currentUser().name + ' (' + (isOwner() ? 'Store Owner' : (isDoctor() ? 'Doctor' : 'Customer')) + ')'">
+            <div class="user-avatar-circle">
+              <span class="person-icon">👤</span>
+            </div>
+            <span class="chevron-icon" [class.open]="isProfileOpen()">▾</span>
           </button>
+
+          <!-- Dropdown Menu -->
+          @if (isProfileOpen()) {
+            <div class="profile-menu-dropdown animate-fade-in">
+              <!-- Menu User Header -->
+              <div class="menu-user-header">
+                <div class="header-avatar">{{ currentUser().avatarIcon || '👤' }}</div>
+                <div class="header-details">
+                  <div class="header-name">{{ currentUser().name }}</div>
+                  <span class="role-badge" [class.badge-owner]="isOwner()" [class.badge-doc]="isDoctor()" [class.badge-cust]="isCustomer()">
+                    {{ isOwner() ? 'Store Owner' : (isDoctor() ? 'Doctor' : 'Customer') }}
+                  </span>
+                  <div class="header-email">{{ currentUser().email }}</div>
+                </div>
+              </div>
+
+              <!-- Extra Meta (Store / Clinic / Phone) -->
+              @if (isOwner() && currentUser().storeName) {
+                <div class="menu-meta-badge">
+                  <span class="meta-label">STORE</span>
+                  <span class="meta-val">{{ currentUser().storeName }}</span>
+                </div>
+              } @else if (isDoctor() && currentUser().doctorRegNo) {
+                <div class="menu-meta-badge">
+                  <span class="meta-label">REG NO</span>
+                  <span class="meta-val">{{ currentUser().doctorRegNo }} ({{ currentUser().doctorSpecialty || 'General' }})</span>
+                </div>
+              } @else if (isCustomer() && currentUser().phone) {
+                <div class="menu-meta-badge">
+                  <span class="meta-label">CONTACT</span>
+                  <span class="meta-val">{{ currentUser().phone }}</span>
+                </div>
+              }
+
+              <div class="menu-divider"></div>
+
+              <!-- Quick Navigation Items -->
+              <div class="menu-nav-links">
+                @if (isOwner()) {
+                  <a routerLink="/billing" (click)="closeProfileDropdown()" class="menu-item">
+                    <span class="menu-icon">🛒</span>
+                    <div class="item-text">
+                      <span class="item-title">Counter Billing POS</span>
+                      <span class="item-desc">Fast retail checkout</span>
+                    </div>
+                  </a>
+                  <a routerLink="/inventory" (click)="closeProfileDropdown()" class="menu-item">
+                    <span class="menu-icon">💊</span>
+                    <div class="item-text">
+                      <span class="item-title">Medicine Master</span>
+                      <span class="item-desc">Batches & stock</span>
+                    </div>
+                  </a>
+                  <a routerLink="/history" (click)="closeProfileDropdown()" class="menu-item">
+                    <span class="menu-icon">📜</span>
+                    <div class="item-text">
+                      <span class="item-title">Store History & Audit</span>
+                      <span class="item-desc">Complete activity logs</span>
+                    </div>
+                  </a>
+                } @else if (isDoctor()) {
+                  <a routerLink="/doctor" (click)="closeProfileDropdown()" class="menu-item">
+                    <span class="menu-icon">🩺</span>
+                    <div class="item-text">
+                      <span class="item-title">Doctor e-Prescription</span>
+                      <span class="item-desc">Write & route Rx</span>
+                    </div>
+                  </a>
+                } @else {
+                  <a routerLink="/customer" (click)="closeProfileDropdown()" class="menu-item">
+                    <span class="menu-icon">🛍️</span>
+                    <div class="item-text">
+                      <span class="item-title">My Orders & Refills</span>
+                      <span class="item-desc">Track delivery</span>
+                    </div>
+                  </a>
+                }
+
+                <button type="button" class="menu-item switch-btn" (click)="openSwitchProfile()">
+                  <span class="menu-icon">🔄</span>
+                  <div class="item-text">
+                    <span class="item-title">Switch Account / Role</span>
+                    <span class="item-desc">Owner, Doctor, Customer</span>
+                  </div>
+                </button>
+              </div>
+
+              <div class="menu-divider"></div>
+
+              <!-- Sign Out Action -->
+              <div class="menu-footer">
+                <button type="button" class="btn-menu-logout" (click)="logout()" title="Logout and terminate session">
+                  <span class="logout-icon">⎋</span>
+                  <span>Logout & End Session</span>
+                </button>
+              </div>
+            </div>
+          }
         </div>
       } @else {
         <a routerLink="/login" class="btn-signin-nav">
@@ -137,5 +213,10 @@
 <!-- Add Customer / Doctor Modal -->
 @if (showAddClientModal()) {
   <app-add-client-modal (closed)="showAddClientModal.set(false)"></app-add-client-modal>
+}
+
+<!-- Switch Account / Role Modal -->
+@if (showSwitchProfileModal()) {
+  <app-login-modal (closed)="showSwitchProfileModal.set(false)"></app-login-modal>
 }
 

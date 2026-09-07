@@ -48,7 +48,7 @@
     gap: 1.25rem;
   }
 
-  .demo-section {
+  .profiles-section {
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
@@ -97,7 +97,7 @@
       }
     }
 
-    .demo-cards-grid {
+    .profiles-cards-grid {
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
@@ -105,7 +105,7 @@
       overflow-y: auto;
       padding-right: 0.25rem;
 
-      .demo-card {
+      .profile-user-card {
         display: flex;
         align-items: center;
         gap: 0.85rem;

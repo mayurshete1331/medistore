@@ -34,9 +34,9 @@ export class CustomerPortalComponent {
   cart = signal<{ medicine: Medicine; quantity: number; unitPrice: number; total: number }[]>([]);
 
   // Checkout Fields
-  deliveryAddress = signal(this.currentUser().customerAddress || 'Flat 402, Green Meadows, Andheri West, Mumbai');
-  customerPhone = signal(this.currentUser().phone || '+91 98199 44332');
-  paymentMethod = signal<OrderPaymentMethod>('COD'); // Defaults to COD as requested!
+  deliveryAddress = signal(this.currentUser().customerAddress || '');
+  customerPhone = signal(this.currentUser().phone || '');
+  paymentMethod = signal<OrderPaymentMethod>('COD');
 
   lastPlacedOrder = signal<any | null>(null);
 

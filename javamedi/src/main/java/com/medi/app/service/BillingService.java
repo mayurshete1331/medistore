@@ -3,14 +3,16 @@ package com.medi.app.service;
 import com.medi.app.dto.BillingDtos;
 import com.medi.app.entity.Invoice;
 import com.medi.app.entity.InvoiceItem;
+import com.medi.app.entity.User;
 import com.medi.app.repository.InvoiceRepository;
+import com.medi.app.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +21,7 @@ public class BillingService {
     private final InvoiceRepository invoiceRepository;
     private final InventoryService inventoryService;
     private final StoreHistoryService storeHistoryService;
+    private final UserRepository userRepository;
 
     public List<Invoice> getAllInvoices() {
         return invoiceRepository.findAllByOrderByTimestampDesc();
@@ -128,5 +131,77 @@ public class BillingService {
         );
 
         return saved;
+    }
+
+    public List<Map<String, Object>> lookupCustomers(String query) {
+        String cleanQuery = query != null ? query.trim() : "";
+        String cleanDigits = cleanQuery.replaceAll("\\D", "");
+
+        List<Map<String, Object>> results = new ArrayList<>();
+        Set<String> seenPhones = new HashSet<>();
+
+        // 1. Search registered Users with role CUSTOMER
+        List<User> matchedUsers = userRepository.searchCustomers(cleanQuery, cleanDigits);
+        for (User u : matchedUsers) {
+            String p = u.getPhone() != null ? u.getPhone().replaceAll("\\D", "") : "";
+            if (!p.isEmpty() && seenPhones.contains(p)) continue;
+            if (!p.isEmpty()) seenPhones.add(p);
+
+            List<Invoice> pastInvs = u.getPhone() != null && !u.getPhone().isEmpty()
+                    ? invoiceRepository.findByCustomerPhoneContainingOrderByTimestampDesc(u.getPhone())
+                    : invoiceRepository.findByCustomerNameContainingIgnoreCaseOrderByTimestampDesc(u.getName());
+
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", String.valueOf(u.getId()));
+            map.put("name", u.getName());
+            map.put("phone", u.getPhone());
+            map.put("email", u.getEmail());
+            map.put("address", u.getCustomerAddress());
+            map.put("isRegistered", true);
+            map.put("pastBillsCount", pastInvs.size());
+            results.add(map);
+        }
+
+        // 2. Search past invoices for customers who might not have an explicit user account yet
+        List<Invoice> invoiceMatches = !cleanDigits.isEmpty() && cleanDigits.length() >= 4
+                ? invoiceRepository.findByCustomerPhoneContainingOrderByTimestampDesc(cleanDigits)
+                : invoiceRepository.findByCustomerNameContainingIgnoreCaseOrderByTimestampDesc(cleanQuery);
+
+        for (Invoice inv : invoiceMatches) {
+            String p = inv.getCustomerPhone() != null ? inv.getCustomerPhone().replaceAll("\\D", "") : "";
+            if (inv.getCustomerName() != null && "walk-in customer".equalsIgnoreCase(inv.getCustomerName().trim()) && p.isEmpty()) {
+                continue;
+            }
+            if (!p.isEmpty() && seenPhones.contains(p)) {
+                continue;
+            }
+            if (!p.isEmpty()) seenPhones.add(p);
+
+            List<Invoice> pastInvs = !p.isEmpty()
+                    ? invoiceRepository.findByCustomerPhoneContainingOrderByTimestampDesc(inv.getCustomerPhone())
+                    : invoiceRepository.findByCustomerNameContainingIgnoreCaseOrderByTimestampDesc(inv.getCustomerName());
+
+            Map<String, Object> map = new HashMap<>();
+            map.put("name", inv.getCustomerName());
+            map.put("phone", inv.getCustomerPhone());
+            map.put("doctorName", inv.getDoctorName());
+            map.put("doctorRegNo", inv.getDoctorRegNo());
+            map.put("isRegistered", false);
+            map.put("pastBillsCount", pastInvs.size());
+            results.add(map);
+        }
+
+        return results.stream().limit(8).collect(Collectors.toList());
+    }
+
+    public List<Invoice> getCustomerInvoices(String phone, String name) {
+        String cleanPhone = phone != null ? phone.replaceAll("\\D", "") : "";
+        if (!cleanPhone.isEmpty() && cleanPhone.length() >= 4) {
+            return invoiceRepository.findByCustomerPhoneContainingOrderByTimestampDesc(cleanPhone);
+        }
+        if (name != null && !name.trim().isEmpty() && !"walk-in customer".equalsIgnoreCase(name.trim())) {
+            return invoiceRepository.findByCustomerNameContainingIgnoreCaseOrderByTimestampDesc(name.trim());
+        }
+        return Collections.emptyList();
     }
 }

@@ -392,4 +392,46 @@ export class ApiService {
       })
     );
   }
+
+  // ==========================================
+  // Customer Directory & Past Invoices Lookup
+  // ==========================================
+  searchCustomer(query: string, storeId: string | number = '1'): Observable<any[]> {
+    const params = new HttpParams().set('query', query.trim());
+    return this.http.get<any[]>(`${this.baseUrl}/billing/customers/lookup`, { params }).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(() => {
+        return this.getStoreClients(storeId, 'CUSTOMER').pipe(
+          map(res => {
+            const cleanDigits = query.replace(/\D/g, '');
+            const q = query.toLowerCase().trim();
+            const customers = res?.customers || [];
+            return customers.filter((c: any) => {
+              const cPhone = (c.phone || '').replace(/\D/g, '');
+              const cName = (c.name || '').toLowerCase();
+              return (cleanDigits && cPhone.includes(cleanDigits)) || cName.includes(q);
+            }).map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              phone: c.phone,
+              email: c.email,
+              address: c.customerAddress || c.address,
+              isRegistered: true,
+              pastBillsCount: 0
+            }));
+          }),
+          catchError(() => of([]))
+        );
+      })
+    );
+  }
+
+  getCustomerPastInvoices(phone: string, name?: string): Observable<any[]> {
+    let params = new HttpParams();
+    if (phone) params = params.set('phone', phone.trim());
+    if (name) params = params.set('name', name.trim());
+    return this.http.get<any[]>(`${this.baseUrl}/billing/customers/invoices`, { params }).pipe(
+      catchError(() => of([]))
+    );
+  }
 }

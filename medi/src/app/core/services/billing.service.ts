@@ -357,4 +357,35 @@ export class BillingService {
 
     return invoice;
   }
+
+  /**
+   * Look up all past invoices for a specific customer by phone and/or name.
+   */
+  getCustomerInvoices(phone: string, name?: string): Invoice[] {
+    const cleanPhone = phone ? phone.replace(/\D/g, '') : '';
+    const cleanName = name && name.trim().toLowerCase() !== 'walk-in customer' ? name.trim().toLowerCase() : '';
+
+    if (!cleanPhone && !cleanName) return [];
+
+    return this.invoices().filter(inv => {
+      const invPhone = inv.customer.phone ? inv.customer.phone.replace(/\D/g, '') : '';
+      const invName = inv.customer.name ? inv.customer.name.trim().toLowerCase() : '';
+
+      // Match by phone if phone is provided and at least 4 digits
+      if (cleanPhone.length >= 4 && invPhone) {
+        if (invPhone.includes(cleanPhone) || cleanPhone.includes(invPhone)) {
+          return true;
+        }
+      }
+
+      // Match by name if provided
+      if (cleanName.length >= 2 && invName) {
+        if (invName.includes(cleanName) || cleanName.includes(invName)) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+  }
 }

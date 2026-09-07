@@ -15,6 +15,10 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     List<Invoice> findAllByOrderByTimestampDesc();
 
+    List<Invoice> findByCustomerPhoneContainingOrderByTimestampDesc(String customerPhone);
+
+    List<Invoice> findByCustomerNameContainingIgnoreCaseOrderByTimestampDesc(String customerName);
+
     @Query("SELECT COALESCE(SUM(i.grandTotal), 0) FROM Invoice i")
     Double getTotalRevenue();
 

@@ -149,33 +149,314 @@
       </table>
     </div>
 
-    <!-- Customer & Regulatory Details -->
+    <!-- Customer Verification, Registration & Regulatory Section -->
     <div class="customer-section">
       <div class="cust-header">
-        <span class="title">Customer & Prescribing Doctor Details</span>
-        <button type="button" class="btn-demo-fill" (click)="fillDemoCustomer()">
-          ⚡ Auto-fill Sample Patient
-        </button>
+        <div class="cust-header-title">
+          <span class="icon">👤</span>
+          <span class="title">Customer Identification & Prescription Details</span>
+          <span class="shortcut-tag">F3</span>
+        </div>
+        
+        <div class="cust-header-actions">
+          @if (selectedCustomer()) {
+            <button type="button" class="btn-toggle-history" (click)="togglePastHistory()" [class.active]="showPastHistory()">
+              <span>📜 {{ showPastHistory() ? 'Hide Past Bills' : 'View Past Bills & Records' }}</span>
+              <span class="history-count-pill">{{ customerPastInvoices().length }}</span>
+            </button>
+          }
+        </div>
       </div>
 
+      <!-- State 1: Search Customer (When no customer is selected yet) -->
+      @if (!selectedCustomer() && !showNewCustomerForm()) {
+        <div class="cust-search-container">
+          <div class="cust-search-bar">
+            <span class="search-icon">🔍</span>
+            <input 
+              id="pos-customer-search-input"
+              type="text" 
+              [ngModel]="customerSearchQuery()" 
+              (ngModelChange)="onCustomerSearchInput($event)"
+              placeholder="Search customer by Mobile Number or Name to check records... (e.g. 98200... / Vikram)" 
+              class="cust-search-input"
+              autocomplete="off"
+            />
+            @if (isSearchingCustomer()) {
+              <span class="search-spinner-badge" title="Querying database API in real-time...">⚡ Checking API...</span>
+            }
+            @if (customerSearchQuery()) {
+              <button type="button" class="btn-clear-cust" (click)="customerSearchQuery.set(''); showCustomerDropdown.set(false)">✕</button>
+            }
+          </div>
+
+          <!-- Customer Search Results Dropdown -->
+          @if (showCustomerDropdown()) {
+            <div class="cust-dropdown-menu animate-fade-in">
+              @if (isSearchingCustomer() && customerSearchResults().length === 0) {
+                <div class="cust-searching-state">
+                  <span class="spinner-icon">🔄</span>
+                  <span>Querying customer directory in database...</span>
+                </div>
+              } @else if (customerSearchResults().length > 0) {
+                <div class="dropdown-section-title">
+                  <span>MATCHING CUSTOMERS IN DIRECTORY</span>
+                  <span class="hint">Click to attach to current bill</span>
+                </div>
+                <div class="cust-results-list">
+                  @for (c of customerSearchResults(); track (c.phone || c.name)) {
+                    <div class="cust-result-card" (click)="selectCustomer(c)">
+                      <div class="cust-avatar-circle">👤</div>
+                      <div class="cust-info-block">
+                        <div class="cust-name-row">
+                          <strong class="cust-name">{{ c.name }}</strong>
+                          @if (c.isRegistered) {
+                            <span class="badge-reg-client">✓ Registered</span>
+                          }
+                          @if (c.pastBillsCount && c.pastBillsCount > 0) {
+                            <span class="badge-past-bills">{{ c.pastBillsCount }} Past Bill{{ c.pastBillsCount > 1 ? 's' : '' }}</span>
+                          }
+                        </div>
+                        <div class="cust-meta-row tabular">
+                          <span>📱 {{ c.phone || 'No phone' }}</span>
+                          @if (c.address) {
+                            <span>•</span>
+                            <span class="cust-addr">📍 {{ c.address }}</span>
+                          }
+                        </div>
+                      </div>
+                      <button type="button" class="btn-attach-cust">Select ↵</button>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="cust-no-match">
+                  <span class="icon">🔍</span>
+                  <div class="text">
+                    <strong>No customer found for "{{ customerSearchQuery() }}"</strong>
+                    <p>This customer is not yet registered in the store database.</p>
+                  </div>
+                </div>
+              }
+
+              <!-- Action to Register New Customer -->
+              <div class="dropdown-footer-action">
+                <button type="button" class="btn-add-new-cust" (click)="openNewCustomerForm()">
+                  <span class="icon">➕</span>
+                  <span>Register "{{ customerSearchQuery() || 'New Customer' }}" in Database</span>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- State 2: Inline New Customer Registration Drawer -->
+      @if (showNewCustomerForm()) {
+        <div class="new-cust-card animate-fade-in">
+          <div class="new-cust-header">
+            <div class="header-text">
+              <h4>➕ Register New Customer</h4>
+              <p>Add customer to store directory for auto-refill records & GST bills</p>
+            </div>
+            <button type="button" class="btn-close-form" (click)="cancelNewCustomerForm()">✕ Cancel</button>
+          </div>
+
+          <div class="new-cust-grid">
+            <div class="form-group">
+              <label>Full Name *</label>
+              <input 
+                type="text" 
+                [ngModel]="newCustomerName()" 
+                (ngModelChange)="newCustomerName.set($event)"
+                placeholder="e.g. Ramesh Chandra" 
+                class="form-control"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Mobile Number (10 digits) *</label>
+              <input 
+                type="tel" 
+                [ngModel]="newCustomerPhone()" 
+                (ngModelChange)="newCustomerPhone.set($event)"
+                placeholder="e.g. 98200 45678" 
+                class="form-control tabular"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Address / Area (Optional)</label>
+              <input 
+                type="text" 
+                [ngModel]="newCustomerAddress()" 
+                (ngModelChange)="newCustomerAddress.set($event)"
+                placeholder="e.g. Flat 302, MG Road" 
+                class="form-control"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Email (Optional for e-bills)</label>
+              <input 
+                type="email" 
+                [ngModel]="newCustomerEmail()" 
+                (ngModelChange)="newCustomerEmail.set($event)"
+                placeholder="e.g. ramesh@example.com" 
+                class="form-control"
+              />
+            </div>
+          </div>
+
+          <div class="new-cust-actions">
+            <button 
+              type="button" 
+              class="btn btn-primary btn-save-cust" 
+              [disabled]="isRegistering() || !newCustomerName() || !newCustomerPhone()"
+              (click)="registerNewCustomer()">
+              @if (isRegistering()) {
+                <span>⏳ Saving to Database...</span>
+              } @else {
+                <span>✓ Save Customer & Attach to Bill</span>
+              }
+            </button>
+            <button type="button" class="btn btn-secondary" (click)="cancelNewCustomerForm()">Cancel</button>
+          </div>
+        </div>
+      }
+
+      <!-- State 3: Verified Attached Customer Profile Banner -->
+      @if (selectedCustomer(); as cust) {
+        <div class="verified-cust-banner animate-fade-in">
+          <div class="cust-badge-avatar">👤</div>
+          <div class="cust-details-summary">
+            <div class="cust-title-line">
+              <strong class="name">{{ cust.name }}</strong>
+              @if (cust.isRegistered) {
+                <span class="badge-client-verified">✓ Registered Client</span>
+              }
+              <span class="badge-client-stat">{{ customerPastInvoices().length }} Visits • Total Spent: ₹{{ customerTotalSpent() | number:'1.2-2' }}</span>
+            </div>
+            <div class="cust-contact-line tabular">
+              <span>📱 {{ cust.phone || 'No phone specified' }}</span>
+              @if (cust.address) {
+                <span>•</span>
+                <span>📍 {{ cust.address }}</span>
+              }
+              @if (cust.email) {
+                <span>•</span>
+                <span>✉️ {{ cust.email }}</span>
+              }
+            </div>
+          </div>
+          <div class="cust-actions-right">
+            <button type="button" class="btn-history-toggle" (click)="togglePastHistory()" [class.active]="showPastHistory()">
+              <span>📜 {{ showPastHistory() ? 'Hide Records' : 'Past Records' }} ({{ customerPastInvoices().length }})</span>
+            </button>
+            <button type="button" class="btn-detach-cust" (click)="detachCustomer()" title="Detach and switch customer">
+              ✕ Switch
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Past Invoices & Medication Records Drawer (Collapsible) -->
+      @if (selectedCustomer() && showPastHistory()) {
+        <div class="past-records-drawer animate-fade-in">
+          <div class="drawer-header">
+            <div class="drawer-title">
+              <span class="icon">📜</span>
+              <span>Past Prescription & Billing Records for <strong>{{ selectedCustomer()?.name }}</strong></span>
+            </div>
+            <span class="drawer-count">
+              @if (isLoadingPastInvoices()) {
+                ⏳ Loading from DB...
+              } @else {
+                {{ customerPastInvoices().length }} Previous Invoices
+              }
+            </span>
+          </div>
+
+          @if (isLoadingPastInvoices()) {
+            <div class="no-past-records">
+              <span class="icon">🔄</span>
+              <p>Fetching purchase records & past medications from store database...</p>
+            </div>
+          } @else if (customerPastInvoices().length === 0) {
+            <div class="no-past-records">
+              <span class="icon">📂</span>
+              <p>No past billing records found for this customer. This will be their first recorded bill!</p>
+            </div>
+          } @else {
+            <div class="past-invoices-list">
+              @for (inv of customerPastInvoices(); track (inv.id || inv.invoiceNumber)) {
+                <div class="past-invoice-card">
+                  <div class="inv-card-header">
+                    <div class="inv-meta-left">
+                      <span class="inv-num">Bill #<strong>{{ inv.invoiceNumber }}</strong></span>
+                      <span class="inv-date">📅 {{ inv.timestamp | date:'mediumDate' }}</span>
+                      <span class="inv-pay-mode">Paid: {{ inv.paymentMode }}</span>
+                      @if (inv.doctorName || inv.customer?.doctorName) {
+                        <span class="inv-doc">🩺 Dr. {{ inv.doctorName || inv.customer?.doctorName }}</span>
+                      }
+                    </div>
+                    <div class="inv-meta-right">
+                      <span class="inv-amount tabular">₹{{ inv.grandTotal | number:'1.2-2' }}</span>
+                      <button 
+                        type="button" 
+                        class="btn-repeat-bill" 
+                        (click)="repeatEntireInvoice(inv)"
+                        title="Add all medicines from this bill to active counter">
+                        🔄 Re-add Entire Bill
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Medicines Purchased in this Past Bill -->
+                  <div class="inv-medicines-grid">
+                    @for (item of inv.items; track (item.id || item.medicineName)) {
+                      <div class="past-med-chip">
+                        <div class="med-info">
+                          <span class="brand-name">{{ item.medicineName || item.medicine?.brandName }}</span>
+                          <span class="salt-name">{{ item.genericName || item.medicine?.genericName }}</span>
+                          <span class="qty-rate tabular">Qty: {{ item.quantity }} {{ (item.saleType === 'FULL_PACK' || !item.saleType) ? 'Pack' : 'Loose' }} • ₹{{ item.total | number:'1.2-2' }}</span>
+                        </div>
+                        <button 
+                          type="button" 
+                          class="btn-add-past-med" 
+                          (click)="addPastMedicineToCart(item)"
+                          title="Click to add this repeat medicine to active current bill">
+                          + Add to Current Bill
+                        </button>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Doctor & Regulatory Fields for Current Bill -->
       <div class="cust-grid">
         <div class="input-group">
           <label>Customer / Patient Name</label>
           <input 
             type="text" 
             [ngModel]="customerName()" 
-            (ngModelChange)="customerName.set($event)"
+            (ngModelChange)="onCustomerNameInput($event)"
             placeholder="Walk-in Customer" 
             class="form-control" 
           />
         </div>
 
         <div class="input-group">
-          <label>Mobile Number (for WhatsApp Receipt)</label>
+          <label>Mobile Number (for WhatsApp / SMS receipt)</label>
           <input 
             type="tel" 
             [ngModel]="customerPhone()" 
-            (ngModelChange)="customerPhone.set($event)"
+            (ngModelChange)="onCustomerPhoneInput($event)"
             placeholder="+91 98765 43210" 
             class="form-control tabular" 
           />

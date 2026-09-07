@@ -39,26 +39,26 @@ export class AddMedicineModalComponent implements OnInit, OnDestroy {
     genericName: ['', [Validators.required, Validators.minLength(3)]],
     category: ['Tablet' as MedicineCategory, Validators.required],
     manufacturer: ['', Validators.required],
-    hsnCode: ['30049099', Validators.required],
+    hsnCode: ['', Validators.required],
     gstRate: [12, Validators.required],
-    packaging: ['10 Tablets/Strip', Validators.required],
-    unitsPerPack: [10, [Validators.required, Validators.min(1)]],
+    packaging: ['', Validators.required],
+    unitsPerPack: [1, [Validators.required, Validators.min(1)]],
     unitLabel: ['Tab', Validators.required],
-    rackLocation: ['Rack A-01', Validators.required],
+    rackLocation: ['', Validators.required],
     isScheduleH: [false],
     isScheduleH1: [false],
     isNarcotic: [false],
-    reorderLevel: [20, [Validators.required, Validators.min(1)]],
-    defaultReorderQty: [50, [Validators.required, Validators.min(1)]],
+    reorderLevel: [10, [Validators.required, Validators.min(1)]],
+    defaultReorderQty: [20, [Validators.required, Validators.min(1)]],
 
     // Initial Batch
     batchNumber: ['', [Validators.required, Validators.minLength(2)]],
-    mfgDate: ['2024-01', Validators.required],
-    expiryDate: ['2026-06', Validators.required],
-    purchasePrice: [100.0, [Validators.required, Validators.min(0.1)]],
-    mrp: [150.0, [Validators.required, Validators.min(0.1)]],
-    salePrice: [145.0, [Validators.required, Validators.min(0.1)]],
-    initialStockPacks: [30, [Validators.required, Validators.min(1)]]
+    mfgDate: ['', Validators.required],
+    expiryDate: ['', Validators.required],
+    purchasePrice: [null, [Validators.required, Validators.min(0.1)]],
+    mrp: [null, [Validators.required, Validators.min(0.1)]],
+    salePrice: [null, [Validators.required, Validators.min(0.1)]],
+    initialStockPacks: [null, [Validators.required, Validators.min(1)]]
   });
 
   ngOnInit(): void {

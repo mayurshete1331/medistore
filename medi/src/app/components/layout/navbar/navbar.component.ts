@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, HostListener, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { InventoryService } from '../../../core/services/inventory.service';
@@ -9,12 +9,13 @@ import { OrderService } from '../../../core/services/order.service';
 import { ReorderService } from '../../../core/services/reorder.service';
 import { ApiService } from '../../../core/services/api.service';
 import { AddClientModalComponent } from '../../clients/add-client-modal/add-client-modal.component';
+import { LoginModalComponent } from '../../auth/login-modal/login-modal.component';
 import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive, AddClientModalComponent],
+  imports: [CommonModule, RouterLink, RouterLinkActive, AddClientModalComponent, LoginModalComponent],
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.scss']
 })
@@ -29,6 +30,8 @@ export class NavbarComponent {
 
   currentEnv = environment.envName || 'DEV';
   showAddClientModal = signal(false);
+  isProfileOpen = signal(false);
+  showSwitchProfileModal = signal(false);
 
   currentUser = this.authService.currentUser;
   isLoggedIn = this.authService.isLoggedIn;
@@ -36,7 +39,31 @@ export class NavbarComponent {
   isDoctor = this.authService.isDoctor;
   isCustomer = this.authService.isCustomer;
 
+  toggleProfileDropdown(event?: MouseEvent): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.isProfileOpen.update(v => !v);
+  }
+
+  closeProfileDropdown(): void {
+    this.isProfileOpen.set(false);
+  }
+
+  openSwitchProfile(): void {
+    this.isProfileOpen.set(false);
+    this.showSwitchProfileModal.set(true);
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.isProfileOpen()) {
+      this.isProfileOpen.set(false);
+    }
+  }
+
   logout(): void {
+    this.isProfileOpen.set(false);
     this.authService.logout();
   }
 

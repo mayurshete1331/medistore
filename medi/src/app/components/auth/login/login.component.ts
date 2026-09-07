@@ -26,41 +26,10 @@ export class LoginComponent implements OnInit {
   returnUrl = '/billing';
 
   loginForm: FormGroup = this.fb.group({
-    email: ['owner@medicare.com', [Validators.required, Validators.email]],
-    password: ['123456', [Validators.required, Validators.minLength(4)]],
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required, Validators.minLength(4)]],
     rememberMe: [true]
   });
-
-  // Pre-configured accounts for easy one-tap filling during evaluation
-  readonly demoAccounts = [
-    {
-      role: 'STORE_OWNER' as UserRole,
-      title: 'Store Owner',
-      name: 'Rajesh Patel',
-      store: 'MediCare Pharmacy',
-      email: 'owner@medicare.com',
-      icon: '🏪',
-      badgeClass: 'badge-owner'
-    },
-    {
-      role: 'DOCTOR' as UserRole,
-      title: 'Partner Doctor',
-      name: 'Dr. Sneha Roy, MD',
-      store: 'Affiliated: MediCare Pharmacy',
-      email: 'dr.sneha@clinic.org',
-      icon: '🩺',
-      badgeClass: 'badge-doctor'
-    },
-    {
-      role: 'CUSTOMER' as UserRole,
-      title: 'Registered Customer',
-      name: 'Vikram Malhotra',
-      store: 'Affiliated: MediCare Pharmacy',
-      email: 'vikram.m@gmail.com',
-      icon: '👤',
-      badgeClass: 'badge-customer'
-    }
-  ];
 
   ngOnInit(): void {
     this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '';
@@ -68,14 +37,6 @@ export class LoginComponent implements OnInit {
     if (this.authService.isLoggedIn()) {
       this.redirectToRolePortal(this.authService.currentUser()?.role || 'STORE_OWNER');
     }
-  }
-
-  fillAccount(acc: typeof this.demoAccounts[0]): void {
-    this.loginForm.patchValue({
-      email: acc.email,
-      password: '123456'
-    });
-    this.errorMessage.set(null);
   }
 
   togglePasswordVisibility(): void {
@@ -121,7 +82,7 @@ export class LoginComponent implements OnInit {
         if (err.status === 401) {
           this.errorMessage.set('Invalid email address or password. Please verify your credentials.');
         } else if (err.status === 0 || err.name === 'TimeoutError') {
-          this.errorMessage.set('Cannot connect to backend server. Please make sure Spring Boot is running on port 8081.');
+          this.errorMessage.set('Unable to connect to server. Please verify your connection or try again.');
         } else {
           this.errorMessage.set(err.error?.message || 'Authentication failed. Please try again.');
         }

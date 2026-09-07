@@ -39,7 +39,7 @@
           <div class="banner-title">
             Auto-filled details for <strong>{{ drug.brandName }}</strong>
             <span class="source-tag" [class.source-local]="drug.source === 'LOCAL_MASTER'" [class.source-nlm]="drug.source === 'NLM_API'">
-              {{ drug.source === 'LOCAL_MASTER' ? 'Verified Indian Pharma Catalog' : 'NLM RxTerms API' }}
+              {{ drug.source === 'LOCAL_MASTER' ? 'Verified Indian Pharma Catalog' : 'Pharma Master Directory' }}
             </span>
           </div>
           <div class="banner-sub">
@@ -64,7 +64,7 @@
               <label for="brandNameInput">Brand Name *</label>
               @if (isLoading()) {
                 <span class="api-status-badge">
-                  <span class="pulse-dot"></span> Searching APIs...
+                  <span class="pulse-dot"></span> Searching catalog...
                 </span>
               }
             </div>
@@ -82,7 +82,7 @@
                 autocomplete="off"
               />
               @if (isLoading()) {
-                <span class="input-spinner" title="Querying drug databases">⌛</span>
+                <span class="input-spinner" title="Searching catalog">⌛</span>
               }
             </div>
 
@@ -104,7 +104,7 @@
                         <div class="item-title-row">
                           <span class="item-brand">{{ item.brandName }}</span>
                           <span class="source-badge" [class.badge-local]="item.source === 'LOCAL_MASTER'" [class.badge-nlm]="item.source === 'NLM_API'">
-                            {{ item.source === 'LOCAL_MASTER' ? 'Indian Pharma' : 'NLM RxTerms API' }}
+                            {{ item.source === 'LOCAL_MASTER' ? 'Indian Pharma' : 'Pharma Directory' }}
                           </span>
                           <span class="item-cat-badge">{{ item.category }}</span>
                         </div>
