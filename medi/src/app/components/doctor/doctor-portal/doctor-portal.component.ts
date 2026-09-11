@@ -58,8 +58,8 @@ export class DoctorPortalComponent {
 
   // Doctor's orders
   doctorOrders = computed(() => {
-    const docId = this.currentUser().id;
-    return this.orderService.orders().filter(o => o.placedBy.userId === docId || o.placedBy.userRole === 'DOCTOR');
+    const docId = this.currentUser()?.id;
+    return this.orderService.orders().filter(o => (docId && o.placedBy.userId === docId) || o.placedBy.userRole === 'DOCTOR');
   });
 
   searchResults = computed(() => {
@@ -123,6 +123,10 @@ export class DoctorPortalComponent {
 
     const store = this.selectedStore();
     const docUser = this.currentUser();
+    if (!docUser) {
+      alert('Please log in to submit prescriptions.');
+      return;
+    }
 
     const order = this.orderService.createDoctorOrder({
       storeId: store.id,

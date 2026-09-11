@@ -3,6 +3,8 @@ package com.medi.app.service;
 import com.medi.app.dto.MedicineDtos;
 import com.medi.app.entity.Batch;
 import com.medi.app.entity.Medicine;
+import com.medi.app.exception.InsufficientStockException;
+import com.medi.app.exception.ResourceNotFoundException;
 import com.medi.app.repository.BatchRepository;
 import com.medi.app.repository.MedicineRepository;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +44,7 @@ public class InventoryService {
 
     public Medicine getMedicineById(Long id) {
         return medicineRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Medicine not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Medicine not found with ID: " + id));
     }
 
     public List<Batch> getFefoBatches(Long medicineId) {
@@ -112,7 +114,16 @@ public class InventoryService {
     @Transactional
     public void deductStock(Long batchId, Integer packsToDeduct) {
         Batch batch = batchRepository.findById(batchId)
-                .orElseThrow(() -> new RuntimeException("Batch not found with ID: " + batchId));
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found with ID: " + batchId));
+
+        if (batch.getVersion() == null) {
+            batch.setVersion(0L);
+        }
+
+        if (batch.getStockPacks() < packsToDeduct) {
+            throw new InsufficientStockException("Insufficient stock in batch " + batch.getBatchNumber() + 
+                    ". Requested: " + packsToDeduct + ", Available: " + batch.getStockPacks());
+        }
 
         int newStock = Math.max(0, batch.getStockPacks() - packsToDeduct);
         batch.setStockPacks(newStock);
@@ -124,6 +135,9 @@ public class InventoryService {
         List<Batch> batches = batchRepository.findByMedicineId(medicineId);
         if (!batches.isEmpty()) {
             Batch batch = batches.get(0);
+            if (batch.getVersion() == null) {
+                batch.setVersion(0L);
+            }
             batch.setStockPacks(batch.getStockPacks() + packs);
             batchRepository.save(batch);
         }

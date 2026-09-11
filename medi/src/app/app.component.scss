@@ -1,9 +1,18 @@
 .medi-app-wrapper {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   min-height: 100vh;
+  background: var(--slate-50, #f8fafc);
+  position: relative;
+  width: 100%;
 }
 
 .medi-main-content {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--slate-50, #f8fafc);
+  overflow-x: hidden;
+  position: relative;
 }

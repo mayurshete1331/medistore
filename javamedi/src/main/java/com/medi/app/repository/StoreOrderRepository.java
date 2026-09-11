@@ -21,4 +21,7 @@ public interface StoreOrderRepository extends JpaRepository<StoreOrder, Long> {
     List<StoreOrder> findByOrderStatusOrderByCreatedAtDesc(String orderStatus);
 
     List<StoreOrder> findByPaymentMethodOrderByCreatedAtDesc(String paymentMethod);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(MAX(o.id), 0) FROM StoreOrder o")
+    Long getMaxOrderId();
 }

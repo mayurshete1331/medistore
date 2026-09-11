@@ -9,18 +9,73 @@ import { CustomerPortalComponent } from './components/customer/customer-portal/c
 import { StoreOrdersComponent } from './components/owner/store-orders/store-orders.component';
 import { StoreHistoryComponent } from './components/history/store-history/store-history.component';
 import { authGuard } from './core/guards/auth.guard';
+import { roleGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent, title: 'Sign In — MediStore Platform' },
   { path: '', redirectTo: 'billing', pathMatch: 'full' },
-  { path: 'billing', component: PosScreenComponent, canActivate: [authGuard], title: 'POS Billing — Medi' },
-  { path: 'inventory', component: MedicineListComponent, canActivate: [authGuard], title: 'Medicine Master — Medi' },
-  { path: 'store-orders', component: StoreOrdersComponent, canActivate: [authGuard], title: 'Store Inward Orders & Audit — Medi' },
-  { path: 'history', component: StoreHistoryComponent, canActivate: [authGuard], title: 'Store Audit & History — Medi' },
-  { path: 'reorder', component: ReorderDashboardComponent, canActivate: [authGuard], title: 'Auto-Reorder — Medi' },
-  { path: 'analytics', component: AnalyticsDashboardComponent, canActivate: [authGuard], title: 'P&L Analytics — Medi' },
-  { path: 'doctor', component: DoctorPortalComponent, canActivate: [authGuard], title: 'Doctor Prescription Portal — Medi' },
-  { path: 'customer', component: CustomerPortalComponent, canActivate: [authGuard], title: 'Order Medicines & COD — Medi' },
+  
+  // Store Owner Protected Routes
+  { 
+    path: 'billing', 
+    component: PosScreenComponent, 
+    canActivate: [authGuard, roleGuard], 
+    data: { roles: ['STORE_OWNER'] }, 
+    title: 'POS Billing — Medi' 
+  },
+  { 
+    path: 'inventory', 
+    component: MedicineListComponent, 
+    canActivate: [authGuard, roleGuard], 
+    data: { roles: ['STORE_OWNER'] }, 
+    title: 'Medicine Master — Medi' 
+  },
+  { 
+    path: 'store-orders', 
+    component: StoreOrdersComponent, 
+    canActivate: [authGuard, roleGuard], 
+    data: { roles: ['STORE_OWNER'] }, 
+    title: 'Store Inward Orders & Audit — Medi' 
+  },
+  { 
+    path: 'history', 
+    component: StoreHistoryComponent, 
+    canActivate: [authGuard, roleGuard], 
+    data: { roles: ['STORE_OWNER'] }, 
+    title: 'Store Audit & History — Medi' 
+  },
+  { 
+    path: 'reorder', 
+    component: ReorderDashboardComponent, 
+    canActivate: [authGuard, roleGuard], 
+    data: { roles: ['STORE_OWNER'] }, 
+    title: 'Auto-Reorder — Medi' 
+  },
+  { 
+    path: 'analytics', 
+    component: AnalyticsDashboardComponent, 
+    canActivate: [authGuard, roleGuard], 
+    data: { roles: ['STORE_OWNER'] }, 
+    title: 'P&L Analytics — Medi' 
+  },
+
+  // Doctor Portal Protected Route
+  { 
+    path: 'doctor', 
+    component: DoctorPortalComponent, 
+    canActivate: [authGuard, roleGuard], 
+    data: { roles: ['DOCTOR'] }, 
+    title: 'Doctor Prescription Portal — Medi' 
+  },
+
+  // Customer Portal Protected Route
+  { 
+    path: 'customer', 
+    component: CustomerPortalComponent, 
+    canActivate: [authGuard, roleGuard], 
+    data: { roles: ['CUSTOMER'] }, 
+    title: 'Order Medicines & COD — Medi' 
+  },
+
   { path: '**', redirectTo: 'billing' }
 ];
-

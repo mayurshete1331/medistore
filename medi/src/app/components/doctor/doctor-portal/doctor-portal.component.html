@@ -9,9 +9,9 @@
           <span class="badge badge-teal">Doctor Portal</span>
           <span class="badge badge-schedule-h">Registered Medical Practitioner (RMP)</span>
         </div>
-        <h1 class="name">{{ currentUser().name }}</h1>
+        <h1 class="name">{{ currentUser()?.name || 'Doctor' }}</h1>
         <p class="credentials tabular">
-          Reg No: <strong>{{ currentUser().doctorRegNo }}</strong> • Specialty: {{ currentUser().doctorSpecialty }}
+          Reg No: <strong>{{ currentUser()?.doctorRegNo || 'N/A' }}</strong> • Specialty: {{ currentUser()?.doctorSpecialty || 'General Practitioner' }}
         </p>
       </div>
     </div>

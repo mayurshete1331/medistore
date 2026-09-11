@@ -11,6 +11,7 @@ import { Medicine, Batch } from '../../../core/models/medicine.model';
 import { CartItem, CustomerInfo, Invoice, PaymentMode } from '../../../core/models/bill.model';
 import { InvoiceModalComponent } from '../invoice-modal/invoice-modal.component';
 import { BarcodeScannerModalComponent } from '../../common/barcode-scanner-modal/barcode-scanner-modal.component';
+import { AddMedicineModalComponent } from '../../inventory/add-medicine-modal/add-medicine-modal.component';
 
 export interface VerifiedCustomer {
   id?: string;
@@ -25,7 +26,7 @@ export interface VerifiedCustomer {
 @Component({
   selector: 'app-pos-screen',
   standalone: true,
-  imports: [CommonModule, FormsModule, InvoiceModalComponent, BarcodeScannerModalComponent],
+  imports: [CommonModule, FormsModule, InvoiceModalComponent, BarcodeScannerModalComponent, AddMedicineModalComponent],
   templateUrl: './pos-screen.component.html',
   styleUrls: ['./pos-screen.component.scss']
 })
@@ -42,6 +43,14 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   showScannerModal = signal(false);
   scanToastMessage = signal<string | null>(null);
   completedInvoice = signal<Invoice | null>(null);
+
+  // Live Medicine DB Search & Missing Medicine Addition
+  private medicineSearchSubject = new Subject<string>();
+  private medSearchSub?: Subscription;
+  isSearchingMedicines = signal(false);
+  backendMedicineResults = signal<Medicine[]>([]);
+  showAddMedicineModal = signal(false);
+  prefillMedicineName = signal('');
 
   // Customer Verification & Directory State
   storeClients = signal<any[]>([]);
@@ -87,13 +96,34 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   grandTotal = this.billingService.cartGrandTotal;
   hasScheduleH = this.billingService.cartHasScheduleH;
 
+  // List of Schedule H/H1/Narcotic drugs currently in the cart
+  scheduleHMedicinesInCart = computed(() => {
+    return this.cart().filter(
+      item => item.medicine.isScheduleH || item.medicine.isScheduleH1 || item.medicine.isNarcotic
+    );
+  });
+
+  scheduleHNames = computed(() => {
+    return this.scheduleHMedicinesInCart().map(i => i.medicine.brandName).join(', ');
+  });
+
+  // Strict Drugs & Cosmetics compliance: Bill is blocked if Schedule H item is in cart without Doctor details
+  isBillingBlockedByCompliance = computed(() => {
+    if (!this.hasScheduleH()) return false;
+    const docName = (this.doctorName() || '').trim();
+    const docReg = (this.doctorRegNo() || '').trim();
+    return docName.length === 0 || docReg.length === 0;
+  });
+
   ngOnInit(): void {
     this.loadStoreClients();
     this.setupCustomerSearch();
+    this.setupMedicineSearch();
   }
 
   ngOnDestroy(): void {
     this.searchSub?.unsubscribe();
+    this.medSearchSub?.unsubscribe();
   }
 
   loadStoreClients(): void {
@@ -108,13 +138,21 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Exact Match Customer Search:
+   * - Phone requires full 10 digits
+   * - Name requires exact full match
+   */
   private setupCustomerSearch(): void {
     this.searchSub = this.customerSearchSubject.pipe(
       debounceTime(200),
       distinctUntilChanged(),
       switchMap((query) => {
         const q = (query || '').trim();
-        if (q.length < 2) {
+        const cleanDigits = q.replace(/\D/g, '');
+        // If numeric search, do not search until 10 digits are typed for exact match
+        const isNumeric = cleanDigits.length > 0 && cleanDigits === q.replace(/[\s\-\+]/g, '');
+        if ((isNumeric && cleanDigits.length < 10) || (!isNumeric && q.length < 2)) {
           this.isSearchingCustomer.set(false);
           this.backendCustomerResults.set([]);
           return of([]);
@@ -139,12 +177,16 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         pastBillsCount: r.pastBillsCount ?? (r.pastBills ? r.pastBills.length : 0)
       }));
 
-      // Also merge any store clients or auth customers if matching and not yet in mapped
+      // Also merge any store clients matching EXACT criteria
       const existingPhones = new Set(mapped.map(m => (m.phone || '').replace(/\D/g, '')));
-      for (const client of [...this.storeClients(), ...this.authService.customers()]) {
+      for (const client of this.storeClients()) {
         const cPhone = (client.phone || '').replace(/\D/g, '');
-        const cName = (client.name || '').toLowerCase();
-        if (((cleanDigits && cPhone.includes(cleanDigits)) || cName.includes(q)) && (!cPhone || !existingPhones.has(cPhone))) {
+        const cName = (client.name || '').trim().toLowerCase();
+        // Exact/partial phone match OR name match
+        const isExactPhone = cleanDigits.length >= 3 && (cPhone === cleanDigits || cPhone.includes(cleanDigits));
+        const isExactName = q.length >= 2 && (cName === q || cName.includes(q));
+
+        if ((isExactPhone || isExactName) && (!cPhone || !existingPhones.has(cPhone))) {
           if (cPhone) existingPhones.add(cPhone);
           mapped.push({
             id: String(client.id || client.userId || ''),
@@ -165,6 +207,61 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Live Debounced Medicine DB Search:
+   * Queries Spring Boot MySQL API /api/medicines?query=...
+   */
+  private setupMedicineSearch(): void {
+    this.medSearchSub = this.medicineSearchSubject.pipe(
+      debounceTime(200),
+      distinctUntilChanged(),
+      switchMap((query) => {
+        const q = (query || '').trim();
+        if (q.length < 2) {
+          this.isSearchingMedicines.set(false);
+          this.backendMedicineResults.set([]);
+          return of([]);
+        }
+        this.isSearchingMedicines.set(true);
+        return this.apiService.getMedicines(q).pipe(
+          catchError(() => of([])),
+          finalize(() => this.isSearchingMedicines.set(false))
+        );
+      })
+    ).subscribe((results: any[]) => {
+      const mapped: Medicine[] = (results || []).map((m: any) => ({
+        id: String(m.id || m.brandName),
+        brandName: m.brandName,
+        genericName: m.genericName || '',
+        category: m.category || 'Tablet',
+        manufacturer: m.manufacturer || '',
+        hsnCode: m.hsnCode || '',
+        gstRate: Number(m.gstRate) || 12,
+        packaging: m.packaging || '1x10',
+        unitsPerPack: Number(m.unitsPerPack) || 1,
+        unitLabel: m.unitLabel || 'Unit',
+        rackLocation: m.rackLocation || 'Rack A-1',
+        isScheduleH: !!m.isScheduleH,
+        isScheduleH1: !!m.isScheduleH1,
+        isNarcotic: !!m.isNarcotic,
+        reorderLevel: Number(m.reorderLevel) || 10,
+        defaultReorderQty: Number(m.defaultReorderQty) || 20,
+        batches: (m.batches || []).map((b: any) => ({
+          id: String(b.id || b.batchNumber),
+          batchNumber: b.batchNumber,
+          mfgDate: b.mfgDate || '',
+          expiryDate: b.expiryDate || '',
+          purchasePrice: Number(b.purchasePrice) || 0,
+          mrp: Number(b.mrp) || 0,
+          salePrice: Number(b.salePrice) || 0,
+          stockPacks: Number(b.stockPacks) || 0
+        })),
+        totalStockPacks: Number(m.totalStockPacks) || 0
+      }));
+      this.backendMedicineResults.set(mapped);
+    });
+  }
+
   // Real-time Customer Search Results
   customerSearchResults = computed(() => {
     return this.backendCustomerResults();
@@ -175,15 +272,44 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     return this.customerPastInvoices().reduce((sum, inv) => sum + (inv.grandTotal || 0), 0);
   });
 
-  // Search Results for Medicines
+  // Whether current typed customer can be saved to DB & attached
+  canSaveCurrentCustomer = computed(() => {
+    if (this.selectedCustomer()) return false;
+    const digits = this.customerPhone().replace(/\D/g, '');
+    return digits.length >= 10 && this.customerName().trim().length > 0;
+  });
+
+  // Search Results for Medicines combining DB query results and active inventory
   searchResults = computed(() => {
     const q = this.searchQuery().toLowerCase().trim();
     if (!q) return [];
-    return this.medicines().filter(m => 
-      m.brandName.toLowerCase().includes(q) ||
-      m.genericName.toLowerCase().includes(q) ||
-      m.rackLocation.toLowerCase().includes(q)
-    ).slice(0, 10);
+
+    const dbResults = this.backendMedicineResults();
+    const seenIds = new Set<string>();
+    const combined: Medicine[] = [];
+
+    // Prioritize fresh database search results
+    for (const med of dbResults) {
+      seenIds.add(med.id);
+      combined.push(med);
+    }
+
+    // Merge with in-memory store medicines that match
+    for (const med of this.medicines()) {
+      if (!seenIds.has(med.id)) {
+        if (
+          med.brandName.toLowerCase().includes(q) ||
+          med.genericName.toLowerCase().includes(q) ||
+          med.rackLocation.toLowerCase().includes(q) ||
+          (med.barcode && med.barcode.toLowerCase().includes(q))
+        ) {
+          seenIds.add(med.id);
+          combined.push(med);
+        }
+      }
+    }
+
+    return combined.slice(0, 15);
   });
 
   // Hotkey listener for counter speed
@@ -202,6 +328,13 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       this.showScannerModal.set(!this.showScannerModal());
     } else if (event.key === 'F9' && this.cart().length > 0) {
       event.preventDefault();
+      if (this.isBillingBlockedByCompliance()) {
+        const offending = this.scheduleHMedicinesInCart()[0]?.medicine?.brandName || 'Schedule H Medicine';
+        this.showToast(`⛔ Billing Blocked (F9): Prescribing Doctor Name & MCI Reg. No. are mandatory for '${offending}'.`);
+        const input = document.getElementById('pos-doctor-name-input') || document.getElementById('pos-doctor-reg-input');
+        input?.focus();
+        return;
+      }
       this.completeSale('CASH');
     } else if (event.key === 'Escape') {
       if (this.showScannerModal()) {
@@ -215,36 +348,122 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   }
 
   // ==========================================
+  // Medicine Search & Management Methods
+  // ==========================================
+  onMedicineSearchInput(query: string): void {
+    this.searchQuery.set(query);
+    this.medicineSearchSubject.next(query);
+  }
+
+  openAddMedicineModal(prefillName?: string): void {
+    this.prefillMedicineName.set(prefillName || this.searchQuery().trim());
+    this.showAddMedicineModal.set(true);
+  }
+
+  onMedicineAdded(newMed: Medicine): void {
+    this.showAddMedicineModal.set(false);
+    // Refresh inventory and sync
+    this.inventoryService.syncWithBackend();
+
+    // Auto-select or add to cart if batches available
+    if (newMed && newMed.batches && newMed.batches.length > 0) {
+      this.onSelectMedicine(newMed, newMed.batches[0]);
+      this.showToast(`✅ Added "${newMed.brandName}" to active bill!`);
+    } else {
+      this.showToast(`✅ "${newMed.brandName}" registered in Database!`);
+    }
+  }
+
+  // ==========================================
   // Customer Workflow Methods
   // ==========================================
   onCustomerSearchInput(query: string): void {
     this.customerSearchQuery.set(query);
-    if (!query || query.trim().length < 2) {
-      this.showCustomerDropdown.set(false);
-      this.backendCustomerResults.set([]);
+    const digits = query.replace(/\D/g, '');
+    const isNumeric = digits.length > 0 && digits === query.replace(/[\s\-\+]/g, '');
+
+    // For numeric queries, require exact 10 digits before displaying dropdown
+    if (isNumeric) {
+      if (digits.length < 10) {
+        this.showCustomerDropdown.set(false);
+        this.backendCustomerResults.set([]);
+      } else {
+        this.showCustomerDropdown.set(true);
+      }
     } else {
-      this.showCustomerDropdown.set(true);
+      if (!query || query.trim().length < 2) {
+        this.showCustomerDropdown.set(false);
+        this.backendCustomerResults.set([]);
+      } else {
+        this.showCustomerDropdown.set(true);
+      }
     }
     this.customerSearchSubject.next(query);
   }
 
   onCustomerNameInput(name: string): void {
     this.customerName.set(name);
-    if (!this.selectedCustomer() && name.trim().length >= 2) {
-      this.customerSearchQuery.set(name);
-      this.showCustomerDropdown.set(true);
-      this.customerSearchSubject.next(name);
-    }
   }
 
   onCustomerPhoneInput(phone: string): void {
     this.customerPhone.set(phone);
     const digits = phone.replace(/\D/g, '');
-    if (!this.selectedCustomer() && digits.length >= 3) {
+    // Exact match trigger: when full 10-digit number is typed
+    if (!this.selectedCustomer() && digits.length === 10) {
       this.customerSearchQuery.set(phone);
       this.showCustomerDropdown.set(true);
       this.customerSearchSubject.next(phone);
     }
+  }
+
+  saveCurrentCustomerToDb(): void {
+    const name = this.customerName().trim();
+    const phone = this.customerPhone().trim();
+    const digits = phone.replace(/\D/g, '');
+
+    if (!name) {
+      this.showToast('⚠️ Please enter customer name first');
+      return;
+    }
+    if (digits.length < 10) {
+      this.showToast('⚠️ Please enter a valid 10-digit mobile number');
+      return;
+    }
+
+    this.isRegistering.set(true);
+    const storeId = this.authService.currentUser()?.storeId || '1';
+    this.apiService.addStoreCustomer(storeId, {
+      name,
+      phone,
+      address: '',
+      email: '',
+      addedBy: this.authService.currentUser()?.name || 'Counter Pharmacist'
+    }).subscribe({
+      next: (res) => {
+        this.isRegistering.set(false);
+        const created: VerifiedCustomer = {
+          id: String(res.id || ''),
+          name,
+          phone,
+          isRegistered: true,
+          pastBillsCount: 0
+        };
+        this.storeClients.update(list => [created, ...list]);
+        this.selectCustomer(created);
+        this.showToast(`✅ Customer "${name}" registered in Database & attached!`);
+      },
+      error: () => {
+        this.isRegistering.set(false);
+        const created: VerifiedCustomer = {
+          name,
+          phone,
+          isRegistered: true,
+          pastBillsCount: 0
+        };
+        this.selectCustomer(created);
+        this.showToast(`✅ Customer "${name}" attached to bill!`);
+      }
+    });
   }
 
   selectCustomer(cust: VerifiedCustomer): void {
@@ -513,6 +732,13 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   setPaymentMode(mode: PaymentMode): void {
     this.selectedPaymentMode.set(mode);
     if (mode === 'UPI') {
+      if (this.isBillingBlockedByCompliance()) {
+        const offending = this.scheduleHMedicinesInCart()[0]?.medicine?.brandName || 'Schedule H Medicine';
+        this.showToast(`⛔ Doctor Details Required: Enter Doctor Name & MCI Reg. No. for '${offending}' before UPI payment.`);
+        const input = document.getElementById('pos-doctor-name-input') || document.getElementById('pos-doctor-reg-input');
+        input?.focus();
+        return;
+      }
       this.showUpiQrModal.set(true);
     }
   }
@@ -520,19 +746,45 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   completeSale(mode?: PaymentMode): void {
     if (this.cart().length === 0) return;
 
+    // STRICT DRUGS & COSMETICS ACT PHARMACY COMPLIANCE:
+    // If cart has Schedule H/H1/Narcotic drugs, Prescribing Doctor Name & MCI Reg. No. are MANDATORY.
+    if (this.hasScheduleH()) {
+      const docName = (this.doctorName() || '').trim();
+      const docReg = (this.doctorRegNo() || '').trim();
+
+      if (!docName || !docReg) {
+        const offending = this.scheduleHMedicinesInCart()[0]?.medicine?.brandName || 'Schedule H Medicine';
+        this.showToast(`⛔ BILLING BLOCKED: '${offending}' is classified under Schedule H/H1 regulations. Prescribing Doctor Name & MCI Reg. No. are mandatory under Drugs & Cosmetics Act.`);
+
+        setTimeout(() => {
+          if (!docName) {
+            const input = document.getElementById('pos-doctor-name-input');
+            input?.focus();
+          } else {
+            const regInput = document.getElementById('pos-doctor-reg-input');
+            regInput?.focus();
+          }
+        }, 100);
+
+        return; // STRICTLY DO NOT ALLOW FOR BILL
+      }
+    }
+
     const payment = mode || this.selectedPaymentMode();
     const customer: CustomerInfo = {
       name: this.customerName().trim() || 'Walk-in Customer',
       phone: this.customerPhone().trim(),
-      doctorName: this.doctorName().trim() || (this.hasScheduleH() ? 'Consulting Doctor' : ''),
+      doctorName: this.doctorName().trim(),
       doctorRegNo: this.doctorRegNo().trim()
     };
 
-    const invoice = this.billingService.generateInvoice(customer, payment);
-    this.completedInvoice.set(invoice);
-    this.showInvoiceModal.set(true);
-
-    // Refresh store clients or keep active customer context
-    this.showUpiQrModal.set(false);
+    try {
+      const invoice = this.billingService.generateInvoice(customer, payment);
+      this.completedInvoice.set(invoice);
+      this.showInvoiceModal.set(true);
+      this.showUpiQrModal.set(false);
+    } catch (err: any) {
+      this.showToast('⛔ Billing Failed: ' + (err.message || 'Compliance Violation'));
+    }
   }
 }

@@ -42,4 +42,18 @@ public class Batch {
     @JoinColumn(name = "medicine_id")
     @JsonBackReference
     private Medicine medicine;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    @Builder.Default
+    private Long version = 0L;
+
+    @PostLoad
+    @PrePersist
+    @PreUpdate
+    public void ensureVersion() {
+        if (this.version == null) {
+            this.version = 0L;
+        }
+    }
 }

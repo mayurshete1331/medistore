@@ -5,6 +5,7 @@ import com.medi.app.entity.OrderAuditLog;
 import com.medi.app.entity.OrderItem;
 import com.medi.app.entity.StoreOrder;
 import com.medi.app.entity.User;
+import com.medi.app.exception.ResourceNotFoundException;
 import com.medi.app.repository.OrderAuditLogRepository;
 import com.medi.app.repository.StoreOrderRepository;
 import com.medi.app.repository.UserRepository;
@@ -23,6 +24,7 @@ public class OrderService {
     private final StoreOrderRepository storeOrderRepository;
     private final UserRepository userRepository;
     private final StoreHistoryService storeHistoryService;
+    private final SequenceGeneratorService sequenceGeneratorService;
 
     public List<StoreOrder> getAllOrders() {
         return storeOrderRepository.findAllByOrderByCreatedAtDesc();
@@ -38,16 +40,16 @@ public class OrderService {
 
     public StoreOrder getOrderById(Long id) {
         return storeOrderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with ID: " + id));
     }
 
     @Transactional
     public StoreOrder createDoctorOrder(OrderDtos.CreateDoctorOrderRequest req) {
         LocalDateTime now = LocalDateTime.now();
-        String orderNumber = "ORD-DOC-" + String.format("%04d", storeOrderRepository.count() + 1);
+        String orderNumber = sequenceGeneratorService.nextDoctorOrderNumber();
 
         User doctor = userRepository.findById(req.getDoctorUserId())
-                .orElseThrow(() -> new RuntimeException("Doctor user not found with ID: " + req.getDoctorUserId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor user not found with ID: " + req.getDoctorUserId()));
 
         double totalAmount = 0.0;
         List<OrderItem> orderItems = new ArrayList<>();
@@ -132,10 +134,10 @@ public class OrderService {
     @Transactional
     public StoreOrder createCustomerOrder(OrderDtos.CreateCustomerOrderRequest req) {
         LocalDateTime now = LocalDateTime.now();
-        String orderNumber = "ORD-CUST-" + String.format("%04d", storeOrderRepository.count() + 1);
+        String orderNumber = sequenceGeneratorService.nextCustomerOrderNumber();
 
         User customer = userRepository.findById(req.getCustomerUserId())
-                .orElseThrow(() -> new RuntimeException("Customer user not found with ID: " + req.getCustomerUserId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer user not found with ID: " + req.getCustomerUserId()));
 
         double totalAmount = 0.0;
         List<OrderItem> orderItems = new ArrayList<>();

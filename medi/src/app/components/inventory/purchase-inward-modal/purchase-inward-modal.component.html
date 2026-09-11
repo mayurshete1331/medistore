@@ -1,0 +1,370 @@
+<div class="modal-overlay animate-fade-in" (click)="close()">
+  <div class="modal-container inward-modal" (click)="$event.stopPropagation()">
+    
+    <!-- Modal Header -->
+    <div class="modal-header">
+      <div class="header-title-group">
+        <span class="header-icon">📄</span>
+        <div>
+          <h3>Smart Purchase Bill Inward</h3>
+          <p class="subtitle">Extract tablet & medicine stock directly from distributor purchase bill PDFs or images</p>
+        </div>
+      </div>
+      <button type="button" class="btn-close" (click)="close()" title="Close">✕</button>
+    </div>
+
+    <!-- Error Alert Banner -->
+    @if (errorMessage()) {
+      <div class="alert-banner text-danger animate-fade-in">
+        <span class="icon">⚠️</span>
+        <span>{{ errorMessage() }}</span>
+      </div>
+    }
+
+    <!-- STEP 1: Upload & Extract Bill -->
+    @if (currentStep() === 'UPLOAD') {
+      <div class="modal-body upload-step animate-fade-in">
+        
+        <!-- Drag & Drop Zone -->
+        <div 
+          class="dropzone" 
+          [class.drag-over]="isDragging()"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)"
+          (click)="fileInput.click()">
+          
+          <input 
+            type="file" 
+            #fileInput 
+            (change)="onFileSelected($event)" 
+            accept=".pdf,.png,.jpg,.jpeg,.txt" 
+            style="display: none;"
+          />
+
+          <div class="dropzone-content">
+            <span class="upload-icon">📤</span>
+            <h4>Drag & drop purchase bill here, or <span class="browse-link">browse file</span></h4>
+            <p class="hint">Supports Distributor Invoices in <strong>PDF</strong>, <strong>PNG</strong>, <strong>JPG</strong>, or <strong>JPEG</strong></p>
+
+            <div class="format-badges">
+              <span class="badge-pdf">PDF Document</span>
+              <span class="badge-img">Invoice Photo / Scan</span>
+              <span class="badge-txt">Text / Marg / Tally</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selected File Preview -->
+        @if (selectedFile(); as file) {
+          <div class="selected-file-card animate-fade-in">
+            <div class="file-info">
+              <span class="file-icon">{{ file.name.endsWith('.pdf') ? '📕' : '🖼️' }}</span>
+              <div class="file-details">
+                <strong class="file-name">{{ file.name }}</strong>
+                <span class="file-size tabular">{{ (file.size / 1024).toFixed(1) }} KB</span>
+              </div>
+            </div>
+            <button type="button" class="btn-remove-file" (click)="clearFile()">✕ Change File</button>
+          </div>
+        }
+
+        <!-- Demo / Fast Sample Testing Option -->
+        <div class="sample-hint-box">
+          <div class="sample-info">
+            <span class="sample-icon">💡</span>
+            <div>
+              <strong>No invoice file on this device?</strong>
+              <p>Test the full Java parser immediately using a simulated Indian pharma distributor invoice.</p>
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" [disabled]="isParsing()" (click)="loadSampleInvoice()">
+            ⚡ Try Sample Invoice
+          </button>
+        </div>
+
+        <!-- Loading State during Java PDFBox / Parser execution -->
+        @if (isParsing()) {
+          <div class="parsing-indicator animate-fade-in">
+            <div class="spinner"></div>
+            <div class="parsing-text">
+              <strong>Processing Bill via Java Engine...</strong>
+              <span>Reading table columns: Brand Name, Batch No, Expiry, Qty, Purchase Rate & MRP</span>
+            </div>
+          </div>
+        }
+
+        <!-- Step 1 Footer Actions -->
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
+          <button 
+            type="button" 
+            class="btn btn-primary btn-parse" 
+            [disabled]="!selectedFile() || isParsing()"
+            (click)="parseUploadedBill()">
+            @if (isParsing()) {
+              <span>⏳ Extracting Stock...</span>
+            } @else {
+              <span>⚡ Parse & Extract Stock</span>
+            }
+          </button>
+        </div>
+
+      </div>
+    }
+
+    <!-- STEP 2: Interactive Review & Verification Grid -->
+    @if (currentStep() === 'REVIEW') {
+      <div class="modal-body review-step animate-fade-in">
+        
+        <!-- Invoice Header Meta Fields -->
+        <div class="invoice-meta-bar">
+          <div class="meta-field">
+            <label>Wholesaler / Distributor</label>
+            <input 
+              type="text" 
+              [ngModel]="distributorName()" 
+              (ngModelChange)="distributorName.set($event)" 
+              placeholder="e.g. Apollo Wholesale Distributors"
+              class="form-control"
+            />
+          </div>
+
+          <div class="meta-field">
+            <label>Bill / Invoice #</label>
+            <input 
+              type="text" 
+              [ngModel]="invoiceNumber()" 
+              (ngModelChange)="invoiceNumber.set($event)" 
+              placeholder="e.g. INV-2026-9812"
+              class="form-control tabular"
+            />
+          </div>
+
+          <div class="meta-field">
+            <label>Invoice Date</label>
+            <input 
+              type="date" 
+              [ngModel]="invoiceDate()" 
+              (ngModelChange)="invoiceDate.set($event)" 
+              class="form-control tabular"
+            />
+          </div>
+        </div>
+
+        <!-- Summary Metric Pills -->
+        <div class="summary-metrics-bar">
+          <div class="metric-chip">
+            <span class="chip-label">Total SKUs</span>
+            <strong class="chip-val tabular">{{ totalItemsCount() }}</strong>
+          </div>
+
+          <div class="metric-chip">
+            <span class="chip-label">Total Packs</span>
+            <strong class="chip-val tabular text-primary">{{ totalPacksCount() }} Packs</strong>
+          </div>
+
+          <div class="metric-chip">
+            <span class="chip-label">Existing In Master</span>
+            <strong class="chip-val tabular text-success">{{ existingMedicinesCount() }} SKUs</strong>
+          </div>
+
+          <div class="metric-chip">
+            <span class="chip-label">New SKUs to Create</span>
+            <strong class="chip-val tabular text-warning">{{ newMedicinesCount() }} SKUs</strong>
+          </div>
+
+          <div class="metric-chip highlight">
+            <span class="chip-label">Invoice Inward Valuation</span>
+            <strong class="chip-val tabular text-teal">₹{{ totalValuation() | number:'1.2-2' }}</strong>
+          </div>
+        </div>
+
+        <!-- Interactive Review Table -->
+        <div class="table-container">
+          <table class="review-table">
+            <thead>
+              <tr>
+                <th style="width: 12%;">Status</th>
+                <th style="width: 24%;">Medicine Name</th>
+                <th style="width: 14%;">Batch No</th>
+                <th style="width: 12%;">Expiry (YYYY-MM)</th>
+                <th style="width: 10%;">Qty (Packs)</th>
+                <th style="width: 11%;">Cost Rate (₹)</th>
+                <th style="width: 11%;">MRP (₹)</th>
+                <th style="width: 6%;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of items(); track $index) {
+                <tr>
+                  <!-- SKU Status -->
+                  <td>
+                    @if (item.isExisting) {
+                      <span class="status-pill status-existing" title="Matched with existing medicine catalog">
+                        ✓ Existing
+                      </span>
+                    } @else {
+                      <span class="status-pill status-new" title="New medicine will be registered in catalog">
+                        ✨ New SKU
+                      </span>
+                    }
+                  </td>
+
+                  <!-- Brand Name -->
+                  <td>
+                    <input 
+                      type="text" 
+                      [ngModel]="item.medicineName" 
+                      (ngModelChange)="updateItem($index, 'medicineName', $event)" 
+                      class="table-input med-name-input"
+                    />
+                    <span class="sub-salt">{{ item.genericName }}</span>
+                  </td>
+
+                  <!-- Batch Number -->
+                  <td>
+                    <input 
+                      type="text" 
+                      [ngModel]="item.batchNumber" 
+                      (ngModelChange)="updateItem($index, 'batchNumber', $event)" 
+                      class="table-input tabular"
+                    />
+                  </td>
+
+                  <!-- Expiry Date -->
+                  <td>
+                    <input 
+                      type="text" 
+                      [ngModel]="item.expiryDate" 
+                      (ngModelChange)="updateItem($index, 'expiryDate', $event)" 
+                      placeholder="YYYY-MM"
+                      class="table-input tabular"
+                    />
+                  </td>
+
+                  <!-- Quantity In Packs -->
+                  <td>
+                    <input 
+                      type="number" 
+                      [ngModel]="item.quantity" 
+                      (ngModelChange)="updateItem($index, 'quantity', $event)" 
+                      min="1"
+                      class="table-input tabular font-bold text-center"
+                    />
+                  </td>
+
+                  <!-- Purchase Cost Price -->
+                  <td>
+                    <input 
+                      type="number" 
+                      [ngModel]="item.purchasePrice" 
+                      (ngModelChange)="updateItem($index, 'purchasePrice', $event)" 
+                      min="0.1"
+                      step="0.5"
+                      class="table-input tabular"
+                    />
+                  </td>
+
+                  <!-- MRP -->
+                  <td>
+                    <input 
+                      type="number" 
+                      [ngModel]="item.mrp" 
+                      (ngModelChange)="updateItem($index, 'mrp', $event)" 
+                      min="0.1"
+                      step="0.5"
+                      class="table-input tabular"
+                    />
+                  </td>
+
+                  <!-- Remove Row Action -->
+                  <td class="text-center">
+                    <button type="button" class="btn-del-row" (click)="removeItem($index)" title="Remove Line Item">✕</button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="8" class="text-center empty-notice">
+                    No medicine items detected. Click "+ Add Line Item" below to add manually.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="review-table-footer">
+          <button type="button" class="btn btn-secondary btn-sm" (click)="addNewItem()">
+            ➕ Add Line Item
+          </button>
+          <span class="verification-hint">💡 Verify batch numbers & quantities above before importing into live database.</span>
+        </div>
+
+        <!-- Step 2 Footer Actions -->
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" [disabled]="isCommitting()" (click)="currentStep.set('UPLOAD')">
+            ← Re-upload Bill
+          </button>
+          <button 
+            type="button" 
+            class="btn btn-primary btn-commit" 
+            [disabled]="items().length === 0 || isCommitting()"
+            (click)="commitToStock()">
+            @if (isCommitting()) {
+              <span>⏳ Ingesting into Database...</span>
+            } @else {
+              <span>✓ Import All into Inventory ({{ totalPacksCount() }} Packs)</span>
+            }
+          </button>
+        </div>
+
+      </div>
+    }
+
+    <!-- STEP 3: Success Recap Screen -->
+    @if (currentStep() === 'SUCCESS') {
+      <div class="modal-body success-step animate-fade-in">
+        <div class="success-icon-wrap">
+          <span class="success-icon">🎉</span>
+        </div>
+
+        <h3>Stock Successfully Ingested into Database!</h3>
+        <p class="success-desc">
+          Your inventory and batch levels have been updated in real-time in the MySQL database under regulatory FEFO records.
+        </p>
+
+        @if (commitResult(); as res) {
+          <div class="success-summary-card">
+            <div class="summary-stat">
+              <span class="stat-num text-primary tabular">{{ res.totalPacksAdded }}</span>
+              <span class="stat-label">Total Packs Added</span>
+            </div>
+
+            <div class="summary-stat">
+              <span class="stat-num text-success tabular">{{ res.batchesAdded }}</span>
+              <span class="stat-label">New Batches Added</span>
+            </div>
+
+            <div class="summary-stat">
+              <span class="stat-num text-warning tabular">{{ res.newMedicinesCreated }}</span>
+              <span class="stat-label">New SKUs Created</span>
+            </div>
+
+            <div class="summary-stat">
+              <span class="stat-num text-teal tabular">₹{{ res.totalValuation | number:'1.2-2' }}</span>
+              <span class="stat-label">Valuation Inward</span>
+            </div>
+          </div>
+        }
+
+        <div class="modal-footer justify-center">
+          <button type="button" class="btn btn-primary btn-lg" (click)="close()">
+            ✓ View Updated Inventory
+          </button>
+        </div>
+      </div>
+    }
+
+  </div>
+</div>

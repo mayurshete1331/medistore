@@ -34,8 +34,8 @@ export class CustomerPortalComponent {
   cart = signal<{ medicine: Medicine; quantity: number; unitPrice: number; total: number }[]>([]);
 
   // Checkout Fields
-  deliveryAddress = signal(this.currentUser().customerAddress || '');
-  customerPhone = signal(this.currentUser().phone || '');
+  deliveryAddress = signal(this.currentUser()?.customerAddress || '');
+  customerPhone = signal(this.currentUser()?.phone || '');
   paymentMethod = signal<OrderPaymentMethod>('COD');
 
   lastPlacedOrder = signal<any | null>(null);
@@ -65,8 +65,8 @@ export class CustomerPortalComponent {
 
   // Customer's previous orders
   myOrders = computed(() => {
-    const userId = this.currentUser().id;
-    return this.orderService.orders().filter(o => o.placedBy.userId === userId || o.placedBy.userRole === 'CUSTOMER');
+    const userId = this.currentUser()?.id;
+    return this.orderService.orders().filter(o => (userId && o.placedBy.userId === userId) || o.placedBy.userRole === 'CUSTOMER');
   });
 
   addToCart(med: Medicine): void {
@@ -118,6 +118,10 @@ export class CustomerPortalComponent {
 
     const store = this.selectedStore();
     const custUser = this.currentUser();
+    if (!custUser) {
+      alert('Please log in to place an order.');
+      return;
+    }
 
     const items: PrescribedOrderItem[] = this.cart().map(c => ({
       medicineId: c.medicine.id,

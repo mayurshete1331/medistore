@@ -41,6 +41,9 @@ dependencies {
     // OpenAPI 3 / Swagger Documentation
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
 
+    // Apache PDFBox for Invoice PDF parsing
+    implementation 'org.apache.pdfbox:pdfbox:3.0.3'
+
     // Lombok for clean getters, setters, constructors
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

@@ -32,6 +32,16 @@ public class DataInitializer implements CommandLineRunner {
         @Override
         @Transactional
         public void run(String... args) {
+                // Ensure all existing batches have non-null version for optimistic locking
+                try {
+                        int fixed = batchRepository.updateNullVersions();
+                        if (fixed > 0) {
+                                log.info("Optimistic locking: initialized version=0 for {} batches.", fixed);
+                        }
+                } catch (Exception ex) {
+                        log.warn("Could not batch-update null versions: {}", ex.getMessage());
+                }
+
                 log.info("Checking database data status. Users in DB: {}, Medicines in DB: {}",
                                 userRepository.count(), medicineRepository.count());
 

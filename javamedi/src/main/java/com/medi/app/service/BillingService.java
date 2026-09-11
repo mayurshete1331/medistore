@@ -1,12 +1,19 @@
 package com.medi.app.service;
 
 import com.medi.app.dto.BillingDtos;
+import com.medi.app.entity.Batch;
 import com.medi.app.entity.Invoice;
 import com.medi.app.entity.InvoiceItem;
+import com.medi.app.entity.Medicine;
 import com.medi.app.entity.User;
+import com.medi.app.exception.PharmaComplianceException;
+import com.medi.app.exception.ResourceNotFoundException;
+import com.medi.app.repository.BatchRepository;
 import com.medi.app.repository.InvoiceRepository;
+import com.medi.app.repository.MedicineRepository;
 import com.medi.app.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,9 +23,13 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BillingService {
 
     private final InvoiceRepository invoiceRepository;
+    private final MedicineRepository medicineRepository;
+    private final BatchRepository batchRepository;
+    private final SequenceGeneratorService sequenceGeneratorService;
     private final InventoryService inventoryService;
     private final StoreHistoryService storeHistoryService;
     private final UserRepository userRepository;
@@ -29,13 +40,13 @@ public class BillingService {
 
     public Invoice getInvoiceByNumber(String invoiceNumber) {
         return invoiceRepository.findByInvoiceNumber(invoiceNumber)
-                .orElseThrow(() -> new RuntimeException("Invoice not found: " + invoiceNumber));
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found: " + invoiceNumber));
     }
 
     @Transactional
     public Invoice checkout(BillingDtos.CheckoutRequest req) {
         LocalDateTime now = LocalDateTime.now();
-        String invoiceNumber = "INV-" + now.getYear() + "-" + String.format("%04d", invoiceRepository.count() + 1);
+        String invoiceNumber = sequenceGeneratorService.nextInvoiceNumber();
 
         double subtotal = 0.0;
         double totalDiscount = 0.0;
@@ -43,45 +54,109 @@ public class BillingService {
         double totalCostPrice = 0.0;
         boolean hasScheduleH = false;
 
+        String custName = req.getResolvedCustomerName();
+        String custPhone = req.getResolvedCustomerPhone();
+        String docName = req.getResolvedDoctorName();
+        String docReg = req.getResolvedDoctorRegNo();
+
         List<InvoiceItem> invoiceItems = new ArrayList<>();
 
-        for (BillingDtos.CartItemDto itemDto : req.getItems()) {
-            double gross = itemDto.getQuantity() * itemDto.getUnitPrice();
-            double discountAmt = (gross * (itemDto.getDiscountPercent() != null ? itemDto.getDiscountPercent() : 0)) / 100.0;
-            double lineSubtotal = gross - discountAmt;
-            double lineTax = (lineSubtotal * (itemDto.getGstRate() != null ? itemDto.getGstRate() : 0)) / 100.0;
-            double lineTotal = lineSubtotal + lineTax;
+        if (req.getItems() != null) {
+            for (BillingDtos.CartItemDto itemDto : req.getItems()) {
+                Medicine med = null;
+                if (itemDto.getMedicineId() != null) {
+                    med = medicineRepository.findById(itemDto.getMedicineId()).orElse(null);
+                }
+                if (med == null && itemDto.getMedicineName() != null && !itemDto.getMedicineName().trim().isEmpty()) {
+                    med = medicineRepository.findByBrandName(itemDto.getMedicineName().trim()).orElse(null);
+                }
 
-            subtotal += lineSubtotal;
-            totalDiscount += discountAmt;
-            totalTax += lineTax;
-            totalCostPrice += (itemDto.getCostPrice() != null ? itemDto.getCostPrice() : 0) * itemDto.getQuantity();
+                // Compliance Check for Schedule H / H1 / Narcotic drugs
+                if (med != null && (Boolean.TRUE.equals(med.getIsScheduleH()) || Boolean.TRUE.equals(med.getIsScheduleH1()) || Boolean.TRUE.equals(med.getIsNarcotic()))) {
+                    hasScheduleH = true;
+                    if (docName.isEmpty() || docReg.isEmpty()) {
+                        throw new PharmaComplianceException("Prescription compliance violation: Medicine '" + med.getBrandName() + 
+                                "' is classified under Schedule H/H1/Narcotic regulations. Prescribing Doctor's Name and MCI Registration Number are mandatory under the Drugs & Cosmetics Act.");
+                    }
+                }
 
-            InvoiceItem invoiceItem = InvoiceItem.builder()
-                    .medicineId(itemDto.getMedicineId())
-                    .medicineName(itemDto.getMedicineName())
-                    .genericName(itemDto.getGenericName())
-                    .batchNumber(itemDto.getBatchNumber())
-                    .expiryDate(itemDto.getExpiryDate())
-                    .hsnCode(itemDto.getHsnCode())
-                    .saleType(itemDto.getSaleType())
-                    .quantity(itemDto.getQuantity())
-                    .unitPrice(itemDto.getUnitPrice())
-                    .mrp(itemDto.getMrp())
-                    .costPrice(itemDto.getCostPrice())
-                    .discountPercent(itemDto.getDiscountPercent())
-                    .gstRate(itemDto.getGstRate())
-                    .taxAmount(Math.round(lineTax * 100.0) / 100.0)
-                    .subtotal(Math.round(lineSubtotal * 100.0) / 100.0)
-                    .total(Math.round(lineTotal * 100.0) / 100.0)
-                    .build();
+                // Batch lookup fallback
+                Batch batch = null;
+                if (itemDto.getBatchId() != null) {
+                    batch = batchRepository.findById(itemDto.getBatchId()).orElse(null);
+                }
+                if (batch == null && med != null) {
+                    List<Batch> medBatches = batchRepository.findByMedicineId(med.getId());
+                    if (!medBatches.isEmpty()) {
+                        batch = medBatches.get(0);
+                    }
+                }
 
-            invoiceItems.add(invoiceItem);
+                // Defensive calculation parameters
+                int qty = itemDto.getQuantity() != null && itemDto.getQuantity() > 0 ? itemDto.getQuantity() : 1;
+                double unitPrice = itemDto.getUnitPrice() != null ? itemDto.getUnitPrice() : (batch != null && batch.getSalePrice() != null ? batch.getSalePrice() : 0.0);
+                double mrp = itemDto.getMrp() != null ? itemDto.getMrp() : (batch != null && batch.getMrp() != null ? batch.getMrp() : unitPrice);
+                double costPrice = itemDto.getCostPrice() != null ? itemDto.getCostPrice() : (batch != null && batch.getPurchasePrice() != null ? batch.getPurchasePrice() : 0.0);
+                double discPct = itemDto.getDiscountPercent() != null ? itemDto.getDiscountPercent() : 0.0;
+                int gst = itemDto.getGstRate() != null ? itemDto.getGstRate() : (med != null && med.getGstRate() != null ? med.getGstRate() : 0);
 
-            // Deduct stock
-            if (itemDto.getBatchId() != null) {
-                int packsDeduct = "FULL_PACK".equals(itemDto.getSaleType()) ? itemDto.getQuantity() : 1;
-                inventoryService.deductStock(itemDto.getBatchId(), packsDeduct);
+                double gross = qty * unitPrice;
+                double discountAmt = (gross * discPct) / 100.0;
+                double lineSubtotal = gross - discountAmt;
+                double lineTax = (lineSubtotal * gst) / 100.0;
+                double lineTotal = lineSubtotal + lineTax;
+
+                subtotal += lineSubtotal;
+                totalDiscount += discountAmt;
+                totalTax += lineTax;
+                totalCostPrice += costPrice * qty;
+
+                String medName = itemDto.getMedicineName() != null && !itemDto.getMedicineName().trim().isEmpty()
+                        ? itemDto.getMedicineName().trim()
+                        : (med != null ? med.getBrandName() : "Item");
+                String genName = itemDto.getGenericName() != null ? itemDto.getGenericName().trim() : (med != null ? med.getGenericName() : "");
+                String bNum = itemDto.getBatchNumber() != null && !itemDto.getBatchNumber().trim().isEmpty()
+                        ? itemDto.getBatchNumber().trim()
+                        : (batch != null ? batch.getBatchNumber() : "DEFAULT");
+                String expDate = itemDto.getExpiryDate() != null && !itemDto.getExpiryDate().trim().isEmpty()
+                        ? itemDto.getExpiryDate().trim()
+                        : (batch != null ? batch.getExpiryDate() : "2026-12");
+                String hsn = itemDto.getHsnCode() != null && !itemDto.getHsnCode().trim().isEmpty()
+                        ? itemDto.getHsnCode().trim()
+                        : (med != null ? med.getHsnCode() : "3004");
+                String sType = itemDto.getSaleType() != null ? itemDto.getSaleType() : "FULL_PACK";
+
+                InvoiceItem invoiceItem = InvoiceItem.builder()
+                        .medicineId(med != null ? med.getId() : itemDto.getMedicineId())
+                        .medicineName(medName)
+                        .genericName(genName)
+                        .batchNumber(bNum)
+                        .expiryDate(expDate)
+                        .hsnCode(hsn)
+                        .saleType(sType)
+                        .quantity(qty)
+                        .unitPrice(Math.round(unitPrice * 100.0) / 100.0)
+                        .mrp(Math.round(mrp * 100.0) / 100.0)
+                        .costPrice(Math.round(costPrice * 100.0) / 100.0)
+                        .discountPercent(discPct)
+                        .gstRate(gst)
+                        .taxAmount(Math.round(lineTax * 100.0) / 100.0)
+                        .subtotal(Math.round(lineSubtotal * 100.0) / 100.0)
+                        .total(Math.round(lineTotal * 100.0) / 100.0)
+                        .build();
+
+                invoiceItems.add(invoiceItem);
+
+                // Deduct stock safely
+                Long targetBatchId = batch != null ? batch.getId() : itemDto.getBatchId();
+                if (targetBatchId != null) {
+                    try {
+                        int packsDeduct = "FULL_PACK".equalsIgnoreCase(sType) ? qty : 1;
+                        inventoryService.deductStock(targetBatchId, packsDeduct);
+                    } catch (Exception ex) {
+                        log.warn("Batch stock deduction skipped for batch {}: {}", targetBatchId, ex.getMessage());
+                    }
+                }
             }
         }
 
@@ -95,10 +170,10 @@ public class BillingService {
         Invoice invoice = Invoice.builder()
                 .invoiceNumber(invoiceNumber)
                 .timestamp(now)
-                .customerName(req.getCustomer() != null && req.getCustomer().getName() != null ? req.getCustomer().getName() : "Walk-in Customer")
-                .customerPhone(req.getCustomer() != null ? req.getCustomer().getPhone() : "")
-                .doctorName(req.getCustomer() != null ? req.getCustomer().getDoctorName() : "")
-                .doctorRegNo(req.getCustomer() != null ? req.getCustomer().getDoctorRegNo() : "")
+                .customerName(custName)
+                .customerPhone(custPhone)
+                .doctorName(docName)
+                .doctorRegNo(docReg)
                 .subtotal(Math.round(subtotal * 100.0) / 100.0)
                 .totalDiscount(Math.round(totalDiscount * 100.0) / 100.0)
                 .cgst(cgst)
@@ -112,23 +187,30 @@ public class BillingService {
                 .paymentStatus("KHATA".equalsIgnoreCase(req.getPaymentMode()) ? "CREDIT_KHATA" : "PAID")
                 .hasScheduleH(hasScheduleH)
                 .dispensedBy(req.getDispensedBy() != null ? req.getDispensedBy() : "Counter 1")
+                .items(invoiceItems)
                 .build();
 
         for (InvoiceItem item : invoiceItems) {
             item.setInvoice(invoice);
         }
+        invoice.setItems(invoiceItems);
         Invoice saved = invoiceRepository.save(invoice);
 
         // Record in Store History
-        storeHistoryService.recordLog(
-                1L,
-                "SALE_BILLING",
-                "Counter POS Bill: " + saved.getInvoiceNumber(),
-                "Invoice " + saved.getInvoiceNumber() + " billed for ₹" + saved.getGrandTotal() + " (" + saved.getItems().size() + " items, " + saved.getPaymentMode() + ") to " + saved.getCustomerName() + ".",
-                saved.getDispensedBy(),
-                saved.getInvoiceNumber(),
-                saved.getGrandTotal()
-        );
+        try {
+            int itemCount = saved.getItems() != null ? saved.getItems().size() : invoiceItems.size();
+            storeHistoryService.recordLog(
+                    1L,
+                    "SALE_BILLING",
+                    "Counter POS Bill: " + saved.getInvoiceNumber(),
+                    "Invoice " + saved.getInvoiceNumber() + " billed for ₹" + saved.getGrandTotal() + " (" + itemCount + " items, " + saved.getPaymentMode() + ") to " + saved.getCustomerName() + ".",
+                    saved.getDispensedBy(),
+                    saved.getInvoiceNumber(),
+                    saved.getGrandTotal()
+            );
+        } catch (Exception ex) {
+            log.warn("Could not record store history log for {}: {}", saved.getInvoiceNumber(), ex.getMessage());
+        }
 
         return saved;
     }
@@ -137,19 +219,26 @@ public class BillingService {
         String cleanQuery = query != null ? query.trim() : "";
         String cleanDigits = cleanQuery.replaceAll("\\D", "");
 
+        // Search requires at least 2 characters or at least 3 digits
+        if (cleanDigits.length() < 3 && cleanQuery.length() < 2) {
+            return Collections.emptyList();
+        }
+
         List<Map<String, Object>> results = new ArrayList<>();
         Set<String> seenPhones = new HashSet<>();
+        Set<Long> seenUserIds = new HashSet<>();
 
-        // 1. Search registered Users with role CUSTOMER
+        // 1. Search registered Users with role CUSTOMER (name/email/phone substring)
         List<User> matchedUsers = userRepository.searchCustomers(cleanQuery, cleanDigits);
         for (User u : matchedUsers) {
+            seenUserIds.add(u.getId());
             String p = u.getPhone() != null ? u.getPhone().replaceAll("\\D", "") : "";
             if (!p.isEmpty() && seenPhones.contains(p)) continue;
             if (!p.isEmpty()) seenPhones.add(p);
 
-            List<Invoice> pastInvs = u.getPhone() != null && !u.getPhone().isEmpty()
-                    ? invoiceRepository.findByCustomerPhoneContainingOrderByTimestampDesc(u.getPhone())
-                    : invoiceRepository.findByCustomerNameContainingIgnoreCaseOrderByTimestampDesc(u.getName());
+            List<Invoice> pastInvs = !p.isEmpty() && p.length() >= 3
+                    ? invoiceRepository.findExactCustomerInvoices("", p)
+                    : invoiceRepository.findExactCustomerInvoices(u.getName(), "");
 
             Map<String, Object> map = new HashMap<>();
             map.put("id", String.valueOf(u.getId()));
@@ -163,10 +252,7 @@ public class BillingService {
         }
 
         // 2. Search past invoices for customers who might not have an explicit user account yet
-        List<Invoice> invoiceMatches = !cleanDigits.isEmpty() && cleanDigits.length() >= 4
-                ? invoiceRepository.findByCustomerPhoneContainingOrderByTimestampDesc(cleanDigits)
-                : invoiceRepository.findByCustomerNameContainingIgnoreCaseOrderByTimestampDesc(cleanQuery);
-
+        List<Invoice> invoiceMatches = invoiceRepository.findExactCustomerInvoices(cleanQuery, cleanDigits);
         for (Invoice inv : invoiceMatches) {
             String p = inv.getCustomerPhone() != null ? inv.getCustomerPhone().replaceAll("\\D", "") : "";
             if (inv.getCustomerName() != null && "walk-in customer".equalsIgnoreCase(inv.getCustomerName().trim()) && p.isEmpty()) {
@@ -177,9 +263,9 @@ public class BillingService {
             }
             if (!p.isEmpty()) seenPhones.add(p);
 
-            List<Invoice> pastInvs = !p.isEmpty()
-                    ? invoiceRepository.findByCustomerPhoneContainingOrderByTimestampDesc(inv.getCustomerPhone())
-                    : invoiceRepository.findByCustomerNameContainingIgnoreCaseOrderByTimestampDesc(inv.getCustomerName());
+            List<Invoice> pastInvs = !p.isEmpty() && p.length() >= 3
+                    ? invoiceRepository.findExactCustomerInvoices("", p)
+                    : invoiceRepository.findExactCustomerInvoices(inv.getCustomerName(), "");
 
             Map<String, Object> map = new HashMap<>();
             map.put("name", inv.getCustomerName());
@@ -196,11 +282,9 @@ public class BillingService {
 
     public List<Invoice> getCustomerInvoices(String phone, String name) {
         String cleanPhone = phone != null ? phone.replaceAll("\\D", "") : "";
-        if (!cleanPhone.isEmpty() && cleanPhone.length() >= 4) {
-            return invoiceRepository.findByCustomerPhoneContainingOrderByTimestampDesc(cleanPhone);
-        }
-        if (name != null && !name.trim().isEmpty() && !"walk-in customer".equalsIgnoreCase(name.trim())) {
-            return invoiceRepository.findByCustomerNameContainingIgnoreCaseOrderByTimestampDesc(name.trim());
+        String cleanName = name != null ? name.trim() : "";
+        if ((!cleanPhone.isEmpty() && cleanPhone.length() >= 3) || (!cleanName.isEmpty() && !"walk-in customer".equalsIgnoreCase(cleanName))) {
+            return invoiceRepository.findExactCustomerInvoices(cleanName, cleanPhone);
         }
         return Collections.emptyList();
     }

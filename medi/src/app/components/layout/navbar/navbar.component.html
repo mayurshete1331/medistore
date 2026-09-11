@@ -1,222 +1,210 @@
-<header class="medi-navbar">
-  <div class="nav-container">
-    <!-- Brand Info -->
-    <div class="brand-section">
-      <div class="logo-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+<aside class="medi-sidebar" [class.collapsed]="isCollapsed()">
+  <!-- Top Brand & Collapse Control -->
+  <div class="sidebar-header">
+    <div class="brand-info">
+      <div class="logo-icon" title="MediStore Pharmacy Operations">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M12 2v20M2 12h20"/>
         </svg>
       </div>
-      <div class="brand-text">
-        <div class="brand-title">
-          <span>Medi</span><span class="highlight">Store</span>
+      @if (!isCollapsed()) {
+        <div class="brand-text">
+          <div class="brand-title">
+            <span>Medi</span><span class="highlight">Store</span>
+            <span class="env-badge env-{{ currentEnv.toLowerCase() }}">{{ currentEnv }}</span>
+          </div>
+          <div class="brand-subtitle">DL: MH-MZ4 • GSTIN: 27AABCM</div>
         </div>
-        <div class="brand-subtitle">DL: MH-MZ4-20B-10928 • GSTIN: 27AABCM1122D1Z9</div>
-      </div>
+      }
     </div>
 
-    <!-- Role-Aware Navigation Tabs -->
-    <nav class="nav-tabs">
-      @if (isOwner()) {
-        <!-- Store Owner Navigation -->
-        <a routerLink="/billing" routerLinkActive="active" class="nav-link">
-          <span class="icon">🛒</span>
-          <span class="label">Counter POS</span>
-          @if (cartCount() > 0) {
-            <span class="cart-pill">{{ cartCount() }}</span>
-          }
-        </a>
+    <!-- Collapse / Expand Toggle Button -->
+    <button 
+      type="button" 
+      class="btn-collapse-toggle" 
+      (click)="toggleCollapse()" 
+      [title]="isCollapsed() ? 'Expand main menu' : 'Collapse main menu'"
+      aria-label="Toggle Sidebar Menu">
+      <svg class="toggle-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        @if (isCollapsed()) {
+          <!-- Chevron Right » -->
+          <polyline points="13 17 18 12 13 7"></polyline>
+          <polyline points="6 17 11 12 6 7"></polyline>
+        } @else {
+          <!-- Chevron Left « -->
+          <polyline points="11 17 6 12 11 7"></polyline>
+          <polyline points="18 17 13 12 18 7"></polyline>
+        }
+      </svg>
+    </button>
+  </div>
 
-        <a routerLink="/inventory" routerLinkActive="active" class="nav-link">
-          <span class="icon">💊</span>
-          <span class="label">Medicine Master</span>
-        </a>
+  <!-- Primary Action: Add Client / Doctor (Store Owner Only) -->
+  @if (isOwner()) {
+    <div class="sidebar-action-wrap">
+      <button 
+        type="button" 
+        class="btn-sidebar-add-client" 
+        [class.compact]="isCollapsed()"
+        (click)="showAddClientModal.set(true)"
+        [title]="isCollapsed() ? 'Add Dr. / Client' : 'Affiliate a new Customer or Doctor with this Store'">
+        <span class="action-icon">➕</span>
+        @if (!isCollapsed()) {
+          <span class="action-text">Add Dr. / Client</span>
+        }
+      </button>
+    </div>
+  }
 
-        <a routerLink="/store-orders" routerLinkActive="active" class="nav-link orders-link">
-          <span class="icon">📥</span>
-          <span class="label">Incoming Orders & Audit</span>
-          @if (pendingStoreOrdersCount().length > 0) {
-            <span class="badge-new-orders">{{ pendingStoreOrdersCount().length }}</span>
-          }
-        </a>
+  <!-- Vertical Nav Links -->
+  <nav class="sidebar-nav">
+    @if (!isCollapsed()) {
+      <div class="nav-section-label">NAVIGATION</div>
+    }
 
-        <a routerLink="/reorder" routerLinkActive="active" class="nav-link reorder-link">
-          <span class="icon">📦</span>
-          <span class="label">Auto-Reorder</span>
-          @if (lowStockCount().length > 0) {
-            <span class="badge-reorder-alert">{{ lowStockCount().length }}</span>
-          }
-        </a>
+    @if (isOwner()) {
+      <!-- 1. Counter POS -->
+      <a routerLink="/billing" routerLinkActive="active" class="sidebar-link" [title]="isCollapsed() ? 'Counter POS' : ''">
+        <span class="link-icon">🛒</span>
+        @if (!isCollapsed()) {
+          <span class="link-label">Counter POS</span>
+        }
+        @if (cartCount() > 0) {
+          <span class="pill-badge pill-cart" [title]="cartCount() + ' items in POS cart'">{{ cartCount() }}</span>
+        }
+      </a>
 
-        <a routerLink="/history" routerLinkActive="active" class="nav-link history-link">
-          <span class="icon">📜</span>
-          <span class="label">Store History</span>
-        </a>
+      <!-- 2. Medicine Master -->
+      <a routerLink="/inventory" routerLinkActive="active" class="sidebar-link" [title]="isCollapsed() ? 'Medicine Master' : ''">
+        <span class="link-icon">💊</span>
+        @if (!isCollapsed()) {
+          <span class="link-label">Medicine Master</span>
+        }
+      </a>
 
-        <a routerLink="/analytics" routerLinkActive="active" class="nav-link">
-          <span class="icon">📊</span>
-          <span class="label">P&L Analytics</span>
-        </a>
-      } @else if (isDoctor()) {
-        <!-- Doctor Navigation -->
-        <a routerLink="/doctor" routerLinkActive="active" class="nav-link">
-          <span class="icon">🩺</span>
-          <span class="label">Doctor e-Prescription Desk</span>
-        </a>
-      } @else {
-        <!-- Customer Navigation -->
-        <a routerLink="/customer" routerLinkActive="active" class="nav-link">
-          <span class="icon">🛍️</span>
-          <span class="label">Order Medicines (COD / Prepaid)</span>
-        </a>
-      }
-    </nav>
+      <!-- 3. Incoming Orders & Audit -->
+      <a routerLink="/store-orders" routerLinkActive="active" class="sidebar-link" [title]="isCollapsed() ? 'Incoming Orders & Audit' : ''">
+        <span class="link-icon">📥</span>
+        @if (!isCollapsed()) {
+          <span class="link-label">Incoming Orders</span>
+        }
+        @if (pendingStoreOrdersCount().length > 0) {
+          <span class="pill-badge pill-orders" [title]="pendingStoreOrdersCount().length + ' pending orders'">{{ pendingStoreOrdersCount().length }}</span>
+        }
+      </a>
 
-    <!-- Right User Profile & Role Switcher -->
-    <div class="user-role-section">
+      <!-- 4. Auto-Reorder -->
+      <a routerLink="/reorder" routerLinkActive="active" class="sidebar-link" [title]="isCollapsed() ? 'Auto-Reorder & Stock' : ''">
+        <span class="link-icon">📦</span>
+        @if (!isCollapsed()) {
+          <span class="link-label">Auto-Reorder</span>
+        }
+        @if (lowStockCount().length > 0) {
+          <span class="pill-badge pill-reorder" [title]="lowStockCount().length + ' low stock alerts'">{{ lowStockCount().length }}</span>
+        }
+      </a>
 
+      <!-- 5. Store History -->
+      <a routerLink="/history" routerLinkActive="active" class="sidebar-link" [title]="isCollapsed() ? 'Store History & Audit' : ''">
+        <span class="link-icon">📜</span>
+        @if (!isCollapsed()) {
+          <span class="link-label">Store History</span>
+        }
+      </a>
 
-      @if (isOwner()) {
+      <!-- 6. P&L Analytics -->
+      <a routerLink="/analytics" routerLinkActive="active" class="sidebar-link" [title]="isCollapsed() ? 'P&L Analytics' : ''">
+        <span class="link-icon">📊</span>
+        @if (!isCollapsed()) {
+          <span class="link-label">P&L Analytics</span>
+        }
+      </a>
+    } @else if (isDoctor()) {
+      <a routerLink="/doctor" routerLinkActive="active" class="sidebar-link" [title]="isCollapsed() ? 'Doctor e-Prescription Desk' : ''">
+        <span class="link-icon">🩺</span>
+        @if (!isCollapsed()) {
+          <span class="link-label">e-Prescription Desk</span>
+        }
+      </a>
+    } @else {
+      <a routerLink="/customer" routerLinkActive="active" class="sidebar-link" [title]="isCollapsed() ? 'Order Medicines' : ''">
+        <span class="link-icon">🛍️</span>
+        @if (!isCollapsed()) {
+          <span class="link-label">Order Medicines</span>
+        }
+      </a>
+    }
+  </nav>
+
+  <!-- Bottom User Profile Section -->
+  <div class="sidebar-footer">
+    @if (isLoggedIn()) {
+      <div class="profile-wrapper" (click)="$event.stopPropagation()">
         <button 
           type="button" 
-          class="btn-nav-add-client" 
-          (click)="showAddClientModal.set(true)"
-          title="Affiliate a new Customer or Doctor with this Store">
-          <span class="icon">➕</span>
-          <span class="btn-text">Add Dr. / Client</span>
-        </button>
-      }
-
-      @if (isLoggedIn()) {
-        <!-- Profile Button with Dropdown -->
-        <div class="profile-dropdown-wrapper" (click)="$event.stopPropagation()">
-          <button 
-            type="button" 
-            class="profile-btn" 
-            [class.active]="isProfileOpen()" 
-            (click)="toggleProfileDropdown($event)"
-            [title]="currentUser().name + ' (' + (isOwner() ? 'Store Owner' : (isDoctor() ? 'Doctor' : 'Customer')) + ')'">
-            <div class="user-avatar-circle">
-              <span class="person-icon">👤</span>
-            </div>
-            <span class="chevron-icon" [class.open]="isProfileOpen()">▾</span>
-          </button>
-
-          <!-- Dropdown Menu -->
-          @if (isProfileOpen()) {
-            <div class="profile-menu-dropdown animate-fade-in">
-              <!-- Menu User Header -->
-              <div class="menu-user-header">
-                <div class="header-avatar">{{ currentUser().avatarIcon || '👤' }}</div>
-                <div class="header-details">
-                  <div class="header-name">{{ currentUser().name }}</div>
-                  <span class="role-badge" [class.badge-owner]="isOwner()" [class.badge-doc]="isDoctor()" [class.badge-cust]="isCustomer()">
-                    {{ isOwner() ? 'Store Owner' : (isDoctor() ? 'Doctor' : 'Customer') }}
-                  </span>
-                  <div class="header-email">{{ currentUser().email }}</div>
-                </div>
-              </div>
-
-              <!-- Extra Meta (Store / Clinic / Phone) -->
-              @if (isOwner() && currentUser().storeName) {
-                <div class="menu-meta-badge">
-                  <span class="meta-label">STORE</span>
-                  <span class="meta-val">{{ currentUser().storeName }}</span>
-                </div>
-              } @else if (isDoctor() && currentUser().doctorRegNo) {
-                <div class="menu-meta-badge">
-                  <span class="meta-label">REG NO</span>
-                  <span class="meta-val">{{ currentUser().doctorRegNo }} ({{ currentUser().doctorSpecialty || 'General' }})</span>
-                </div>
-              } @else if (isCustomer() && currentUser().phone) {
-                <div class="menu-meta-badge">
-                  <span class="meta-label">CONTACT</span>
-                  <span class="meta-val">{{ currentUser().phone }}</span>
-                </div>
-              }
-
-              <div class="menu-divider"></div>
-
-              <!-- Quick Navigation Items -->
-              <div class="menu-nav-links">
-                @if (isOwner()) {
-                  <a routerLink="/billing" (click)="closeProfileDropdown()" class="menu-item">
-                    <span class="menu-icon">🛒</span>
-                    <div class="item-text">
-                      <span class="item-title">Counter Billing POS</span>
-                      <span class="item-desc">Fast retail checkout</span>
-                    </div>
-                  </a>
-                  <a routerLink="/inventory" (click)="closeProfileDropdown()" class="menu-item">
-                    <span class="menu-icon">💊</span>
-                    <div class="item-text">
-                      <span class="item-title">Medicine Master</span>
-                      <span class="item-desc">Batches & stock</span>
-                    </div>
-                  </a>
-                  <a routerLink="/history" (click)="closeProfileDropdown()" class="menu-item">
-                    <span class="menu-icon">📜</span>
-                    <div class="item-text">
-                      <span class="item-title">Store History & Audit</span>
-                      <span class="item-desc">Complete activity logs</span>
-                    </div>
-                  </a>
-                } @else if (isDoctor()) {
-                  <a routerLink="/doctor" (click)="closeProfileDropdown()" class="menu-item">
-                    <span class="menu-icon">🩺</span>
-                    <div class="item-text">
-                      <span class="item-title">Doctor e-Prescription</span>
-                      <span class="item-desc">Write & route Rx</span>
-                    </div>
-                  </a>
-                } @else {
-                  <a routerLink="/customer" (click)="closeProfileDropdown()" class="menu-item">
-                    <span class="menu-icon">🛍️</span>
-                    <div class="item-text">
-                      <span class="item-title">My Orders & Refills</span>
-                      <span class="item-desc">Track delivery</span>
-                    </div>
-                  </a>
-                }
-
-                <button type="button" class="menu-item switch-btn" (click)="openSwitchProfile()">
-                  <span class="menu-icon">🔄</span>
-                  <div class="item-text">
-                    <span class="item-title">Switch Account / Role</span>
-                    <span class="item-desc">Owner, Doctor, Customer</span>
-                  </div>
-                </button>
-              </div>
-
-              <div class="menu-divider"></div>
-
-              <!-- Sign Out Action -->
-              <div class="menu-footer">
-                <button type="button" class="btn-menu-logout" (click)="logout()" title="Logout and terminate session">
-                  <span class="logout-icon">⎋</span>
-                  <span>Logout & End Session</span>
-                </button>
+          class="profile-card-btn" 
+          [class.compact]="isCollapsed()"
+          [class.active]="isProfileOpen()" 
+          (click)="toggleProfileDropdown($event)"
+          [title]="isCollapsed() ? (currentUser()?.name || 'User Profile') : ''">
+          <div class="avatar-circle">
+            <span>👤</span>
+          </div>
+          @if (!isCollapsed()) {
+            <div class="profile-info">
+              <div class="user-name">{{ currentUser()?.name || 'Pharmacist' }}</div>
+              <div class="user-role-label">
+                {{ isOwner() ? 'Store Owner' : (isDoctor() ? 'Doctor' : 'Customer') }}
               </div>
             </div>
+            <span class="chevron" [class.open]="isProfileOpen()">▾</span>
           }
-        </div>
-      } @else {
-        <a routerLink="/login" class="btn-signin-nav">
-          <span class="icon">👤</span>
+        </button>
+
+        <!-- Profile Flyout Dropdown -->
+        @if (isProfileOpen()) {
+          <div class="profile-flyout-dropdown" [class.flyout-right]="isCollapsed()">
+            <div class="flyout-header">
+              <div class="flyout-avatar">{{ currentUser()?.avatarIcon || '👤' }}</div>
+              <div class="flyout-details">
+                <div class="flyout-name">{{ currentUser()?.name }}</div>
+                <span class="role-badge" [class.badge-owner]="isOwner()" [class.badge-doc]="isDoctor()" [class.badge-cust]="isCustomer()">
+                  {{ isOwner() ? 'Store Owner' : (isDoctor() ? 'Doctor' : 'Customer') }}
+                </span>
+                <div class="flyout-email">{{ currentUser()?.email }}</div>
+              </div>
+            </div>
+
+            @if (isOwner() && currentUser()?.storeName) {
+              <div class="flyout-meta">
+                <span class="meta-tag">STORE</span>
+                <span class="meta-val">{{ currentUser()?.storeName }}</span>
+              </div>
+            }
+
+            <div class="flyout-divider"></div>
+
+            <div class="flyout-links">
+              <button type="button" class="flyout-action logout" (click)="logout()">
+                <span class="icon">⎋</span>
+                <span>Logout & End Session</span>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <a routerLink="/login" class="btn-signin-sidebar" [class.compact]="isCollapsed()" title="Sign In">
+        <span class="icon">👤</span>
+        @if (!isCollapsed()) {
           <span>Sign In</span>
-        </a>
-      }
-    </div>
+        }
+      </a>
+    }
   </div>
-</header>
+</aside>
 
 <!-- Add Customer / Doctor Modal -->
 @if (showAddClientModal()) {
   <app-add-client-modal (closed)="showAddClientModal.set(false)"></app-add-client-modal>
 }
-
-<!-- Switch Account / Role Modal -->
-@if (showSwitchProfileModal()) {
-  <app-login-modal (closed)="showSwitchProfileModal.set(false)"></app-login-modal>
-}
-

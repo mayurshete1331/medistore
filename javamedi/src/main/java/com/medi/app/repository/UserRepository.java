@@ -15,10 +15,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByRole(String role);
     Optional<User> findByPhone(String phone);
 
-    @Query("SELECT u FROM User u WHERE u.role = 'CUSTOMER' AND (" +
-           "LOWER(u.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "REPLACE(REPLACE(REPLACE(COALESCE(u.phone, ''), ' ', ''), '-', ''), '+', '') LIKE CONCAT('%', :cleanDigits, '%') OR " +
-           "LOWER(COALESCE(u.phone, '')) LIKE LOWER(CONCAT('%', :query, '%')))")
+    @Query("SELECT u FROM User u WHERE (u.role = 'CUSTOMER' OR u.role IS NULL) AND (" +
+           "(:query <> '' AND (LOWER(u.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')))) OR " +
+           "(:cleanDigits <> '' AND LENGTH(:cleanDigits) >= 3 AND (" +
+           "REPLACE(REPLACE(REPLACE(COALESCE(u.phone, ''), ' ', ''), '-', ''), '+', '') = :cleanDigits OR " +
+           "REPLACE(REPLACE(REPLACE(COALESCE(u.phone, ''), ' ', ''), '-', ''), '+', '') LIKE CONCAT('%', :cleanDigits, '%'))))")
     List<User> searchCustomers(@Param("query") String query, @Param("cleanDigits") String cleanDigits);
 }
 

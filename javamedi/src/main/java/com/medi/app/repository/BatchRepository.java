@@ -17,4 +17,9 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
     @Query("SELECT b FROM Batch b WHERE b.medicine.id = :medId AND b.stockPacks > 0 " +
            "ORDER BY b.expiryDate ASC")
     List<Batch> findFefoBatchesForMedicine(@Param("medId") Long medicineId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("UPDATE Batch b SET b.version = 0L WHERE b.version IS NULL")
+    int updateNullVersions();
 }

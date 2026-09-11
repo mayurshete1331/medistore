@@ -6,7 +6,7 @@
       <div class="user-avatar">👤</div>
       <div>
         <span class="badge badge-teal">Customer Portal</span>
-        <h1 class="user-name">Welcome, {{ currentUser().name }}</h1>
+        <h1 class="user-name">Welcome, {{ currentUser()?.name || 'Customer' }}</h1>
         <p class="user-sub tabular">Delivering to: {{ deliveryAddress() }}</p>
       </div>
     </div>

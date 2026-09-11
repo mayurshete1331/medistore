@@ -19,6 +19,14 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     List<Invoice> findByCustomerNameContainingIgnoreCaseOrderByTimestampDesc(String customerName);
 
+    @Query("SELECT i FROM Invoice i WHERE " +
+           "(:cleanDigits <> '' AND LENGTH(:cleanDigits) >= 3 AND " +
+           "REPLACE(REPLACE(REPLACE(COALESCE(i.customerPhone, ''), ' ', ''), '-', ''), '+', '') LIKE CONCAT('%', :cleanDigits, '%')) OR " +
+           "(:name <> '' AND LOWER(i.customerName) LIKE LOWER(CONCAT('%', :name, '%'))) " +
+           "ORDER BY i.timestamp DESC")
+    List<Invoice> findExactCustomerInvoices(@org.springframework.data.repository.query.Param("name") String name, 
+                                           @org.springframework.data.repository.query.Param("cleanDigits") String cleanDigits);
+
     @Query("SELECT COALESCE(SUM(i.grandTotal), 0) FROM Invoice i")
     Double getTotalRevenue();
 
@@ -35,4 +43,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
            "GROUP BY ii.medicineId, ii.medicineName, ii.genericName " +
            "ORDER BY totalRev DESC")
     List<Object[]> findTopSellingMedicinesData();
+
+    @Query("SELECT COALESCE(MAX(i.id), 0) FROM Invoice i")
+    Long getMaxInvoiceId();
 }

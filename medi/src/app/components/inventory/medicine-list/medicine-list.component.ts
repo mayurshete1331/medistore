@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { InventoryService } from '../../../core/services/inventory.service';
 import { Medicine, MedicineCategory } from '../../../core/models/medicine.model';
 import { AddMedicineModalComponent } from '../add-medicine-modal/add-medicine-modal.component';
+import { PurchaseInwardModalComponent } from '../purchase-inward-modal/purchase-inward-modal.component';
 
 @Component({
   selector: 'app-medicine-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, AddMedicineModalComponent],
+  imports: [CommonModule, FormsModule, AddMedicineModalComponent, PurchaseInwardModalComponent],
   templateUrl: './medicine-list.component.html',
   styleUrls: ['./medicine-list.component.scss']
 })
@@ -19,6 +20,8 @@ export class MedicineListComponent {
   selectedCategory = signal<string>('ALL');
   stockFilter = signal<'ALL' | 'IN_STOCK' | 'LOW_STOCK' | 'EXPIRING'>('ALL');
   showAddModal = signal(false);
+  showInwardModal = signal(false);
+  inwardToastMessage = signal<string | null>(null);
   expandedMedId = signal<string | null>(null);
 
   // Quick Restock state
@@ -92,5 +95,14 @@ export class MedicineListComponent {
     const exp = new Date(batchExpiry + '-01');
     const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return diffDays < 180; // less than 6 months
+  }
+
+  onStockImported(result: any): void {
+    const packs = result?.totalPacksAdded || 0;
+    const items = result?.itemsImported || 0;
+    this.inwardToastMessage.set(`✓ Purchase Inward Success: ${packs} packs added across ${items} medicines!`);
+    setTimeout(() => {
+      this.inwardToastMessage.set(null);
+    }, 6000);
   }
 }

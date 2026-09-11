@@ -23,11 +23,26 @@
 
     <!-- Schedule H Regulatory Warning Banner -->
     @if (hasScheduleH()) {
-      <div class="schedule-h-alert">
+      <div class="schedule-h-alert" [class.compliance-blocked]="isBillingBlockedByCompliance()">
         <span class="icon">⚠️</span>
         <div class="text">
-          <strong>Schedule H / H1 Restricted Medications Detected:</strong>
-          <span>Dispensing requires valid Prescribing Doctor Name & Patient record for regulatory compliance.</span>
+          <div class="alert-title-row">
+            <strong>Schedule H / H1 / Narcotic Regulatory Medications in Cart:</strong>
+            @if (isBillingBlockedByCompliance()) {
+              <span class="badge-blocked-action">⛔ BILLING BLOCKED</span>
+            } @else {
+              <span class="badge-compliant-action">✓ DOCTOR VERIFIED</span>
+            }
+          </div>
+          <span>
+            Dispensing contains: <strong>{{ scheduleHNames() }}</strong>.
+            Prescribing Doctor Name & MCI Reg. No. are strictly mandatory under the Drugs & Cosmetics Act.
+          </span>
+          @if (isBillingBlockedByCompliance()) {
+            <div class="blocking-hint-text">
+              👉 Please fill in <strong>Prescribing Doctor Name</strong> and <strong>MCI / Reg No</strong> below to unlock billing.
+            </div>
+          }
         </div>
       </div>
     }
@@ -225,7 +240,9 @@
                           }
                         </div>
                       </div>
-                      <button type="button" class="btn-attach-cust">Select ↵</button>
+                      <button type="button" class="btn-attach-cust" (click)="$event.stopPropagation(); selectCustomer(c)">
+                        ➕ Add to Bill
+                      </button>
                     </div>
                   }
                 </div>
@@ -441,7 +458,7 @@
       <!-- Doctor & Regulatory Fields for Current Bill -->
       <div class="cust-grid">
         <div class="input-group">
-          <label>Customer / Patient Name</label>
+          <label>Customer Name</label>
           <input 
             type="text" 
             [ngModel]="customerName()" 
@@ -452,7 +469,7 @@
         </div>
 
         <div class="input-group">
-          <label>Mobile Number (for WhatsApp / SMS receipt)</label>
+          <label>Mobile Number</label>
           <input 
             type="tel" 
             [ngModel]="customerPhone()" 
@@ -463,28 +480,67 @@
         </div>
 
         <div class="input-group">
-          <label>Prescribing Doctor Name {{ hasScheduleH() ? '*' : '' }}</label>
+          <label>
+            Prescribing Doctor Name 
+            @if (hasScheduleH()) {
+              <span class="text-danger font-bold">* (MANDATORY)</span>
+            } @else {
+              <span class="text-muted">(Optional)</span>
+            }
+          </label>
           <input 
+            id="pos-doctor-name-input"
             type="text" 
             [ngModel]="doctorName()" 
             (ngModelChange)="doctorName.set($event)"
-            [placeholder]="hasScheduleH() ? 'Required for Schedule H' : 'Doctor Name (Optional)'" 
+            [placeholder]="hasScheduleH() ? 'Required: Prescribing Doctor Name' : 'Doctor Name (Optional)'" 
             class="form-control" 
-            [class.border-warning]="hasScheduleH() && !doctorName()"
+            [class.border-danger]="hasScheduleH() && !doctorName().trim()"
+            [class.border-success]="hasScheduleH() && doctorName().trim()"
           />
         </div>
 
         <div class="input-group">
-          <label>Doctor Reg. / MCI No.</label>
+          <label>
+            Doctor Reg. / MCI No. 
+            @if (hasScheduleH()) {
+              <span class="text-danger font-bold">* (MANDATORY)</span>
+            } @else {
+              <span class="text-muted">(Optional)</span>
+            }
+          </label>
           <input 
+            id="pos-doctor-reg-input"
             type="text" 
             [ngModel]="doctorRegNo()" 
             (ngModelChange)="doctorRegNo.set($event)"
-            placeholder="e.g. MCI-45920" 
+            [placeholder]="hasScheduleH() ? 'Required: MCI / State Reg. No.' : 'e.g. MCI-45920 (Optional)'" 
             class="form-control tabular" 
+            [class.border-danger]="hasScheduleH() && !doctorRegNo().trim()"
+            [class.border-success]="hasScheduleH() && doctorRegNo().trim()"
           />
         </div>
       </div>
+
+      <!-- Inline Option to Register / Save Customer directly to Database -->
+      @if (canSaveCurrentCustomer()) {
+        <div class="inline-save-cust-banner animate-fade-in">
+          <div class="banner-info">
+            <span class="icon">💡</span>
+            <div class="text">
+              <strong>Customer "{{ customerName() }}" ({{ customerPhone() }}) is not registered in DB</strong>
+              <span>Save this customer to store directory now so their past visits, records and repeat medicines are tracked.</span>
+            </div>
+          </div>
+          <button type="button" class="btn-inline-save-cust" [disabled]="isRegistering()" (click)="saveCurrentCustomerToDb()">
+            @if (isRegistering()) {
+              <span>⏳ Saving to DB...</span>
+            } @else {
+              <span>➕ Save this Customer to Database & Attach</span>
+            }
+          </button>
+        </div>
+      }
     </div>
 
     <!-- Checkout Footer -->
@@ -561,10 +617,15 @@
         <button 
           type="button" 
           class="btn btn-primary btn-checkout" 
-          [disabled]="cart().length === 0"
+          [disabled]="cart().length === 0 || isBillingBlockedByCompliance()"
+          [class.btn-blocked]="isBillingBlockedByCompliance()"
           (click)="completeSale()">
-          <span>✓ Complete Sale & Print Bill</span>
-          <span class="shortcut-tag">F9</span>
+          @if (isBillingBlockedByCompliance()) {
+            <span>⛔ Fill Doctor Details to Bill</span>
+          } @else {
+            <span>✓ Complete Sale & Print Bill</span>
+            <span class="shortcut-tag">F9</span>
+          }
         </button>
       </div>
     </div>
@@ -580,14 +641,17 @@
           id="pos-search-input"
           type="text" 
           [ngModel]="searchQuery()" 
-          (ngModelChange)="searchQuery.set($event)"
+          (ngModelChange)="onMedicineSearchInput($event)"
           (keydown.enter)="handleSearchEnter()"
           placeholder="Search brand, generic salt, or scan barcode..."
           class="pos-search-field"
           autofocus
         />
+        @if (isSearchingMedicines()) {
+          <span class="med-searching-badge">⚡ Searching DB...</span>
+        }
         @if (searchQuery()) {
-          <button type="button" class="btn-clear" (click)="searchQuery.set('')">✕</button>
+          <button type="button" class="btn-clear" (click)="searchQuery.set(''); onMedicineSearchInput('')">✕</button>
         }
       </div>
 
@@ -651,9 +715,19 @@
             }
           </div>
         } @empty {
-          <div class="no-results">
+          <div class="no-results med-not-in-db">
             <span class="icon">💊</span>
-            <p>No medicines found for "{{ searchQuery() }}"</p>
+            <div class="not-in-db-badge">NOT FOUND IN STORE DB</div>
+            <h4 class="not-found-title">"{{ searchQuery() }}" is NOT present in store database</h4>
+            <p class="not-found-desc">
+              This medication has not been registered in your inventory yet. You can add it directly to the database with batch & pricing.
+            </p>
+            <button 
+              type="button" 
+              class="btn-add-missing-med" 
+              (click)="openAddMedicineModal(searchQuery())">
+              ➕ Add "{{ searchQuery() }}" to Database
+            </button>
           </div>
         }
       } @else {
@@ -781,4 +855,14 @@
     (scanned)="onBarcodeScanned($event)">
   </app-barcode-scanner-modal>
 }
+
+<!-- Add Medicine Modal Popup when Medicine Not in DB -->
+@if (showAddMedicineModal()) {
+  <app-add-medicine-modal 
+    [initialBrandName]="prefillMedicineName()" 
+    (closed)="showAddMedicineModal.set(false)"
+    (medicineAdded)="onMedicineAdded($event)">
+  </app-add-medicine-modal>
+}
+
 

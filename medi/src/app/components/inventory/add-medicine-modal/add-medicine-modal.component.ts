@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, OnInit, OnDestroy, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Output, Input, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Subscription, debounceTime, distinctUntilChanged, switchMap, of, tap } from 'rxjs';
@@ -18,6 +18,7 @@ export class AddMedicineModalComponent implements OnInit, OnDestroy {
   private inventoryService = inject(InventoryService);
   private drugLookupService = inject(DrugLookupService);
 
+  @Input() initialBrandName: string = '';
   @Output() closed = new EventEmitter<void>();
   @Output() medicineAdded = new EventEmitter<Medicine>();
 
@@ -62,6 +63,10 @@ export class AddMedicineModalComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    if (this.initialBrandName) {
+      this.medicineForm.patchValue({ brandName: this.initialBrandName.trim() });
+    }
+
     // Load top popular Indian pharma presets for quick-fill buttons
     this.quickPresets.set(this.drugLookupService.getQuickPresets());
 

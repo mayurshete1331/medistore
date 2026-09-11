@@ -136,7 +136,7 @@ export class StoreHistoryComponent implements OnInit {
     const payload = {
       title: this.noteTitle().trim(),
       description: this.noteDescription().trim(),
-      performedBy: this.currentUser.name || 'Store Owner',
+      performedBy: this.currentUser?.name || 'Store Owner',
       eventType: 'MANUAL_NOTE'
     };
 

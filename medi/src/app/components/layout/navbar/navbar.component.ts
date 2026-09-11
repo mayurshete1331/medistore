@@ -9,13 +9,12 @@ import { OrderService } from '../../../core/services/order.service';
 import { ReorderService } from '../../../core/services/reorder.service';
 import { ApiService } from '../../../core/services/api.service';
 import { AddClientModalComponent } from '../../clients/add-client-modal/add-client-modal.component';
-import { LoginModalComponent } from '../../auth/login-modal/login-modal.component';
 import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive, AddClientModalComponent, LoginModalComponent],
+  imports: [CommonModule, RouterLink, RouterLinkActive, AddClientModalComponent],
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.scss']
 })
@@ -31,7 +30,14 @@ export class NavbarComponent {
   currentEnv = environment.envName || 'DEV';
   showAddClientModal = signal(false);
   isProfileOpen = signal(false);
-  showSwitchProfileModal = signal(false);
+  isCollapsed = signal<boolean>(typeof window !== 'undefined' && localStorage.getItem('medi_sidebar_collapsed') === 'true');
+
+  toggleCollapse(): void {
+    this.isCollapsed.update(v => !v);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('medi_sidebar_collapsed', String(this.isCollapsed()));
+    }
+  }
 
   currentUser = this.authService.currentUser;
   isLoggedIn = this.authService.isLoggedIn;
@@ -48,11 +54,6 @@ export class NavbarComponent {
 
   closeProfileDropdown(): void {
     this.isProfileOpen.set(false);
-  }
-
-  openSwitchProfile(): void {
-    this.isProfileOpen.set(false);
-    this.showSwitchProfileModal.set(true);
   }
 
   @HostListener('document:click')
@@ -85,10 +86,8 @@ export class NavbarComponent {
         this.inventoryService.syncWithBackend();
         this.billingService.syncInvoicesFromBackend();
         this.orderService.syncOrdersFromBackend();
-        this.authService.syncWithBackend();
         this.reorderService.syncSuppliersFromBackend();
       }
     });
   }
 }
-

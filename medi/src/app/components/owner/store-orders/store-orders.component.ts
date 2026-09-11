@@ -39,7 +39,7 @@ export class StoreOrdersComponent {
   codCount = computed(() => this.orders().filter(o => o.paymentMethod === 'COD').length);
 
   advanceStatus(order: StoreOrder): void {
-    const staffName = this.currentUser().name + ' (Store Owner / Pharmacist)';
+    const staffName = (this.currentUser()?.name || 'Pharmacist') + ' (Store Owner / Pharmacist)';
     if (order.orderStatus === 'NEW_RECEIVED') {
       this.orderService.updateOrderStatus(order.id, 'PACKED', staffName, 'Verified batches and sealed packaging');
     } else if (order.orderStatus === 'PACKED') {
@@ -52,7 +52,7 @@ export class StoreOrdersComponent {
   cancelOrder(order: StoreOrder): void {
     const reason = prompt('Please specify cancellation reason:');
     if (reason) {
-      const staffName = this.currentUser().name + ' (Store Owner)';
+      const staffName = (this.currentUser()?.name || 'Pharmacist') + ' (Store Owner)';
       this.orderService.updateOrderStatus(order.id, 'CANCELLED', staffName, reason);
     }
   }

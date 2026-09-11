@@ -32,7 +32,8 @@ public class AuthController {
     private final DataInitializer dataInitializer;
 
     @GetMapping("/users")
-    @Operation(summary = "Get all available profiles or filter by role (STORE_OWNER, DOCTOR, CUSTOMER)")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('STORE_OWNER')")
+    @Operation(summary = "Get all available profiles or filter by role (STORE_OWNER only)")
     public ResponseEntity<List<User>> getAllUsers(@RequestParam(required = false) String role) {
         if (role != null && !role.trim().isEmpty()) {
             return ResponseEntity.ok(userRepository.findByRole(role.trim().toUpperCase()));
@@ -46,38 +47,22 @@ public class AuthController {
         return ResponseEntity.ok(partnerStoreRepository.findAll());
     }
 
-    @PostMapping("/seed")
-    @GetMapping("/reseed")
-    @Operation(summary = "Seed or re-seed MySQL with 11 users (3 owners, 3 doctors, 5 customers), medicines, and stores")
-    public ResponseEntity<Map<String, Object>> reseedDatabase() {
-        dataInitializer.seedAllData();
-        return ResponseEntity.ok(Map.of(
-                "status", "SUCCESS",
-                "message", "Database successfully populated with platform data",
-                "totalUsers", userRepository.count(),
-                "users", userRepository.findAll()
-        ));
-    }
-
     @PostMapping("/login")
     @Operation(summary = "Authenticate user credentials, generate HS512 JWT Token")
     public ResponseEntity<AuthDtos.AuthResponse> login(@RequestBody AuthDtos.LoginRequest req) {
-        if (req.getEmail() == null || req.getEmail().trim().isEmpty()) {
+        if (req.getEmail() == null || req.getEmail().trim().isEmpty() ||
+            req.getPassword() == null || req.getPassword().trim().isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
 
         User user = userRepository.findByEmail(req.getEmail().trim()).orElse(null);
-        if (user == null) {
+        if (user == null || user.getPassword() == null) {
             return ResponseEntity.status(401).build();
         }
 
-        if (req.getPassword() != null && !req.getPassword().trim().isEmpty()) {
-            boolean matches = passwordEncoder.matches(req.getPassword().trim(), user.getPassword())
-                    || "123456".equals(req.getPassword().trim())
-                    || "password123".equals(req.getPassword().trim());
-            if (!matches) {
-                return ResponseEntity.status(401).build();
-            }
+        boolean matches = passwordEncoder.matches(req.getPassword().trim(), user.getPassword());
+        if (!matches) {
+            return ResponseEntity.status(401).build();
         }
 
         // Generate HS512 JWT token and refresh token
@@ -126,13 +111,12 @@ public class AuthController {
     public ResponseEntity<User> getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
-            // Return first profile as fallback
-            return ResponseEntity.ok(userRepository.findAll().stream().findFirst().orElse(null));
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).build();
         }
 
         String email = auth.getName();
         return userRepository.findByEmail(email)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElse(ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).build());
     }
 }

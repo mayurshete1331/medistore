@@ -52,12 +52,18 @@ public class StoreClientController {
 
         String name = req.get("name") != null ? req.get("name").trim() : "Walk-in Customer";
         String phone = req.get("phone") != null ? req.get("phone").trim() : "";
-        String address = req.get("customerAddress") != null ? req.get("customerAddress").trim() : "";
+        String address = req.get("customerAddress") != null && !req.get("customerAddress").trim().isEmpty() 
+                ? req.get("customerAddress").trim() 
+                : (req.get("address") != null ? req.get("address").trim() : "");
         String addedBy = req.get("addedBy") != null ? req.get("addedBy").trim() : "Store Owner";
         String notes = req.get("notes");
 
-        User user = userRepository.findByEmail(email).orElseGet(() -> {
-            User newUser = User.builder()
+        User user = (phone != null && !phone.isEmpty())
+                ? userRepository.findByPhone(phone).orElseGet(() -> userRepository.findByEmail(email).orElse(null))
+                : userRepository.findByEmail(email).orElse(null);
+
+        if (user == null) {
+            user = User.builder()
                     .name(name)
                     .email(email)
                     .password(passwordEncoder.encode("123456"))
@@ -66,8 +72,11 @@ public class StoreClientController {
                     .avatarIcon("👤")
                     .customerAddress(address)
                     .build();
-            return userRepository.save(newUser);
-        });
+            user = userRepository.save(user);
+        } else if (!address.isEmpty() && (user.getCustomerAddress() == null || user.getCustomerAddress().isEmpty())) {
+            user.setCustomerAddress(address);
+            userRepository.save(user);
+        }
 
         // Link affiliation if not already linked
         if (!storeAffiliationRepository.existsByStoreIdAndUserId(storeId, user.getId())) {

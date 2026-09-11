@@ -157,9 +157,11 @@ export class BillingService {
   private saveInvoices(invs: Invoice[]): void {
     this.invoices.set(invs);
     try {
-      localStorage.setItem(this.INVOICE_STORAGE_KEY, JSON.stringify(invs));
+      // In production, keep only the latest 20 recent invoices cached in localStorage to prevent QuotaExceededError
+      const recent = invs.slice(0, 20);
+      localStorage.setItem(this.INVOICE_STORAGE_KEY, JSON.stringify(recent));
     } catch (e) {
-      console.error('Failed to save invoices to storage', e);
+      console.warn('LocalStorage quota reached or storage disabled', e);
     }
   }
 
@@ -280,6 +282,13 @@ export class BillingService {
   }
 
   generateInvoice(customer: CustomerInfo, paymentMode: PaymentMode): Invoice {
+    // Regulatory compliance check: Schedule H/H1/Narcotics require Doctor Name and MCI Reg No
+    if (this.cartHasScheduleH()) {
+      if (!customer.doctorName?.trim() || !customer.doctorRegNo?.trim()) {
+        throw new Error("Prescription compliance violation: Medicine is classified under Schedule H/H1/Narcotic regulations. Prescribing Doctor's Name and MCI Registration Number are mandatory under the Drugs & Cosmetics Act.");
+      }
+    }
+
     const now = new Date();
     const invNumber = 'INV-' + now.getFullYear() + '-' + String(this.invoices().length + 1).padStart(4, '0');
 
@@ -326,6 +335,14 @@ export class BillingService {
 
     // Sync checkout with Spring Boot backend
     const checkoutReq = {
+      customer: {
+        name: customer.name || 'Walk-in Customer',
+        phone: customer.phone || '',
+        email: customer.email || '',
+        address: customer.address || '',
+        doctorName: customer.doctorName || '',
+        doctorRegNo: customer.doctorRegNo || ''
+      },
       customerName: customer.name || 'Walk-in Customer',
       customerPhone: customer.phone || '',
       customerEmail: customer.email || '',
@@ -333,13 +350,30 @@ export class BillingService {
       doctorName: customer.doctorName || '',
       doctorRegNo: customer.doctorRegNo || '',
       paymentMode,
-      items: this.cart().map(i => ({
-        medicineId: parseInt(i.medicine.id.replace(/\D/g, ''), 10) || 1,
-        batchId: parseInt(i.selectedBatch.id.replace(/\D/g, ''), 10) || 1,
-        saleType: i.saleType,
-        quantity: i.quantity,
-        discountPercent: i.discountPercent
-      }))
+      dispensedBy: 'Counter 1',
+      items: this.cart().map(i => {
+        const medIdNum = parseInt(String(i.medicine?.id || '').replace(/\D/g, ''), 10) || null;
+        const batchIdNum = parseInt(String(i.selectedBatch?.id || '').replace(/\D/g, ''), 10) || null;
+        return {
+          medicineId: medIdNum,
+          batchId: batchIdNum,
+          medicineName: i.medicine?.brandName || '',
+          genericName: i.medicine?.genericName || '',
+          batchNumber: i.selectedBatch?.batchNumber || '',
+          expiryDate: i.selectedBatch?.expiryDate || '',
+          hsnCode: i.medicine?.hsnCode || '3004',
+          saleType: i.saleType || 'FULL_PACK',
+          quantity: i.quantity || 1,
+          unitPrice: i.unitPrice || 0,
+          mrp: i.mrp || 0,
+          costPrice: i.costPrice || 0,
+          discountPercent: i.discountPercent || 0,
+          gstRate: i.gstRate || 0,
+          taxAmount: i.taxAmount || 0,
+          subtotal: i.subtotal || 0,
+          total: i.total || 0
+        };
+      })
     };
 
     this.api.checkout(checkoutReq).subscribe({
@@ -348,7 +382,9 @@ export class BillingService {
           console.log('Invoice registered in Spring Boot MySQL:', backendInv.invoiceNumber);
         }
       },
-      error: () => {}
+      error: (err) => {
+        console.error('POS Checkout backend sync error:', err);
+      }
     });
 
     // Set as active invoice for preview & clear cart

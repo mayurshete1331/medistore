@@ -434,4 +434,41 @@ export class ApiService {
       catchError(() => of([]))
     );
   }
+
+  // ==========================================
+  // Purchase Inward & Bill Parsing Endpoints (/api/purchase-inward)
+  // ==========================================
+  parsePurchaseBill(file: File): Observable<any> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+
+    return this.http.post<any>(`${this.baseUrl}/purchase-inward/parse`, formData).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  parseRawInvoiceText(rawText: string, distributorName?: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/purchase-inward/parse-text`, { rawText, distributorName }).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  commitPurchaseInward(payload: any, storeId: string = '1'): Observable<any> {
+    const params = new HttpParams().set('storeId', storeId);
+    return this.http.post<any>(`${this.baseUrl}/purchase-inward/commit`, payload, { params }).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
 }

@@ -7,11 +7,22 @@
       <p class="page-subtitle">Complete pharmaceutical database with batch-level FEFO tracking, shelf locations, and tax slabs</p>
     </div>
     <div class="header-actions">
+      <button type="button" class="btn btn-secondary btn-lg btn-inward-bill" (click)="showInwardModal.set(true)">
+        <span class="icon">📄</span> Inward Purchase Bill (PDF/Image)
+      </button>
       <button type="button" class="btn btn-primary btn-lg" (click)="showAddModal.set(true)">
         <span class="plus-icon">+</span> Add New Medicine
       </button>
     </div>
   </div>
+
+  <!-- Inward Success Banner -->
+  @if (inwardToastMessage()) {
+    <div class="inward-success-toast animate-fade-in">
+      <span class="toast-icon">⚡</span>
+      <span class="toast-text">{{ inwardToastMessage() }}</span>
+    </div>
+  }
 
   <!-- KPI Cards -->
   <div class="kpi-grid">
@@ -313,5 +324,13 @@
       (closed)="showAddModal.set(false)" 
       (medicineAdded)="showAddModal.set(false)">
     </app-add-medicine-modal>
+  }
+
+  <!-- Purchase Inward Modal (PDF & Image Extraction) -->
+  @if (showInwardModal()) {
+    <app-purchase-inward-modal
+      (closed)="showInwardModal.set(false)"
+      (stockImported)="onStockImported($event)">
+    </app-purchase-inward-modal>
   }
 </div>

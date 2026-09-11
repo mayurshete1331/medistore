@@ -81,14 +81,13 @@ export class AddClientModalComponent {
 
     const payload = {
       ...this.customerForm.value,
-      addedBy: this.currentUser.name || 'Store Owner'
+      addedBy: this.currentUser?.name || 'Store Owner'
     };
 
     this.api.addStoreCustomer(storeId, payload).subscribe({
       next: (res) => {
         this.isSubmitting.set(false);
         this.successMessage.set(`Customer "${res.name}" registered successfully! Store history updated.`);
-        this.authService.syncWithBackend();
         this.clientAdded.emit({ type: 'CUSTOMER', user: res });
         setTimeout(() => this.closed.emit(), 1400);
       },
@@ -111,14 +110,13 @@ export class AddClientModalComponent {
 
     const payload = {
       ...this.doctorForm.value,
-      addedBy: this.currentUser.name || 'Store Owner'
+      addedBy: this.currentUser?.name || 'Store Owner'
     };
 
     this.api.addStoreDoctor(storeId, payload).subscribe({
       next: (res) => {
         this.isSubmitting.set(false);
         this.successMessage.set(`Dr. "${res.name}" affiliated successfully! Store history updated.`);
-        this.authService.syncWithBackend();
         this.clientAdded.emit({ type: 'DOCTOR', user: res });
         setTimeout(() => this.closed.emit(), 1400);
       },
