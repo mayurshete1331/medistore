@@ -1,10 +1,12 @@
 .analytics-container {
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 1.5rem;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 1.25rem 1.5rem;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 
   .page-header {
     .page-title {
