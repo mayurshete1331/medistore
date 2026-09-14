@@ -1,7 +1,7 @@
 export const environment = {
   production: true,
   envName: 'PROD',
-  apiUrl: 'http://localhost:8080/api',
+  apiUrl: 'https://medistore-backend-430k.onrender.com/api',
   enableDebugTools: false,
   logLevel: 'error'
 };
