@@ -11,6 +11,9 @@
       </div>
 
       <div class="shortcuts-hint">
+        <button type="button" class="btn btn-sm btn-secondary" (click)="openSalesReturnModal()" title="Process Customer Return & Credit Note" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; font-weight: 600;">
+          🔄 Return / Refund
+        </button>
         <span><kbd>F2</kbd> Search</span>
         <span><kbd>F3</kbd> Customer</span>
         <span><kbd>F9</kbd> Cash</span>
@@ -66,6 +69,12 @@
                     @if (item.medicine.isScheduleH) {
                       <span class="badge badge-schedule-h">Rx</span>
                     }
+                    @if (isNearExpiry(item.selectedBatch.expiryDate)) {
+                      <span class="badge" style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; font-size: 0.65rem; font-weight: 700; padding: 1px 5px; border-radius: 4px;" title="This batch expires within 60 days">⚠️ Exp &lt; 60d</span>
+                    }
+                    <button type="button" class="btn-salt-alt" (click)="openSaltSubstitutes(item)" title="Find cheaper salt / generic substitute" style="margin-left: auto; font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; cursor: pointer; font-weight: 600;">
+                      🔄 Salt Alt
+                    </button>
                   </div>
                   <div class="item-batch-info tabular">
                     <span>Batch: <strong>{{ item.selectedBatch.batchNumber }}</strong></span>
@@ -157,284 +166,276 @@
       </table>
     </div>
 
-    <!-- Customer Verification, Registration & Regulatory Section -->
-    <div class="customer-section">
-      <div class="cust-header">
-        <div class="cust-header-title">
-          <span class="icon">👤</span>
-          <span class="title">Customer Identification & Prescription Details</span>
-          <span class="shortcut-tag">F3</span>
-        </div>
-        
-        <div class="cust-header-actions">
-          @if (selectedCustomer()) {
-            <button type="button" class="btn-toggle-history" (click)="togglePastHistory()" [class.active]="showPastHistory()">
-              <span>📜 {{ showPastHistory() ? 'Hide Past Bills' : 'View Past Bills & Records' }}</span>
-              <span class="history-count-pill">{{ customerPastInvoices().length }}</span>
-            </button>
-          }
-        </div>
-      </div>
-
-      <!-- State 1: Search Customer (When no customer is selected yet) -->
-      @if (!selectedCustomer() && !showNewCustomerForm()) {
-        <div class="cust-search-container">
-          <div class="cust-search-bar">
-            <span class="search-icon">🔍</span>
-            <input 
-              id="pos-customer-search-input"
-              type="text" 
-              [ngModel]="customerSearchQuery()" 
-              (ngModelChange)="onCustomerSearchInput($event)"
-              placeholder="Search customer by mobile or name (F3)..." 
-              class="cust-search-input"
-              autocomplete="off"
-            />
-            @if (isSearchingCustomer()) {
-              <span class="search-spinner-badge">⚡ Searching...</span>
-            }
-            @if (customerSearchQuery()) {
-              <button type="button" class="btn-clear-cust" (click)="customerSearchQuery.set(''); showCustomerDropdown.set(false)">✕</button>
-            }
-          </div>
-
-          <!-- Customer Search Results Dropdown -->
-          @if (showCustomerDropdown()) {
-            <div class="cust-dropdown-menu animate-fade-in">
-              @if (isSearchingCustomer() && customerSearchResults().length === 0) {
-                <div class="cust-searching-state">
-                  <span class="spinner-icon">🔄</span>
-                  <span>Searching customer directory...</span>
-                </div>
-              } @else if (customerSearchResults().length > 0) {
-                <div class="dropdown-section-title">
-                  <span>MATCHING CUSTOMERS</span>
-                </div>
-                <div class="cust-results-list">
-                  @for (c of customerSearchResults(); track (c.phone || c.name)) {
-                    <div class="cust-result-card" (click)="selectCustomer(c)">
-                      <div class="cust-avatar-circle">👤</div>
-                      <div class="cust-info-block">
-                        <div class="cust-name-row">
-                          <strong class="cust-name">{{ c.name }}</strong>
-                          @if (c.isRegistered) {
-                            <span class="badge-reg-client">✓ Registered</span>
-                          }
-                          @if (c.pastBillsCount && c.pastBillsCount > 0) {
-                            <span class="badge-past-bills">{{ c.pastBillsCount }} Bills</span>
-                          }
-                        </div>
-                        <div class="cust-meta-row tabular">
-                          <span>📱 {{ c.phone || 'No phone' }}</span>
-                          @if (c.address) {
-                            <span>•</span>
-                            <span class="cust-addr">📍 {{ c.address }}</span>
-                          }
-                        </div>
-                      </div>
-                      <button type="button" class="btn-attach-cust" (click)="$event.stopPropagation(); selectCustomer(c)">
-                        ➕ Select
-                      </button>
-                    </div>
-                  }
-                </div>
-              } @else {
-                <div class="cust-no-match">
-                  <span class="icon">🔍</span>
-                  <div class="text">
-                    <strong>No customer found for "{{ customerSearchQuery() }}"</strong>
-                  </div>
-                </div>
-              }
-
-              <!-- Action to Register New Customer -->
-              <div class="dropdown-footer-action">
-                <button type="button" class="btn-add-new-cust" (click)="openNewCustomerForm()">
-                  <span class="icon">➕</span>
-                  <span>Register "{{ customerSearchQuery() || 'New Customer' }}" in Directory</span>
-                </button>
-              </div>
-            </div>
-          }
-        </div>
-      }
-
-      <!-- State 2: Inline New Customer Registration Drawer -->
-      @if (showNewCustomerForm()) {
-        <div class="new-cust-card animate-fade-in">
-          <div class="new-cust-header">
-            <div class="header-text">
-              <h4>➕ Register Customer</h4>
-            </div>
-            <button type="button" class="btn-close-form" (click)="cancelNewCustomerForm()">✕ Cancel</button>
-          </div>
-
-          <div class="new-cust-grid">
-            <div class="form-group">
-              <label>Full Name *</label>
-              <input 
-                type="text" 
-                [ngModel]="newCustomerName()" 
-                (ngModelChange)="newCustomerName.set($event)"
-                placeholder="e.g. Ramesh Chandra" 
-                class="form-control"
-              />
-            </div>
-
-            <div class="form-group">
-              <label>Mobile Number *</label>
-              <input 
-                type="tel" 
-                [ngModel]="newCustomerPhone()" 
-                (ngModelChange)="newCustomerPhone.set($event)"
-                placeholder="e.g. 98200 45678" 
-                class="form-control tabular"
-              />
-            </div>
-
-            <div class="form-group">
-              <label>Address (Optional)</label>
-              <input 
-                type="text" 
-                [ngModel]="newCustomerAddress()" 
-                (ngModelChange)="newCustomerAddress.set($event)"
-                placeholder="e.g. Flat 302, MG Road" 
-                class="form-control"
-              />
-            </div>
-
-            <div class="form-group">
-              <label>Email (Optional)</label>
-              <input 
-                type="email" 
-                [ngModel]="newCustomerEmail()" 
-                (ngModelChange)="newCustomerEmail.set($event)"
-                placeholder="e.g. ramesh@example.com" 
-                class="form-control"
-              />
-            </div>
-          </div>
-
-          <div class="new-cust-actions">
-            <button 
-              type="button" 
-              class="btn btn-primary btn-save-cust" 
-              [disabled]="isRegistering() || !newCustomerName() || !newCustomerPhone()"
-              (click)="registerNewCustomer()">
-              @if (isRegistering()) {
-                <span>⏳ Saving...</span>
-              } @else {
-                <span>✓ Save & Attach to Bill</span>
-              }
-            </button>
-            <button type="button" class="btn btn-secondary" (click)="cancelNewCustomerForm()">Cancel</button>
-          </div>
-        </div>
-      }
-
-      <!-- State 3: Verified Attached Customer Profile Banner -->
+    <!-- Compact Customer & Rx Section -->
+    <div class="customer-section-compact">
       @if (selectedCustomer(); as cust) {
-        <div class="verified-cust-banner animate-fade-in">
-          <div class="cust-badge-avatar">👤</div>
-          <div class="cust-details-summary">
-            <div class="cust-title-line">
-              <strong class="name">{{ cust.name }}</strong>
-              @if (cust.isRegistered) {
-                <span class="badge-client-verified">✓ Registered Client</span>
-              }
-              <span class="badge-client-stat">{{ customerPastInvoices().length }} Visits • Total Spent: ₹{{ customerTotalSpent() | number:'1.2-2' }}</span>
-            </div>
-            <div class="cust-contact-line tabular">
-              <span>📱 {{ cust.phone || 'No phone specified' }}</span>
-              @if (cust.address) {
-                <span>•</span>
-                <span>📍 {{ cust.address }}</span>
-              }
-              @if (cust.email) {
-                <span>•</span>
-                <span>✉️ {{ cust.email }}</span>
-              }
-            </div>
+        <!-- Attached Customer Chip Bar -->
+        <div class="attached-cust-strip animate-fade-in">
+          <div class="cust-info-pill">
+            <span class="avatar-icon">👤</span>
+            <strong class="cust-name">{{ cust.name }}</strong>
+            <span class="cust-phone tabular">{{ cust.phone || 'No phone' }}</span>
+            <span class="cust-stat tabular">{{ customerPastInvoices().length }} Past Visits (₹{{ customerTotalSpent() | number:'1.0-0' }})</span>
           </div>
-          <div class="cust-actions-right">
-            <button type="button" class="btn-history-toggle" (click)="togglePastHistory()" [class.active]="showPastHistory()">
+
+          <div class="strip-actions">
+            <button type="button" class="btn-sm-strip" (click)="togglePastHistory()" [class.active]="showPastHistory()">
               <span>📜 {{ showPastHistory() ? 'Hide Records' : 'Past Records' }} ({{ customerPastInvoices().length }})</span>
             </button>
-            <button type="button" class="btn-detach-cust" (click)="detachCustomer()" title="Detach and switch customer">
+            <button type="button" class="btn-sm-strip btn-detach" (click)="detachCustomer()" title="Switch Customer">
               ✕ Switch
             </button>
           </div>
         </div>
+
+        <!-- Outstanding Khata Debt Alert Banner -->
+        @if (cust.khataBalance && cust.khataBalance > 0) {
+          <div class="khata-debt-banner animate-fade-in" style="margin-top: 8px; padding: 8px 12px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem;">
+            <div style="display: flex; align-items: center; gap: 8px; color: #be123c;">
+              <span style="font-size: 1.1rem;">⚠️</span>
+              <span><strong>Outstanding Khata Debt:</strong> ₹{{ cust.khataBalance | number:'1.2-2' }}</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" (click)="openKhataSettlement(cust)" style="background: #e11d48; color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
+                💰 Settle Debt
+              </button>
+              <a [href]="getKhataWhatsAppReminderUrl(cust)" target="_blank" style="background: #25d366; color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.75rem; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                📱 WhatsApp Reminder
+              </a>
+            </div>
+          </div>
+        }
+      } @else {
+        <!-- Fast Counter Customer Strip (Name + Phone + Quick Save + Doctor Toggle) -->
+        <div class="cust-fast-bar">
+          <div class="fast-field name-field">
+            <span class="field-icon">👤</span>
+            <input 
+              id="pos-customer-search-input"
+              type="text" 
+              [ngModel]="customerName()" 
+              (ngModelChange)="onCustomerNameInput($event)"
+              placeholder="Walk-in Customer (F3)" 
+              class="fast-input" 
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="fast-field phone-field">
+            <span class="field-icon">📱</span>
+            <input 
+              type="tel" 
+              [ngModel]="customerPhone()" 
+              (ngModelChange)="onCustomerPhoneInput($event)"
+              placeholder="Mobile Number" 
+              class="fast-input tabular" 
+              autocomplete="off"
+            />
+            @if (canSaveCurrentCustomer()) {
+              <button type="button" class="btn-pill-save" [disabled]="isRegistering()" (click)="saveCurrentCustomerToDb()" title="Save Customer to Directory">
+                @if (isRegistering()) { ⏳ } @else { 💾 Save }
+              </button>
+            }
+          </div>
+
+          <button 
+            type="button" 
+            class="btn-new-cust-quick" 
+            (click)="openNewCustomerForm()" 
+            title="Add New Customer to Directory"
+            style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px;">
+            ➕ New Cust
+          </button>
+
+          @if (!hasScheduleH()) {
+            <button 
+              type="button" 
+              class="btn-toggle-doc" 
+              [class.active]="showDoctorFields()"
+              (click)="showDoctorFields.set(!showDoctorFields())">
+              🩺 {{ showDoctorFields() ? 'Hide Doctor' : '+ Doctor (Rx)' }}
+            </button>
+          }
+
+          <!-- Alert if counter phone already registered to someone else -->
+          @if (duplicateCounterCustomer(); as dup) {
+            <div class="duplicate-counter-alert animate-fade-in" style="position: absolute; top: 100%; left: 0; right: 0; background: #fff1f2; border: 1.5px solid #fca5a5; border-radius: 6px; padding: 8px 12px; margin-top: 4px; z-index: 1002; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(190, 18, 60, 0.15);">
+              <div style="font-size: 0.76rem; color: #be123c;">
+                <strong>⚠️ Mobile is registered to "{{ dup.name }}".</strong> Duplicate phone is not allowed.
+              </div>
+              <button type="button" (click)="selectCustomer(dup)" style="background: #be123c; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.74rem; font-weight: 700; cursor: pointer;">
+                👤 Attach {{ dup.name }}
+              </button>
+            </div>
+          }
+
+          <!-- Autocomplete Dropdown if search active -->
+          @if (showCustomerDropdown() && customerSearchQuery().trim().length >= 2) {
+            <div class="cust-dropdown-menu-compact animate-fade-in" style="position: absolute; top: 100%; left: 0; right: 0; background: #ffffff; border: 1px solid var(--slate-300); border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); z-index: 1000; margin-top: 4px; max-height: 280px; overflow-y: auto;">
+              @if (customerSearchResults().length > 0) {
+                <div class="dropdown-header-tag" style="padding: 6px 10px; font-size: 0.68rem; font-weight: 800; color: var(--slate-500); background: var(--slate-100); letter-spacing: 0.5px;">MATCHING CUSTOMERS</div>
+                <div class="cust-results-list">
+                  @for (c of customerSearchResults(); track (c.phone || c.name)) {
+                    <div class="cust-result-card" (click)="selectCustomer(c)">
+                      <div class="cust-info-block">
+                        <strong class="cust-name">{{ c.name }}</strong>
+                        <span class="cust-phone tabular">📱 {{ c.phone }}</span>
+                        @if (c.pastBillsCount) {
+                          <span class="badge-past-bills">{{ c.pastBillsCount }} Bills</span>
+                        }
+                      </div>
+                      <button type="button" class="btn-attach-cust">➕ Select</button>
+                    </div>
+                  }
+                </div>
+                <!-- Option to add new if not in list -->
+                <div style="padding: 6px 10px; border-top: 1px solid var(--slate-200); background: #f8fafc;">
+                  <button 
+                    type="button" 
+                    (click)="openNewCustomerForm()" 
+                    style="width: 100%; background: #ffffff; color: var(--primary-700); border: 1px dashed var(--primary-600); padding: 6px 10px; border-radius: 4px; font-size: 0.76rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <span>➕ Register New Customer "{{ customerSearchQuery() }}"</span>
+                  </button>
+                </div>
+              } @else {
+                <!-- No customer found state with prominent Register Button -->
+                <div style="padding: 12px; text-align: center; color: var(--slate-600); font-size: 0.8rem;">
+                  <div style="font-weight: 600; margin-bottom: 8px;">🔍 No customer found for "<strong>{{ customerSearchQuery() }}</strong>"</div>
+                  <button 
+                    type="button" 
+                    (click)="openNewCustomerForm()" 
+                    style="width: 100%; background: var(--primary-700); color: #ffffff; border: none; padding: 8px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 6px rgba(15, 118, 110, 0.25);">
+                    <span>➕ Register & Add New Customer to Directory</span>
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Inline New Customer Registration Drawer -->
+        @if (showNewCustomerForm()) {
+          <div class="new-cust-card animate-fade-in" style="background: #ffffff; border: 1.5px solid var(--primary-600); border-radius: 8px; padding: 12px; margin-top: 0.5rem; margin-bottom: 0.5rem; box-shadow: 0 4px 14px rgba(0,0,0,0.08);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 1.05rem;">👤➕</span>
+                <strong style="font-size: 0.88rem; color: var(--slate-900);">Register New Customer to Store</strong>
+              </div>
+              <button type="button" (click)="cancelNewCustomerForm()" style="background: none; border: none; font-size: 1rem; cursor: pointer; color: var(--slate-500); padding: 2px;">✕</button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+              <div>
+                <label style="display: block; font-size: 0.72rem; font-weight: 700; color: var(--slate-600); margin-bottom: 2px;">Full Name <span class="text-danger">*</span></label>
+                <input 
+                  type="text" 
+                  [ngModel]="newCustomerName()" 
+                  (ngModelChange)="newCustomerName.set($event)"
+                  placeholder="e.g. Ramesh Sharma" 
+                  style="width: 100%; padding: 6px 8px; border: 1px solid var(--slate-300); border-radius: 4px; font-size: 0.82rem; box-sizing: border-box;"
+                />
+              </div>
+              <div>
+                <label style="display: block; font-size: 0.72rem; font-weight: 700; color: var(--slate-600); margin-bottom: 2px;">Mobile Number <span class="text-danger">*</span></label>
+                <input 
+                  type="tel" 
+                  [ngModel]="newCustomerPhone()" 
+                  (ngModelChange)="newCustomerPhone.set($event)"
+                  placeholder="10-digit mobile" 
+                  style="width: 100%; padding: 6px 8px; border: 1px solid var(--slate-300); border-radius: 4px; font-size: 0.82rem; box-sizing: border-box; font-family: monospace;"
+                />
+              </div>
+            </div>
+
+            <!-- Duplicate Phone Alert: Show existing customer name and block duplicate -->
+            @if (duplicateNewCustomer(); as dup) {
+              <div class="duplicate-phone-alert animate-fade-in" style="background: #fff1f2; border: 1.5px solid #fca5a5; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <div style="font-size: 0.78rem; color: #be123c; line-height: 1.4;">
+                  <strong>⚠️ Mobile already registered to "{{ dup.name }}".</strong><br/>
+                  <span>Duplicate phone numbers are not permitted. Use existing customer record instead.</span>
+                </div>
+                <button type="button" (click)="selectCustomer(dup)" style="background: #be123c; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.76rem; font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0; display: flex; align-items: center; gap: 4px;">
+                  👤 Use Existing: {{ dup.name }}
+                </button>
+              </div>
+            }
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+              <div>
+                <label style="display: block; font-size: 0.72rem; font-weight: 700; color: var(--slate-600); margin-bottom: 2px;">Address (Optional)</label>
+                <input 
+                  type="text" 
+                  [ngModel]="newCustomerAddress()" 
+                  (ngModelChange)="newCustomerAddress.set($event)"
+                  placeholder="Flat / Street / Area" 
+                  style="width: 100%; padding: 6px 8px; border: 1px solid var(--slate-300); border-radius: 4px; font-size: 0.82rem; box-sizing: border-box;"
+                />
+              </div>
+              <div>
+                <label style="display: block; font-size: 0.72rem; font-weight: 700; color: var(--slate-600); margin-bottom: 2px;">Email (Optional)</label>
+                <input 
+                  type="email" 
+                  [ngModel]="newCustomerEmail()" 
+                  (ngModelChange)="newCustomerEmail.set($event)"
+                  placeholder="email@example.com" 
+                  style="width: 100%; padding: 6px 8px; border: 1px solid var(--slate-300); border-radius: 4px; font-size: 0.82rem; box-sizing: border-box;"
+                />
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+              <button type="button" class="btn btn-secondary btn-sm" (click)="cancelNewCustomerForm()" style="padding: 5px 12px; font-size: 0.75rem;">Cancel</button>
+              <button 
+                type="button" 
+                class="btn btn-primary btn-sm" 
+                [disabled]="!canRegisterNewCustomer()" 
+                (click)="registerNewCustomer()"
+                style="padding: 5px 16px; font-size: 0.75rem; font-weight: 700; background: var(--primary-700); color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                @if (isRegistering()) { ⏳ Saving... } @else { ✓ Register & Attach to Bill }
+              </button>
+            </div>
+          </div>
+        }
       }
 
-      <!-- Past Invoices & Medication Records Drawer (Collapsible) -->
+      <!-- Collapsible Past Records Drawer -->
       @if (selectedCustomer() && showPastHistory()) {
         <div class="past-records-drawer animate-fade-in">
           <div class="drawer-header">
             <div class="drawer-title">
               <span class="icon">📜</span>
-              <span>Past Prescription & Billing Records for <strong>{{ selectedCustomer()?.name }}</strong></span>
+              <span>Past Purchases for <strong>{{ selectedCustomer()?.name }}</strong></span>
             </div>
-            <span class="drawer-count">
-              @if (isLoadingPastInvoices()) {
-                ⏳ Loading from DB...
-              } @else {
-                {{ customerPastInvoices().length }} Previous Invoices
-              }
-            </span>
+            <span class="drawer-count tabular">{{ customerPastInvoices().length }} Previous Invoices</span>
           </div>
 
           @if (isLoadingPastInvoices()) {
-            <div class="no-past-records">
-              <span class="icon">🔄</span>
-              <p>Fetching purchase records & past medications from store database...</p>
-            </div>
+            <div class="no-past-records"><p>Loading records...</p></div>
           } @else if (customerPastInvoices().length === 0) {
-            <div class="no-past-records">
-              <span class="icon">📂</span>
-              <p>No past billing records found for this customer. This will be their first recorded bill!</p>
-            </div>
+            <div class="no-past-records"><p>No previous billing records found.</p></div>
           } @else {
             <div class="past-invoices-list">
               @for (inv of customerPastInvoices(); track (inv.id || inv.invoiceNumber)) {
                 <div class="past-invoice-card">
                   <div class="inv-card-header">
                     <div class="inv-meta-left">
-                      <span class="inv-num">Bill #<strong>{{ inv.invoiceNumber }}</strong></span>
+                      <span class="inv-num font-bold">#{{ inv.invoiceNumber }}</span>
                       <span class="inv-date">📅 {{ inv.timestamp | date:'mediumDate' }}</span>
-                      <span class="inv-pay-mode">Paid: {{ inv.paymentMode }}</span>
-                      @if (inv.doctorName || inv.customer?.doctorName) {
-                        <span class="inv-doc">🩺 Dr. {{ inv.doctorName || inv.customer?.doctorName }}</span>
+                      @if (inv.doctorName) {
+                        <span class="inv-doc">🩺 Dr. {{ inv.doctorName }}</span>
                       }
                     </div>
                     <div class="inv-meta-right">
-                      <span class="inv-amount tabular">₹{{ inv.grandTotal | number:'1.2-2' }}</span>
-                      <button 
-                        type="button" 
-                        class="btn-repeat-bill" 
-                        (click)="repeatEntireInvoice(inv)"
-                        title="Add all medicines from this bill to active counter">
-                        🔄 Re-add Entire Bill
-                      </button>
+                      <span class="inv-amount tabular font-bold">₹{{ inv.grandTotal | number:'1.2-2' }}</span>
+                      <button type="button" class="btn-repeat-bill" (click)="repeatEntireInvoice(inv)">🔄 Re-add All</button>
                     </div>
                   </div>
-
-                  <!-- Medicines Purchased in this Past Bill -->
                   <div class="inv-medicines-grid">
                     @for (item of inv.items; track (item.id || item.medicineName)) {
                       <div class="past-med-chip">
-                        <div class="med-info">
-                          <span class="brand-name">{{ item.medicineName || item.medicine?.brandName }}</span>
-                          <span class="salt-name">{{ item.genericName || item.medicine?.genericName }}</span>
-                          <span class="qty-rate tabular">Qty: {{ item.quantity }} {{ (item.saleType === 'FULL_PACK' || !item.saleType) ? 'Pack' : 'Loose' }} • ₹{{ item.total | number:'1.2-2' }}</span>
-                        </div>
-                        <button 
-                          type="button" 
-                          class="btn-add-past-med" 
-                          (click)="addPastMedicineToCart(item)"
-                          title="Click to add this repeat medicine to active current bill">
-                          + Add to Current Bill
-                        </button>
+                        <span class="brand-name">{{ item.medicineName || item.medicine?.brandName }}</span>
+                        <span class="qty-rate tabular">Qty: {{ item.quantity }} • ₹{{ item.total | number:'1.2-2' }}</span>
+                        <button type="button" class="btn-add-past-med" (click)="addPastMedicineToCart(item)">+ Add</button>
                       </div>
                     }
                   </div>
@@ -445,83 +446,44 @@
         </div>
       }
 
-      <!-- Doctor & Regulatory Fields for Current Bill -->
-      <div class="cust-grid">
-        <div class="input-group">
-          <label>Customer Name</label>
-          <input 
-            type="text" 
-            [ngModel]="customerName()" 
-            (ngModelChange)="onCustomerNameInput($event)"
-            placeholder="Walk-in Customer" 
-            class="form-control" 
-          />
-        </div>
-
-        <div class="input-group">
-          <label>Mobile Number</label>
-          <input 
-            type="tel" 
-            [ngModel]="customerPhone()" 
-            (ngModelChange)="onCustomerPhoneInput($event)"
-            placeholder="+91 98765 43210" 
-            class="form-control tabular" 
-          />
-        </div>
-
-        <div class="input-group">
-          <label>
-            Doctor Name 
-            @if (hasScheduleH()) {
-              <span class="text-danger font-bold">* Required</span>
+      <!-- Doctor & Regulatory Fields (Shown automatically on Schedule H or when toggled) -->
+      @if (hasScheduleH() || showDoctorFields()) {
+        <div class="doc-regulatory-bar animate-fade-in" [class.schedule-h-active]="hasScheduleH()">
+          @if (hasScheduleH()) {
+            <div class="reg-tag">
+              <span class="badge badge-schedule-h">⚠️ Schedule H/H1 Regulatory Mandate</span>
+              <span class="reg-subtext">RMP Doctor details required by law</span>
+            </div>
+          }
+          <div class="doc-inputs-row">
+            <div class="doc-field">
+              <label>Doctor Name <span class="text-danger" *ngIf="hasScheduleH()">*</span></label>
+              <input 
+                id="pos-doctor-name-input"
+                type="text" 
+                [ngModel]="doctorName()" 
+                (ngModelChange)="doctorName.set($event)"
+                placeholder="Dr. Prescribing Physician" 
+                class="form-control"
+                [class.border-danger]="hasScheduleH() && !doctorName().trim()"
+              />
+            </div>
+            <div class="doc-field">
+              <label>Doctor MCI / State Reg # <span class="text-danger" *ngIf="hasScheduleH()">*</span></label>
+              <input 
+                id="pos-doctor-reg-input"
+                type="text" 
+                [ngModel]="doctorRegNo()" 
+                (ngModelChange)="doctorRegNo.set($event)"
+                placeholder="MCI-12345 / State Reg" 
+                class="form-control tabular"
+                [class.border-danger]="hasScheduleH() && !doctorRegNo().trim()"
+              />
+            </div>
+            @if (!hasScheduleH()) {
+              <button type="button" class="btn-hide-doc" (click)="showDoctorFields.set(false)" title="Hide Doctor Details">✕</button>
             }
-          </label>
-          <input 
-            id="pos-doctor-name-input"
-            type="text" 
-            [ngModel]="doctorName()" 
-            (ngModelChange)="doctorName.set($event)"
-            [placeholder]="hasScheduleH() ? 'Doctor Name (Required)' : 'Doctor Name (Optional)'" 
-            class="form-control" 
-            [class.border-danger]="hasScheduleH() && !doctorName().trim()"
-            [class.border-success]="hasScheduleH() && doctorName().trim()"
-          />
-        </div>
-
-        <div class="input-group">
-          <label>
-            Doctor MCI Reg # 
-            @if (hasScheduleH()) {
-              <span class="text-danger font-bold">* Required</span>
-            }
-          </label>
-          <input 
-            id="pos-doctor-reg-input"
-            type="text" 
-            [ngModel]="doctorRegNo()" 
-            (ngModelChange)="doctorRegNo.set($event)"
-            [placeholder]="hasScheduleH() ? 'MCI Reg. No. (Required)' : 'MCI Reg. No. (Optional)'" 
-            class="form-control tabular" 
-            [class.border-danger]="hasScheduleH() && !doctorRegNo().trim()"
-            [class.border-success]="hasScheduleH() && doctorRegNo().trim()"
-          />
-        </div>
-      </div>
-
-      <!-- Inline Option to Register / Save Customer directly to Database -->
-      @if (canSaveCurrentCustomer()) {
-        <div class="inline-save-cust-banner animate-fade-in">
-          <div class="banner-info">
-            <span class="icon">💡</span>
-            <span>Customer "{{ customerName() }}" is not yet in directory</span>
           </div>
-          <button type="button" class="btn-inline-save-cust" [disabled]="isRegistering()" (click)="saveCurrentCustomerToDb()">
-            @if (isRegistering()) {
-              <span>⏳ Saving...</span>
-            } @else {
-              <span>💾 Save to Directory</span>
-            }
-          </button>
         </div>
       }
     </div>
@@ -837,6 +799,323 @@
     (closed)="showAddMedicineModal.set(false)"
     (medicineAdded)="onMedicineAdded($event)">
   </app-add-medicine-modal>
+}
+
+<!-- Khata Partial/Full Settlement Modal -->
+@if (showKhataSettlementModal() && khataSettlementCustomer(); as kc) {
+  <div class="modal-overlay" (click)="showKhataSettlementModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()" style="max-width: 440px; padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.75rem;">
+        <h3 style="margin: 0; font-size: 1.1rem; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+          💰 Settle Khata Debt
+        </h3>
+        <button type="button" class="btn-close" (click)="showKhataSettlementModal.set(false)" style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">✕</button>
+      </div>
+
+      <div style="background: #f8fafc; padding: 10px; border-radius: 6px; margin-bottom: 1rem;">
+        <div style="font-weight: 600; font-size: 0.95rem;">{{ kc.name }}</div>
+        <div style="font-size: 0.82rem; color: #64748b;">Phone: {{ kc.phone || 'N/A' }}</div>
+        <div style="margin-top: 6px; font-size: 0.9rem; color: #be123c;">
+          Current Outstanding: <strong>₹{{ kc.khataBalance | number:'1.2-2' }}</strong>
+        </div>
+      </div>
+
+      @if (khataSuccessMsg()) {
+        <div style="padding: 10px; background: #dcfce7; color: #15803d; border-radius: 6px; font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem;">
+          {{ khataSuccessMsg() }}
+        </div>
+      }
+
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 4px;">Settlement Amount (₹)</label>
+        <input 
+          type="number" 
+          [ngModel]="khataPaymentAmount()" 
+          (ngModelChange)="khataPaymentAmount.set($event)" 
+          min="1" 
+          [max]="kc.khataBalance || 999999"
+          class="fast-input" 
+          style="width: 100%; font-size: 1.1rem; font-weight: 700; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px;"
+        />
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 4px;">Payment Received Via</label>
+        <div style="display: flex; gap: 8px;">
+          <button 
+            type="button" 
+            class="btn btn-sm" 
+            [style.background]="khataPaymentMode() === 'CASH' ? '#0f766e' : '#f1f5f9'"
+            [style.color]="khataPaymentMode() === 'CASH' ? 'white' : '#334155'"
+            (click)="khataPaymentMode.set('CASH')" 
+            style="flex: 1; padding: 6px; font-weight: 600; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer;">
+            💵 Cash
+          </button>
+          <button 
+            type="button" 
+            class="btn btn-sm" 
+            [style.background]="khataPaymentMode() === 'UPI' ? '#0f766e' : '#f1f5f9'"
+            [style.color]="khataPaymentMode() === 'UPI' ? 'white' : '#334155'"
+            (click)="khataPaymentMode.set('UPI')" 
+            style="flex: 1; padding: 6px; font-weight: 600; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer;">
+            📱 UPI / QR
+          </button>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.25rem;">
+        <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 4px;">Receipt Notes (Optional)</label>
+        <input 
+          type="text" 
+          [ngModel]="khataNotes()" 
+          (ngModelChange)="khataNotes.set($event)" 
+          placeholder="e.g. Paid in full by brother" 
+          style="width: 100%; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;"
+        />
+      </div>
+
+      <div style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary btn-sm" (click)="showKhataSettlementModal.set(false)">Cancel</button>
+        <button 
+          type="button" 
+          class="btn btn-primary btn-sm" 
+          [disabled]="isSettlingKhata() || khataPaymentAmount() <= 0" 
+          (click)="submitKhataSettlement()">
+          @if (isSettlingKhata()) { ⏳ Processing... } @else { ✓ Record Payment & Update Khata }
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Salt / Generic Alternative Substitute Modal -->
+@if (showSaltSubstituteModal() && saltSubstituteTargetItem(); as tgt) {
+  <div class="modal-overlay" (click)="showSaltSubstituteModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()" style="max-width: 600px; padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.75rem;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.1rem; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+            🔄 Salt / Generic Bioequivalent Substitutes
+          </h3>
+          <p style="margin: 2px 0 0; font-size: 0.8rem; color: #64748b;">
+            Active Composition: <strong>{{ tgt.medicine.genericName || 'Same Salt' }}</strong>
+          </p>
+        </div>
+        <button type="button" class="btn-close" (click)="showSaltSubstituteModal.set(false)" style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">✕</button>
+      </div>
+
+      <div style="background: #f1f5f9; padding: 10px; border-radius: 6px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-weight: 700; color: #0f172a;">Current: {{ tgt.medicine.brandName }}</div>
+          <div style="font-size: 0.75rem; color: #64748b;">{{ tgt.medicine.manufacturer }} • Batch: {{ tgt.selectedBatch.batchNumber }}</div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-weight: 800; font-size: 1.1rem; color: #0f766e;">₹{{ tgt.unitPrice | number:'1.2-2' }}</div>
+          <div style="font-size: 0.72rem; color: #64748b;">per {{ tgt.saleType === 'FULL_PACK' ? 'pack' : 'loose unit' }}</div>
+        </div>
+      </div>
+
+      <h4 style="font-size: 0.85rem; font-weight: 700; color: #475569; margin: 0 0 0.5rem;">In-Stock Bioequivalent Alternatives:</h4>
+
+      @if (saltAlternatives().length > 0) {
+        <div style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+          @for (alt of saltAlternatives(); track alt.medicine.id) {
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff;">
+              <div>
+                <div style="font-weight: 700; color: #1e293b;">{{ alt.medicine.brandName }}</div>
+                <div style="font-size: 0.75rem; color: #64748b;">
+                  {{ alt.medicine.manufacturer }} • Batch: {{ alt.batch.batchNumber }} (Exp: {{ alt.batch.expiryDate }})
+                </div>
+                <div style="font-size: 0.72rem; color: #0f766e; font-weight: 600; margin-top: 2px;">
+                  Stock: {{ alt.batch.stockPacks }} packs available
+                </div>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="text-align: right;">
+                  <div style="font-weight: 800; font-size: 1.05rem; color: #15803d;">
+                    ₹{{ (tgt.saleType === 'FULL_PACK' ? alt.packPrice : alt.loosePrice) | number:'1.2-2' }}
+                  </div>
+                  @if (alt.savings > 0) {
+                    <div style="font-size: 0.72rem; color: #16a34a; font-weight: 700;">
+                      Save ₹{{ alt.savings | number:'1.2-2' }}!
+                    </div>
+                  }
+                </div>
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-primary" 
+                  (click)="replaceItemWithSubstitute(alt)"
+                  style="font-size: 0.78rem; padding: 6px 12px; border-radius: 6px; background: #0f766e; color: white; border: none; font-weight: 600; cursor: pointer;">
+                  Replace
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div style="padding: 1.5rem; text-align: center; color: #64748b; background: #f8fafc; border-radius: 8px;">
+          <p style="margin: 0; font-size: 0.9rem;">No other in-stock medicines found matching active ingredient '{{ tgt.medicine.genericName }}'.</p>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- Sales Returns & Refunds Modal -->
+@if (showSalesReturnModal()) {
+  <div class="modal-overlay" (click)="showSalesReturnModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()" style="max-width: 680px; padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.75rem;">
+        <h3 style="margin: 0; font-size: 1.15rem; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+          🔄 Sales Return & Credit Note
+        </h3>
+        <button type="button" class="btn-close" (click)="showSalesReturnModal.set(false)" style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">✕</button>
+      </div>
+
+      <!-- Bill Search Input -->
+      <div style="display: flex; gap: 8px; margin-bottom: 1rem;">
+        <input 
+          type="text" 
+          [ngModel]="returnInvoiceNumber()" 
+          (ngModelChange)="returnInvoiceNumber.set($event)"
+          (keyup.enter)="lookupReturnInvoice()"
+          placeholder="Enter Invoice Number (e.g. INV-202409...)" 
+          style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem;"
+        />
+        <button 
+          type="button" 
+          class="btn btn-primary btn-sm" 
+          [disabled]="isLookingUpReturnInvoice() || !returnInvoiceNumber().trim()" 
+          (click)="lookupReturnInvoice()"
+          style="padding: 8px 16px; font-weight: 600;">
+          @if (isLookingUpReturnInvoice()) { ⏳ Fetching... } @else { 🔍 Fetch Bill }
+        </button>
+      </div>
+
+      @if (returnSuccessMessage()) {
+        <div style="padding: 12px; background: #dcfce7; color: #15803d; border-radius: 6px; font-size: 0.88rem; font-weight: 600; margin-bottom: 1rem;">
+          ✓ {{ returnSuccessMessage() }}
+        </div>
+      }
+
+      @if (returnInvoice(); as inv) {
+        <div style="background: #f8fafc; padding: 10px 14px; border-radius: 8px; margin-bottom: 1rem; display: flex; justify-content: space-between; font-size: 0.85rem;">
+          <div>
+            <div><strong>Invoice:</strong> {{ inv.invoiceNumber }} ({{ inv.timestamp | date:'short' }})</div>
+            <div><strong>Customer:</strong> {{ inv.customer?.name || 'Walk-in' }} • {{ inv.customer?.phone || 'No phone' }}</div>
+          </div>
+          <div style="text-align: right;">
+            <div><strong>Original Total:</strong> ₹{{ inv.grandTotal | number:'1.2-2' }}</div>
+            <div><strong>Mode:</strong> {{ inv.paymentMode }}</div>
+          </div>
+        </div>
+
+        <h4 style="font-size: 0.85rem; font-weight: 700; color: #475569; margin: 0 0 0.5rem;">Select Items & Quantities to Return:</h4>
+
+        <div style="max-height: 220px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 1rem;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+            <thead style="background: #f1f5f9; position: sticky; top: 0;">
+              <tr>
+                <th style="padding: 6px 10px; width: 5%;"></th>
+                <th style="padding: 6px 10px; text-align: left;">Medicine / Batch</th>
+                <th style="padding: 6px 10px; text-align: center;">Sold</th>
+                <th style="padding: 6px 10px; text-align: center;">Return Qty</th>
+                <th style="padding: 6px 10px; text-align: right;">Refund (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of inv.items; track item.id) {
+                @if (returnItemsMap()[item.id]; as row) {
+                  <tr [style.background]="row.selected ? '#f0fdf4' : 'transparent'" style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 6px 10px; text-align: center;">
+                      <input 
+                        type="checkbox" 
+                        [checked]="row.selected" 
+                        [disabled]="row.maxQty <= 0"
+                        (change)="toggleReturnItemSelection(item.id)"
+                      />
+                    </td>
+                    <td style="padding: 6px 10px;">
+                      <div style="font-weight: 600;">{{ item.medicine.brandName }}</div>
+                      <div style="font-size: 0.72rem; color: #64748b;">
+                        Batch: {{ item.selectedBatch.batchNumber }} (Exp: {{ item.selectedBatch.expiryDate }})
+                      </div>
+                    </td>
+                    <td style="padding: 6px 10px; text-align: center;">{{ item.quantity }}</td>
+                    <td style="padding: 6px 10px; text-align: center;">
+                      @if (row.maxQty > 0) {
+                        <input 
+                          type="number" 
+                          [ngModel]="row.returnQty" 
+                          (ngModelChange)="updateReturnItemQty(item.id, $event)"
+                          [disabled]="!row.selected"
+                          min="1" 
+                          [max]="row.maxQty"
+                          style="width: 55px; text-align: center; padding: 2px 4px; border: 1px solid #cbd5e1; border-radius: 4px;"
+                        />
+                      } @else {
+                        <span style="font-size: 0.72rem; color: #dc2626;">Already Returned</span>
+                      }
+                    </td>
+                    <td style="padding: 6px 10px; text-align: right; font-weight: 700;">
+                      ₹{{ row.totalRefund | number:'1.2-2' }}
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem;">
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">Return Reason</label>
+            <select 
+              [ngModel]="returnReason()" 
+              (ngModelChange)="returnReason.set($event)"
+              style="width: 100%; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;">
+              <option value="Customer Return - Not Required">Customer Return - Not Required</option>
+              <option value="Doctor Changed Prescription">Doctor Changed Prescription</option>
+              <option value="Wrong Medicine Dispensed">Wrong Medicine Dispensed</option>
+              <option value="Adverse Reaction / Defective">Adverse Reaction / Defective</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">Refund Method</label>
+            <select 
+              [ngModel]="returnRefundMode()" 
+              (ngModelChange)="returnRefundMode.set($event)"
+              style="width: 100%; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;">
+              <option value="CASH">Cash Refund</option>
+              <option value="UPI">UPI Refund</option>
+              <option value="KHATA_CREDIT">Credit to Customer Khata</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+          <div>
+            <span style="font-size: 0.85rem; color: #64748b;">Total Refund Amount:</span>
+            <span style="font-size: 1.3rem; font-weight: 800; color: #0f766e; margin-left: 6px;">₹{{ returnTotalRefundAmount | number:'1.2-2' }}</span>
+          </div>
+
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary btn-sm" (click)="showSalesReturnModal.set(false)">Cancel</button>
+            <button 
+              type="button" 
+              class="btn btn-primary btn-sm" 
+              [disabled]="isProcessingReturn() || returnTotalRefundAmount <= 0" 
+              (click)="submitSalesReturn()">
+              @if (isProcessingReturn()) { ⏳ Processing... } @else { ✓ Process Return & Replenish Stock }
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
 }
 
 

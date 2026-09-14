@@ -190,6 +190,36 @@ export class ApiService {
     );
   }
 
+  processSalesReturn(req: any): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/billing/returns`, req).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  recordKhataPayment(req: any): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/billing/khata/payment`, req).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  getScheduleH1Register(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/billing/schedule-h1`).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
   // ==========================================
   // Orders & Prescriptions (/api/orders)
   // ==========================================
@@ -252,6 +282,46 @@ export class ApiService {
 
   getSuppliers(): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/reorder/suppliers`).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  addSupplier(supplier: any): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/reorder/suppliers`, supplier).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  updateSupplier(id: string, supplier: any): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/reorder/suppliers/${id}`, supplier).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  deleteSupplier(id: string): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/reorder/suppliers/${id}`).pipe(
+      tap(() => this.backendStatus.set('ONLINE')),
+      catchError(err => {
+        this.backendStatus.set('OFFLINE');
+        throw err;
+      })
+    );
+  }
+
+  updateProfile(profile: any): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/auth/profile`, profile).pipe(
       tap(() => this.backendStatus.set('ONLINE')),
       catchError(err => {
         this.backendStatus.set('OFFLINE');

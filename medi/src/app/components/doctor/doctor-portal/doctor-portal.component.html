@@ -1,39 +1,29 @@
 <div class="doctor-portal-container">
   
-  <!-- Doctor Top Banner -->
-  <div class="doctor-banner medi-card">
-    <div class="doctor-profile">
-      <div class="avatar">🩺</div>
-      <div class="info">
-        <div class="badge-row">
-          <span class="badge badge-teal">Doctor Portal</span>
-          <span class="badge badge-schedule-h">Registered Medical Practitioner (RMP)</span>
-        </div>
-        <h1 class="name">{{ currentUser()?.name || 'Doctor' }}</h1>
-        <p class="credentials tabular">
-          Reg No: <strong>{{ currentUser()?.doctorRegNo || 'N/A' }}</strong> • Specialty: {{ currentUser()?.doctorSpecialty || 'General Practitioner' }}
-        </p>
+  <!-- Doctor Clinic Top Bar (Compact 1-line) -->
+  <div class="doctor-clinic-bar medi-card">
+    <div class="doctor-compact-profile">
+      <span class="doc-icon">🩺</span>
+      <div class="doc-meta">
+        <span class="doc-name">{{ currentUser()?.name || 'Dr. Physician' }}</span>
+        <span class="doc-badge">RMP • {{ currentUser()?.doctorSpecialty || 'General Practice' }}</span>
+        <span class="doc-reg tabular">Reg No: <strong>{{ currentUser()?.doctorRegNo || 'NMC-Reg' }}</strong></span>
       </div>
     </div>
 
-    <!-- Pre-Selected Store Picker -->
-    <div class="store-picker-box">
-      <label class="picker-label">🏥 Select Destination Medical Store / Chemist:</label>
+    <!-- Destination Chemist Picker -->
+    <div class="compact-store-picker">
+      <span class="picker-tag">🏥 Destination Pharmacy:</span>
       <select 
         [ngModel]="selectedStoreId()" 
         (ngModelChange)="selectedStoreId.set($event)"
-        class="store-select">
+        class="store-select-compact">
         @for (store of partnerStores(); track store.id) {
           <option [value]="store.id">
-            {{ store.name }} ({{ store.distance }} away)
+            {{ store.name }} ({{ store.distance }}) • DL: {{ store.dlNumber }}
           </option>
         }
       </select>
-      <div class="store-meta tabular">
-        <span>📍 {{ selectedStore().address }}</span>
-        <span>•</span>
-        <span>DL: {{ selectedStore().dlNumber }}</span>
-      </div>
     </div>
   </div>
 
@@ -42,71 +32,110 @@
     
     <!-- Left Column: Patient Info & Prescription Builder -->
     <div class="builder-col medi-card">
-      <div class="col-header">
+      <div class="col-header-compact">
         <div class="header-title">
-          <h2>Create Patient Prescription & Order</h2>
-          <p>Orders are routed directly to {{ selectedStore().name }}</p>
+          <h2>Clinical e-Prescription & Order Builder</h2>
+          <span class="sub-dest">Destination: <strong>{{ selectedStore().name }}</strong></span>
         </div>
       </div>
 
-      <!-- Patient Information -->
-      <div class="form-section">
-        <span class="section-title">1. Patient Demographic & Clinical Info</span>
-        <div class="form-grid-3">
-          <div class="form-group">
-            <label>Patient Full Name *</label>
-            <input 
-              type="text" 
-              [ngModel]="patientName()" 
-              (ngModelChange)="patientName.set($event)"
-              placeholder="e.g. Rameshwar Sharma" 
-              class="form-control" 
-            />
-          </div>
+      <!-- Patient Information: Compact 1-line 4-col strip -->
+      <div class="patient-bar-strip">
+        <div class="compact-field">
+          <label>Patient Name *</label>
+          <input 
+            type="text" 
+            [ngModel]="patientName()" 
+            (ngModelChange)="patientName.set($event)"
+            placeholder="e.g. Rameshwar Sharma" 
+            class="form-control" 
+          />
+        </div>
 
-          <div class="form-group">
-            <label>Age & Gender</label>
-            <div class="age-gender-row">
-              <input 
-                type="number" 
-                [ngModel]="patientAge()" 
-                (ngModelChange)="patientAge.set($event)"
-                placeholder="Age" 
-                class="form-control tabular" 
-                style="width: 70px;" 
-              />
-              <select 
-                [ngModel]="patientGender()" 
-                (ngModelChange)="patientGender.set($event)"
-                class="form-control">
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Patient Mobile Number</label>
+        <div class="compact-field">
+          <label>Age & Gender</label>
+          <div class="age-gender-row">
             <input 
-              type="tel" 
-              [ngModel]="patientPhone()" 
-              (ngModelChange)="patientPhone.set($event)"
-              placeholder="+91 98765 43210" 
+              type="number" 
+              [ngModel]="patientAge()" 
+              (ngModelChange)="patientAge.set($event)"
+              placeholder="Age" 
               class="form-control tabular" 
+              style="width: 65px;" 
             />
+            <select 
+              [ngModel]="patientGender()" 
+              (ngModelChange)="patientGender.set($event)"
+              class="form-control">
+              <option value="Male">M</option>
+              <option value="Female">F</option>
+              <option value="Other">O</option>
+            </select>
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Clinical Diagnosis / Chief Complaint</label>
+        <div class="compact-field">
+          <label>Mobile Number</label>
+          <input 
+            type="tel" 
+            [ngModel]="patientPhone()" 
+            (ngModelChange)="patientPhone.set($event)"
+            placeholder="+91 98765 43210" 
+            class="form-control tabular" 
+          />
+        </div>
+
+        <div class="compact-field">
+          <label>Diagnosis / Complaint</label>
           <input 
             type="text" 
             [ngModel]="diagnosis()" 
             (ngModelChange)="diagnosis.set($event)"
-            placeholder="e.g. Acute Bronchitis, Type-2 Diabetes with Hypertension" 
+            placeholder="e.g. Acute Bronchitis" 
             class="form-control" 
           />
+        </div>
+      </div>
+
+      <!-- Recurring Patient Past Rx Detection Banner -->
+      @if (matchingPreviousRx(); as prev) {
+        <div class="repeat-rx-banner animate-fade-in" style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 10px 14px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <span style="font-weight: 700; color: #166534;">🔄 Past Rx Found:</span>
+            <span style="font-size: 0.85rem; color: #15803d; margin-left: 6px;">
+              {{ prev.patient?.patientName }} ({{ prev.createdAt | date:'mediumDate' }}) — {{ prev.items?.length || 0 }} medicines
+            </span>
+          </div>
+          <button type="button" class="btn btn-sm btn-primary" (click)="repeatPreviousRx(prev)" style="font-size: 0.78rem; padding: 4px 12px; font-weight: 600;">
+            ✓ 1-Click Repeat Previous Rx
+          </button>
+        </div>
+      }
+
+      <!-- Clinical Vitals Strip (NMC Compliant) -->
+      <div class="vitals-strip" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <span style="font-size: 0.8rem; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 4px;">
+          🩺 Clinical Vitals:
+        </span>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <label style="font-size: 0.75rem; color: #64748b;">BP:</label>
+          <input type="text" [ngModel]="patientVitalsBp()" (ngModelChange)="patientVitalsBp.set($event)" placeholder="120/80" style="width: 75px; padding: 3px 6px; font-size: 0.82rem; border: 1px solid #cbd5e1; border-radius: 4px;" />
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <label style="font-size: 0.75rem; color: #64748b;">Pulse:</label>
+          <input type="text" [ngModel]="patientVitalsPulse()" (ngModelChange)="patientVitalsPulse.set($event)" placeholder="72 bpm" style="width: 70px; padding: 3px 6px; font-size: 0.82rem; border: 1px solid #cbd5e1; border-radius: 4px;" />
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <label style="font-size: 0.75rem; color: #64748b;">Weight:</label>
+          <input type="text" [ngModel]="patientVitalsWeight()" (ngModelChange)="patientVitalsWeight.set($event)" placeholder="65 kg" style="width: 65px; padding: 3px 6px; font-size: 0.82rem; border: 1px solid #cbd5e1; border-radius: 4px;" />
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <label style="font-size: 0.75rem; color: #64748b;">Temp:</label>
+          <input type="text" [ngModel]="patientVitalsTemp()" (ngModelChange)="patientVitalsTemp.set($event)" placeholder="98.6°F" style="width: 65px; padding: 3px 6px; font-size: 0.82rem; border: 1px solid #cbd5e1; border-radius: 4px;" />
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <label style="font-size: 0.75rem; color: #64748b;">SpO2:</label>
+          <input type="text" [ngModel]="patientVitalsSpo2()" (ngModelChange)="patientVitalsSpo2.set($event)" placeholder="98%" style="width: 55px; padding: 3px 6px; font-size: 0.82rem; border: 1px solid #cbd5e1; border-radius: 4px;" />
         </div>
       </div>
 
@@ -133,26 +162,31 @@
         <div class="form-section">
           <span class="section-title">2. Select Medicines from Store Catalog</span>
 
-          <!-- Search Medicine -->
-          <div class="drug-search-box">
-            <input 
-              type="text" 
-              [ngModel]="searchQuery()" 
-              (ngModelChange)="searchQuery.set($event)"
-              placeholder="Search drug by brand or generic salt (e.g. Augmentin, Dolo, Telma)..." 
-              class="form-control search-input" 
-            />
-            @if (searchResults().length > 0) {
-              <div class="dropdown-results">
-                @for (med of searchResults(); track med.id) {
-                  <div class="dropdown-item" (click)="selectMedicineForAdding(med)">
-                    <div class="d-brand">{{ med.brandName }} <span class="d-pack tabular">{{ med.packaging }}</span></div>
-                    <div class="d-salt">{{ med.genericName }}</div>
-                    <div class="d-stock tabular">In Stock: {{ med.totalStockPacks }} packs • ₹{{ med.batches[0].salePrice | number:'1.2-2' }}</div>
-                  </div>
-                }
-              </div>
-            }
+          <!-- Search Medicine & Custom Prescribing -->
+          <div class="search-bar-row">
+            <div class="drug-search-box">
+              <input 
+                type="text" 
+                [ngModel]="searchQuery()" 
+                (ngModelChange)="searchQuery.set($event)"
+                placeholder="Search drug by brand or generic salt (e.g. Augmentin, Dolo, Telma)..." 
+                class="form-control search-input" 
+              />
+              @if (searchResults().length > 0) {
+                <div class="dropdown-results">
+                  @for (med of searchResults(); track med.id) {
+                    <div class="dropdown-item" (click)="selectMedicineForAdding(med)">
+                      <div class="d-brand">{{ med.brandName }} <span class="d-pack tabular">{{ med.packaging }}</span></div>
+                      <div class="d-salt">{{ med.genericName }}</div>
+                      <div class="d-stock tabular">In Stock: {{ med.totalStockPacks }} packs • ₹{{ med.batches[0].salePrice | number:'1.2-2' }}</div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+            <button type="button" class="btn btn-secondary btn-custom-action" (click)="openCustomDrugModal()">
+              ➕ Prescribe Custom / Unstocked Drug
+            </button>
           </div>
 
           <!-- Selected Drug Dosage Customizer -->
@@ -162,20 +196,25 @@
                 <div>
                   <strong>{{ med.brandName }}</strong>
                   <span class="salt-sub">({{ med.genericName }})</span>
+                  <span class="pack-badge tabular">{{ med.packaging }}</span>
                 </div>
                 <button type="button" class="btn-cancel" (click)="selectedMedForAdding.set(null)">✕</button>
               </div>
 
               <div class="dosage-grid">
                 <div class="field">
-                  <label>Dosage</label>
-                  <select [ngModel]="currentDosage()" (ngModelChange)="currentDosage.set($event)" class="form-control">
-                    <option value="1-0-1">1-0-1 (Twice Daily)</option>
-                    <option value="1-0-0">1-0-0 (Once Morning)</option>
-                    <option value="0-0-1">0-0-1 (Once Night)</option>
-                    <option value="1-1-1">1-1-1 (Thrice Daily)</option>
-                    <option value="SOS">SOS (As needed for pain/fever)</option>
-                  </select>
+                  <label>Dosage Frequency</label>
+                  <div class="preset-pills">
+                    @for (p of dosagePresets; track p) {
+                      <button 
+                        type="button" 
+                        class="pill-btn" 
+                        [class.active]="currentDosage() === p"
+                        (click)="setDosagePreset(p)">
+                        {{ p }}
+                      </button>
+                    }
+                  </div>
                 </div>
 
                 <div class="field">
@@ -185,35 +224,48 @@
                     <option value="Before Meals">Before Meals</option>
                     <option value="With Milk">With Milk</option>
                     <option value="At Bedtime">At Bedtime</option>
+                    <option value="Empty Stomach">Empty Stomach</option>
                   </select>
                 </div>
 
                 <div class="field">
-                  <label>Duration</label>
-                  <select [ngModel]="currentDurationDays()" (ngModelChange)="currentDurationDays.set($event)" class="form-control tabular">
-                    <option [value]="3">3 Days</option>
-                    <option [value]="5">5 Days</option>
-                    <option [value]="7">7 Days</option>
-                    <option [value]="15">15 Days</option>
-                    <option [value]="30">30 Days</option>
-                  </select>
+                  <label>Duration (Days)</label>
+                  <div class="duration-pills">
+                    @for (d of [3, 5, 7, 10, 15, 30]; track d) {
+                      <button 
+                        type="button" 
+                        class="pill-btn duration-btn tabular" 
+                        [class.active]="currentDurationDays() === d"
+                        (click)="setDurationPreset(d)">
+                        {{ d }}d
+                      </button>
+                    }
+                  </div>
                 </div>
 
                 <div class="field">
-                  <label>Order Qty (Packs)</label>
-                  <input 
-                    type="number" 
-                    [ngModel]="currentQty()" 
-                    (ngModelChange)="currentQty.set($event)"
-                    min="1" 
-                    class="form-control tabular" 
-                  />
+                  <label>Quantity (Auto-calculated)</label>
+                  <div class="calc-qty-row">
+                    <input 
+                      type="number" 
+                      [ngModel]="currentQty()" 
+                      (ngModelChange)="currentQty.set($event)"
+                      min="1" 
+                      class="form-control tabular qty-input" 
+                    />
+                    <span class="pack-label">pack(s)</span>
+                  </div>
                 </div>
               </div>
 
-              <button type="button" class="btn btn-primary btn-sm" (click)="addDrugToPrescription()">
-                + Add To Prescription
-              </button>
+              <div class="builder-actions">
+                <button type="button" class="btn btn-primary btn-sm" (click)="addDrugToPrescription()">
+                  ✓ Add To Prescription
+                </button>
+                <span class="calc-formula-tag tabular">
+                  ⚡ Auto-calc: {{ currentDosage() }} for {{ currentDurationDays() }} days = {{ currentQty() }} pack(s)
+                </span>
+              </div>
             </div>
           }
 
@@ -260,72 +312,33 @@
         </div>
       }
 
-      <!-- Section 2B: Freeform Prescription Pad Mode -->
+      <!-- Clinical Prescription Notes & Advice -->
       <div class="form-section">
-        <span class="section-title">3. Clinical Prescription Notes & Advice</span>
+        <span class="section-title">3. Clinical Advice & Patient Instructions (Printed on Rx)</span>
         <textarea 
-          rows="3"
+          rows="2"
           [ngModel]="prescriptionNotes()" 
           (ngModelChange)="prescriptionNotes.set($event)"
-          placeholder="e.g. Rx: Amoxicillin 500mg TDS for 5 days. Drink warm water, avoid cold beverages. Review in OPD on Saturday."
+          placeholder="e.g. Rx: Amoxicillin 500mg TDS for 5 days. Drink warm fluids, avoid cold drinks. Follow-up after 5 days."
           class="form-control notes-textarea">
         </textarea>
       </div>
 
-      <!-- Section 3: Delivery & Payment Options -->
-      <div class="form-section">
-        <span class="section-title">4. Patient Delivery & Payment Method</span>
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label>Patient Home Delivery Address</label>
-            <input 
-              type="text" 
-              [ngModel]="deliveryAddress()" 
-              (ngModelChange)="deliveryAddress.set($event)"
-              placeholder="e.g. Flat 102, Shanti Kunj, Near Civil Hospital" 
-              class="form-control" 
-            />
-          </div>
-
-          <div class="form-group">
-            <label>Payment Collection Option</label>
-            <div class="payment-options">
-              <label class="pay-option">
-                <input 
-                  type="radio" 
-                  name="docPay" 
-                  value="COD" 
-                  [checked]="paymentMethod() === 'COD'"
-                  (change)="paymentMethod.set('COD')" 
-                />
-                <span>💵 Cash on Delivery (Patient pays upon receiving)</span>
-              </label>
-
-              <label class="pay-option">
-                <input 
-                  type="radio" 
-                  name="docPay" 
-                  value="ONLINE_PAID" 
-                  [checked]="paymentMethod() === 'ONLINE_PAID'"
-                  (change)="paymentMethod.set('ONLINE_PAID')" 
-                />
-                <span>📱 Prepaid Online (Billed to Clinic Account)</span>
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Submit Action -->
+      <!-- Submit Action Bar -->
       <div class="submit-bar">
         <div class="total-wrap tabular">
-          <span>Estimated Patient Bill:</span>
+          <span class="est-label">Estimated Patient Cost:</span>
           <span class="amount">₹{{ totalPrescriptionCost() | number:'1.2-2' }}</span>
         </div>
 
-        <button type="button" class="btn btn-primary btn-lg" (click)="submitOrder()">
-          🚀 Send Prescription Order to {{ selectedStore().name }}
-        </button>
+        <div class="actions-group">
+          <button type="button" class="btn btn-secondary btn-md" (click)="openPrintRxModal()">
+            🖨️ Print Rx (NMC Pad)
+          </button>
+          <button type="button" class="btn btn-primary btn-md" (click)="submitOrder()">
+            🚀 Transmit to {{ selectedStore().name }}
+          </button>
+        </div>
       </div>
 
     </div>
@@ -345,9 +358,14 @@
           <div class="order-card">
             <div class="order-top">
               <span class="ord-num tabular font-bold">#{{ ord.orderNumber }}</span>
-              <span class="badge" [class.badge-warning]="ord.orderStatus === 'NEW_RECEIVED'" [class.badge-info]="ord.orderStatus === 'PACKED'" [class.badge-success]="ord.orderStatus === 'COMPLETED'">
-                {{ ord.orderStatus === 'NEW_RECEIVED' ? 'Received at Store' : (ord.orderStatus === 'PACKED' ? 'Packed & Ready' : ord.orderStatus) }}
-              </span>
+              <div class="top-actions">
+                <span class="badge" [class.badge-warning]="ord.orderStatus === 'NEW_RECEIVED'" [class.badge-info]="ord.orderStatus === 'PACKED'" [class.badge-success]="ord.orderStatus === 'COMPLETED'">
+                  {{ ord.orderStatus === 'NEW_RECEIVED' ? 'Received at Store' : (ord.orderStatus === 'PACKED' ? 'Packed & Ready' : ord.orderStatus) }}
+                </span>
+                <button type="button" class="btn-print-mini" title="Print Formal Rx Pad" (click)="openPrintRxModal(ord)">
+                  🖨️ Rx
+                </button>
+              </div>
             </div>
 
             <div class="patient-name">Patient: <strong>{{ ord.patient.patientName }}</strong> ({{ ord.patient.patientAge }}y, {{ ord.patient.patientGender }})</div>
@@ -376,6 +394,237 @@
     </div>
 
   </div>
+
+  <!-- Custom Unstocked Drug Modal -->
+  @if (showCustomDrugModal()) {
+    <div class="modal-overlay" (click)="showCustomDrugModal.set(false)">
+      <div class="modal-content custom-drug-modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="header-title">
+            <span class="header-icon">💊</span>
+            <div>
+              <h3>Prescribe Custom / Unstocked Medication</h3>
+              <p class="subtitle">Write any drug according to clinical indications — partner store will source it</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close" (click)="showCustomDrugModal.set(false)">✕</button>
+        </div>
+
+        <form (submit)="$event.preventDefault(); addCustomDrugToPrescription()" class="modal-body">
+          <div class="form-group">
+            <label>Brand Name / Medicine Name <span class="text-danger">*</span></label>
+            <input type="text" [(ngModel)]="customDrug.brandName" name="cBrand" placeholder="e.g. Telma 40mg, Augmentin 625 Duo" required class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label>Generic Composition / Active Salt</label>
+            <input type="text" [(ngModel)]="customDrug.genericName" name="cGeneric" placeholder="e.g. Telmisartan 40mg, Amoxicillin + Clavulanic Acid" class="form-control" />
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Dosage Form & Packaging</label>
+              <input type="text" [(ngModel)]="customDrug.packaging" name="cPack" placeholder="e.g. 10 Tablets/Strip, 100ml Syrup" class="form-control" />
+            </div>
+
+            <div class="form-group">
+              <label>Approx. Rate (₹)</label>
+              <input type="number" [(ngModel)]="customDrug.unitPrice" name="cRate" class="form-control tabular" />
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label>Dosage</label>
+              <select [(ngModel)]="customDrug.dosage" name="cDosage" class="form-control">
+                <option value="1-0-1">1-0-1 (Twice Daily)</option>
+                <option value="1-0-0">1-0-0 (Once Morning)</option>
+                <option value="0-0-1">0-0-1 (Once Night)</option>
+                <option value="1-1-1">1-1-1 (Thrice Daily)</option>
+                <option value="SOS">SOS (As needed)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Timing</label>
+              <select [(ngModel)]="customDrug.timing" name="cTiming" class="form-control">
+                <option value="After Meals">After Meals</option>
+                <option value="Before Meals">Before Meals</option>
+                <option value="With Water">With Water</option>
+                <option value="At Bedtime">At Bedtime</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Duration (Days)</label>
+              <input type="number" [(ngModel)]="customDrug.durationDays" name="cDuration" min="1" class="form-control tabular" />
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="showCustomDrugModal.set(false)">Cancel</button>
+            <button type="submit" class="btn btn-primary">✓ Add to Prescription</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Formal NMC Printable e-Prescription (Rx Pad) Modal -->
+  @if (showPrintRxModal(); as printOrd) {
+    <div class="modal-overlay" (click)="showPrintRxModal.set(false)">
+      <div class="modal-content rx-print-modal" (click)="$event.stopPropagation()">
+        
+        <!-- Controls (Hidden on Print) -->
+        <div class="rx-modal-bar no-print" style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="bar-title">
+            <span class="rx-symbol-mini">℞</span>
+            <span>NMC Compliant Official e-Prescription Pad</span>
+          </div>
+          <div class="btn-group" style="display: flex; align-items: center; gap: 10px;">
+            <label style="font-size: 0.78rem; color: #e2e8f0; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+              <input type="checkbox" [ngModel]="suppressClinicLetterhead()" (ngModelChange)="suppressClinicLetterhead.set($event)" />
+              <span>Pre-printed Letterhead (Omit Header)</span>
+            </label>
+            <button type="button" class="btn btn-primary btn-sm" (click)="printRx()">
+              🖨️ Print Prescription
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="showPrintRxModal.set(false)">
+              ✕ Close
+            </button>
+          </div>
+        </div>
+
+        <!-- Printable Document -->
+        <div class="printable-rx-sheet" id="printableRxPaper">
+          <!-- Doctor Clinic Header (Suppressible for pre-printed letterhead) -->
+          @if (!suppressClinicLetterhead()) {
+            <div class="rx-header">
+              <div class="dr-credentials">
+                <h2>Dr. {{ currentUser()?.name || 'Practicing Medical Specialist' }}</h2>
+                <p class="specialty">{{ currentUser()?.doctorSpecialty || 'MBBS, MD - Consultant Physician' }}</p>
+                <p class="reg-no tabular"><strong>Reg. No:</strong> {{ currentUser()?.doctorRegNo || 'MCI-MH-89218' }} (State Medical Council)</p>
+              </div>
+              <div class="clinic-details text-right">
+                <h3>MEDICARE HEALTH CLINIC</h3>
+                <p>{{ currentUser()?.clinicAddress || 'Suite 201, Healthcare Towers, Medical Enclave' }}</p>
+                <p class="tabular">Ph: {{ currentUser()?.phone || '+91 98200 11223' }} • Email: {{ currentUser()?.email || 'doctor@medicare.com' }}</p>
+              </div>
+            </div>
+            <div class="rx-divider"></div>
+          } @else {
+            <div style="height: 100px;" class="letterhead-spacer no-screen"></div>
+          }
+
+          <!-- Patient & Date Strip -->
+          <div class="patient-strip">
+            <div>
+              <span class="lbl">Patient Name:</span>
+              <strong>{{ selectedOrderForPrint()?.patient?.patientName }}</strong>
+            </div>
+            <div>
+              <span class="lbl">Age / Gender:</span>
+              <span class="tabular font-bold">{{ selectedOrderForPrint()?.patient?.patientAge || 'Adult' }} yrs / {{ selectedOrderForPrint()?.patient?.patientGender || 'N/A' }}</span>
+            </div>
+            <div>
+              <span class="lbl">Contact:</span>
+              <span class="tabular">{{ selectedOrderForPrint()?.patient?.patientPhone || 'N/A' }}</span>
+            </div>
+            <div>
+              <span class="lbl">Date:</span>
+              <span class="tabular font-bold">{{ selectedOrderForPrint()?.createdAt | date:'dd-MMM-yyyy' }}</span>
+            </div>
+          </div>
+
+          <!-- Clinical Vitals Box on Printed Prescription -->
+          @if (selectedOrderForPrint()?.patient?.vitalsBp || selectedOrderForPrint()?.patientVitalsBp) {
+            <div class="rx-vitals-strip" style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 6px 12px; margin-top: 8px; font-size: 0.8rem; display: flex; gap: 14px; flex-wrap: wrap;">
+              <span *ngIf="selectedOrderForPrint()?.patient?.vitalsBp || selectedOrderForPrint()?.patientVitalsBp">
+                <strong>BP:</strong> {{ selectedOrderForPrint()?.patient?.vitalsBp || selectedOrderForPrint()?.patientVitalsBp }} mmHg
+              </span>
+              <span *ngIf="selectedOrderForPrint()?.patient?.vitalsPulse || selectedOrderForPrint()?.patientVitalsPulse">
+                <strong>Pulse:</strong> {{ selectedOrderForPrint()?.patient?.vitalsPulse || selectedOrderForPrint()?.patientVitalsPulse }} bpm
+              </span>
+              <span *ngIf="selectedOrderForPrint()?.patient?.vitalsWeight || selectedOrderForPrint()?.patientVitalsWeight">
+                <strong>Weight:</strong> {{ selectedOrderForPrint()?.patient?.vitalsWeight || selectedOrderForPrint()?.patientVitalsWeight }} kg
+              </span>
+              <span *ngIf="selectedOrderForPrint()?.patient?.vitalsTemp || selectedOrderForPrint()?.patientVitalsTemp">
+                <strong>Temp:</strong> {{ selectedOrderForPrint()?.patient?.vitalsTemp || selectedOrderForPrint()?.patientVitalsTemp }}
+              </span>
+              <span *ngIf="selectedOrderForPrint()?.patient?.vitalsSpo2 || selectedOrderForPrint()?.patientVitalsSpo2">
+                <strong>SpO2:</strong> {{ selectedOrderForPrint()?.patient?.vitalsSpo2 || selectedOrderForPrint()?.patientVitalsSpo2 }}%
+              </span>
+            </div>
+          }
+
+          @if (selectedOrderForPrint()?.patient?.diagnosis) {
+            <div class="diagnosis-strip">
+              <span class="lbl">Clinical Diagnosis / Symptoms:</span>
+              <strong>{{ selectedOrderForPrint()?.patient?.diagnosis }}</strong>
+            </div>
+          }
+
+          <div class="rx-symbol-banner">
+            <span class="rx-big">℞</span>
+            <span class="rx-tagline">Prescription Order (Formulation & Directions)</span>
+          </div>
+
+          <!-- Prescribed Medicines Table -->
+          <table class="rx-table">
+            <thead>
+              <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 40%;">Medicine Name & Generic Composition</th>
+                <th style="width: 20%;">Dosage Frequency</th>
+                <th style="width: 20%;">Timing & Instructions</th>
+                <th style="width: 15%;">Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of selectedOrderForPrint()?.items; track item.medicineId; let i = $index) {
+                <tr>
+                  <td class="tabular text-center">{{ i + 1 }}</td>
+                  <td>
+                    <div class="m-brand font-bold">{{ item.medicineName }}</div>
+                    <div class="m-salt">{{ item.genericName }}</div>
+                    <div class="m-pack tabular">{{ item.packaging }} • Qty: {{ item.quantity }} pack(s)</div>
+                  </td>
+                  <td>
+                    <span class="dosage-tag font-bold">{{ item.dosage || '1-0-1' }}</span>
+                  </td>
+                  <td>{{ item.timing || 'After Food' }}</td>
+                  <td class="tabular font-bold">{{ item.durationDays }} Days</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          @if (selectedOrderForPrint()?.prescriptionNotes) {
+            <div class="advice-box">
+              <h4>Doctor's Clinical Advice & Lifestyle Notes:</h4>
+              <p>{{ selectedOrderForPrint()?.prescriptionNotes }}</p>
+            </div>
+          }
+
+          <!-- Footer with Doctor Signature -->
+          <div class="rx-footer">
+            <div class="footer-note">
+              <p>• Review in OPD after completion of course or if symptoms persist.</p>
+              <p>• Dispense only against authorized medical practitioner prescription.</p>
+            </div>
+            <div class="signature-box text-center">
+              <div class="sig-line"></div>
+              <p class="sig-name font-bold">Dr. {{ currentUser()?.name || 'Registered Physician' }}</p>
+              <p class="sig-sub">Authorized Registered Medical Practitioner</p>
+              <p class="sig-reg tabular">Reg #: {{ currentUser()?.doctorRegNo || 'MCI-MH-89218' }}</p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  }
 
   <!-- Success Confirmation Modal -->
   @if (lastSubmittedOrder(); as ord) {
@@ -407,9 +656,14 @@
             </div>
           </div>
 
-          <button type="button" class="btn btn-primary btn-lg" style="width: 100%;" (click)="lastSubmittedOrder.set(null)">
-            Done / Write Next Prescription
-          </button>
+          <div class="modal-btns-row" style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+            <button type="button" class="btn btn-secondary btn-lg" style="flex: 1;" (click)="openPrintRxModal(ord)">
+              🖨️ Print Rx Slip
+            </button>
+            <button type="button" class="btn btn-primary btn-lg" style="flex: 1;" (click)="lastSubmittedOrder.set(null)">
+              Done / Next
+            </button>
+          </div>
         </div>
       </div>
     </div>

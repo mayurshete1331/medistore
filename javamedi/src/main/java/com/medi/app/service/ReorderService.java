@@ -27,6 +27,14 @@ public class ReorderService {
         return supplierRepository.findAll();
     }
 
+    public Supplier saveSupplier(Supplier supplier) {
+        return supplierRepository.save(supplier);
+    }
+
+    public void deleteSupplier(Long id) {
+        supplierRepository.deleteById(id);
+    }
+
     public String generateWhatsAppUrl(Long medicineId, Integer customQty, Long supplierId, String notes) {
         Medicine medicine = medicineRepository.findById(medicineId)
                 .orElseThrow(() -> new RuntimeException("Medicine not found with ID: " + medicineId));

@@ -25,6 +25,12 @@ export interface OrderPatientInfo {
   patientGender?: 'Male' | 'Female' | 'Other';
   patientPhone: string;
   diagnosis?: string;
+  vitalsBp?: string;
+  vitalsPulse?: string;
+  vitalsWeight?: string;
+  vitalsTemp?: string;
+  vitalsSpo2?: string;
+  familyMemberName?: string;
 }
 
 export interface OrderAuditEntry {
@@ -58,6 +64,13 @@ export interface StoreOrder {
   items: PrescribedOrderItem[];
   prescriptionNotes?: string;
   deliveryAddress?: string;
+  prescriptionPhotoUrl?: string;
+  familyMemberName?: string;
+  patientVitalsBp?: string;
+  patientVitalsPulse?: string;
+  patientVitalsWeight?: string;
+  patientVitalsTemp?: string;
+  patientVitalsSpo2?: string;
 
   // Payments
   paymentMethod: OrderPaymentMethod;

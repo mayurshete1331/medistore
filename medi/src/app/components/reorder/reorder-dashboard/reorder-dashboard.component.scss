@@ -406,3 +406,264 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Supplier & Dealer Management Modal */
+.supplier-modal-container {
+  width: 100%;
+  max-width: 960px;
+  max-height: 90vh;
+  background: #ffffff;
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-xl);
+
+  .supplier-modal-header {
+    background: var(--slate-900);
+    color: #ffffff;
+    padding: 0.85rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      .header-icon {
+        font-size: 1.5rem;
+      }
+
+      h3 {
+        font-size: 1.05rem;
+        font-weight: 800;
+        margin: 0;
+        color: #ffffff;
+      }
+      .subtitle {
+        font-size: 0.75rem;
+        color: var(--slate-400);
+        margin: 2px 0 0 0;
+      }
+    }
+
+    .btn-close {
+      background: none;
+      border: none;
+      color: var(--slate-400);
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+      }
+    }
+  }
+
+  .supplier-modal-body {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+
+    .dealers-list-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+
+      .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--slate-200);
+
+        h4 {
+          font-size: 0.88rem;
+          font-weight: 700;
+          color: var(--slate-700);
+          margin: 0;
+        }
+      }
+
+      .dealers-scroll-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        max-height: 480px;
+        overflow-y: auto;
+        padding-right: 0.25rem;
+
+        .dealer-card {
+          border: 1px solid var(--slate-200);
+          border-radius: var(--radius-md);
+          padding: 0.75rem 0.85rem;
+          background: var(--slate-50);
+          transition: all 0.15s ease;
+
+          &.active {
+            border-color: var(--primary-600);
+            background: #f0fdfa;
+            box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15);
+          }
+
+          .dealer-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.4rem;
+
+            .dealer-name {
+              font-size: 0.88rem;
+              color: var(--slate-900);
+            }
+            .contact-person {
+              font-size: 0.72rem;
+              color: var(--slate-500);
+              display: block;
+            }
+
+            .card-actions {
+              display: flex;
+              gap: 0.35rem;
+
+              .btn-icon {
+                background: none;
+                border: 1px solid var(--slate-200);
+                border-radius: 4px;
+                padding: 2px 6px;
+                cursor: pointer;
+                font-size: 0.75rem;
+                background: #ffffff;
+                &:hover {
+                  background: var(--slate-100);
+                }
+              }
+            }
+          }
+
+          .dealer-contacts {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            font-size: 0.74rem;
+
+            .contact-line {
+              display: flex;
+              align-items: center;
+              gap: 0.4rem;
+
+              .tag {
+                font-size: 0.68rem;
+                font-weight: 700;
+                color: var(--slate-500);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .dealer-form-panel {
+      background: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+
+      h4 {
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: var(--slate-900);
+        margin: 0 0 0.25rem 0;
+      }
+
+      .form-desc {
+        font-size: 0.74rem;
+        color: var(--slate-500);
+        margin: 0 0 1rem 0;
+      }
+
+      .form-group {
+        margin-bottom: 0.85rem;
+
+        label {
+          display: block;
+          font-size: 0.74rem;
+          font-weight: 700;
+          color: var(--slate-600);
+          margin-bottom: 0.25rem;
+        }
+
+        .form-control {
+          width: 100%;
+          padding: 0.45rem 0.65rem;
+          border: 1px solid var(--slate-300);
+          border-radius: var(--radius-sm);
+          font-size: 0.82rem;
+          background: #ffffff;
+          outline: none;
+
+          &:focus {
+            border-color: var(--primary-600);
+            box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.12);
+          }
+        }
+
+        .input-hint {
+          display: block;
+          font-size: 0.68rem;
+          color: var(--slate-400);
+          margin-top: 0.2rem;
+        }
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+      }
+
+      .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-top: 1.25rem;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .supplier-modal-container .supplier-modal-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .po-printable-sheet,
+  .po-printable-sheet * {
+    visibility: visible;
+  }
+  .po-printable-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    box-shadow: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+

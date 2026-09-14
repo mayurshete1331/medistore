@@ -67,8 +67,10 @@ export class AddMedicineModalComponent implements OnInit, OnDestroy {
       this.medicineForm.patchValue({ brandName: this.initialBrandName.trim() });
     }
 
-    // Load top popular Indian pharma presets for quick-fill buttons
-    this.quickPresets.set(this.drugLookupService.getQuickPresets());
+    // Load active medicines dynamically from database for quick-fill buttons
+    this.drugLookupService.getQuickPresets().subscribe(presets => {
+      this.quickPresets.set(presets);
+    });
 
     // Reactive debounce search on typing brand name
     this.brandSub = this.medicineForm.get('brandName')?.valueChanges.pipe(
@@ -139,9 +141,9 @@ export class AddMedicineModalComponent implements OnInit, OnDestroy {
       isNarcotic: drug.isNarcotic,
       reorderLevel: drug.reorderLevel,
       defaultReorderQty: drug.defaultReorderQty,
-      purchasePrice: drug.purchasePrice ?? 100.0,
-      mrp: drug.mrp ?? 150.0,
-      salePrice: drug.salePrice ?? 145.0,
+      purchasePrice: drug.purchasePrice ?? null,
+      mrp: drug.mrp ?? null,
+      salePrice: drug.salePrice ?? null,
       batchNumber: batchNumber
     });
 

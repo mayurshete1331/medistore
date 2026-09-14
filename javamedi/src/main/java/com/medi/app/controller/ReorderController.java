@@ -35,6 +35,26 @@ public class ReorderController {
         return ResponseEntity.ok(reorderService.getAllSuppliers());
     }
 
+    @PostMapping("/suppliers")
+    @Operation(summary = "Add a new distributor or supplier")
+    public ResponseEntity<Supplier> addSupplier(@RequestBody Supplier supplier) {
+        return ResponseEntity.ok(reorderService.saveSupplier(supplier));
+    }
+
+    @PutMapping("/suppliers/{id}")
+    @Operation(summary = "Update distributor details including WhatsApp number and Email ID")
+    public ResponseEntity<Supplier> updateSupplier(@PathVariable Long id, @RequestBody Supplier supplier) {
+        supplier.setId(id);
+        return ResponseEntity.ok(reorderService.saveSupplier(supplier));
+    }
+
+    @DeleteMapping("/suppliers/{id}")
+    @Operation(summary = "Delete distributor")
+    public ResponseEntity<Void> deleteSupplier(@PathVariable Long id) {
+        reorderService.deleteSupplier(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/whatsapp-url/{medicineId}")
     @Operation(summary = "Generate pre-filled WhatsApp Purchase Order URL with owner authorization")
     public ResponseEntity<Map<String, String>> getWhatsAppUrl(

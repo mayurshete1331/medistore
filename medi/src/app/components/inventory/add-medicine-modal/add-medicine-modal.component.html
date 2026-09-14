@@ -43,7 +43,7 @@
             </span>
           </div>
           <div class="banner-sub">
-            All 14 fields (generic salt, HSN {{ drug.hsnCode }}, GST {{ drug.gstRate }}%, pack {{ drug.packaging }}, pricing) were filled. You can adjust any values below.
+            Medicine details auto-filled (Salt, HSN {{ drug.hsnCode }}, GST {{ drug.gstRate }}%, pack {{ drug.packaging }}). You can adjust any values below.
           </div>
         </div>
         <button type="button" class="btn-dismiss-banner" (click)="clearAutoFilledNotice()" title="Dismiss">✕</button>
@@ -55,7 +55,7 @@
       
       <!-- Section 1: Drug Master Info -->
       <div class="form-section">
-        <h3 class="section-title">1. Drug Identification & Details</h3>
+        <h3 class="section-title">1. Medicine Details</h3>
         <div class="form-grid-3">
           
           <!-- Brand Name with Auto-Suggest -->
@@ -240,7 +240,7 @@
 
       <!-- Section 3: Initial Stock Batch Details -->
       <div class="form-section">
-        <h3 class="section-title">3. Initial Inward Batch (FEFO Ready)</h3>
+        <h3 class="section-title">3. Initial Batch & Stock Details</h3>
         <div class="form-grid-4">
           <div class="form-group">
             <label>Batch Number *</label>

@@ -43,8 +43,20 @@ export class OrderService {
               patientAge: o.patientAge,
               patientGender: o.patientGender,
               patientPhone: o.patientPhone,
-              diagnosis: o.diagnosis
+              diagnosis: o.diagnosis,
+              vitalsBp: o.patientVitalsBp,
+              vitalsPulse: o.patientVitalsPulse,
+              vitalsWeight: o.patientVitalsWeight,
+              vitalsTemp: o.patientVitalsTemp,
+              vitalsSpo2: o.patientVitalsSpo2,
+              familyMemberName: o.familyMemberName
             },
+            familyMemberName: o.familyMemberName,
+            patientVitalsBp: o.patientVitalsBp,
+            patientVitalsPulse: o.patientVitalsPulse,
+            patientVitalsWeight: o.patientVitalsWeight,
+            patientVitalsTemp: o.patientVitalsTemp,
+            patientVitalsSpo2: o.patientVitalsSpo2,
             items: (o.items || []).map((i: any) => ({
               medicineId: String(i.medicineId),
               medicineName: i.medicineName,
@@ -59,6 +71,7 @@ export class OrderService {
             })),
             prescriptionNotes: o.prescriptionNotes,
             deliveryAddress: o.deliveryAddress,
+            prescriptionPhotoUrl: o.prescriptionPhotoUrl,
             paymentMethod: o.paymentMethod,
             paymentStatus: o.paymentStatus,
             orderStatus: o.orderStatus,
@@ -183,6 +196,11 @@ export class OrderService {
       patientGender: data.patient.patientGender,
       patientPhone: data.patient.patientPhone,
       diagnosis: data.patient.diagnosis,
+      patientVitalsBp: data.patient.vitalsBp || '',
+      patientVitalsPulse: data.patient.vitalsPulse || '',
+      patientVitalsWeight: data.patient.vitalsWeight || '',
+      patientVitalsTemp: data.patient.vitalsTemp || '',
+      patientVitalsSpo2: data.patient.vitalsSpo2 || '',
       prescriptionNotes: data.prescriptionNotes,
       deliveryAddress: data.deliveryAddress,
       paymentMethod: data.paymentMethod,
@@ -217,6 +235,7 @@ export class OrderService {
     patient: OrderPatientInfo;
     items: PrescribedOrderItem[];
     deliveryAddress: string;
+    prescriptionPhotoUrl?: string;
     paymentMethod: OrderPaymentMethod;
   }): StoreOrder {
     const totalAmount = data.items.reduce((sum, i) => sum + i.total, 0);
@@ -238,6 +257,7 @@ export class OrderService {
       patient: data.patient,
       items: data.items,
       deliveryAddress: data.deliveryAddress,
+      prescriptionPhotoUrl: data.prescriptionPhotoUrl,
       paymentMethod: data.paymentMethod,
       paymentStatus: data.paymentMethod === 'ONLINE_PAID' ? 'PAID' : 'PENDING_COLLECTION',
       orderStatus: 'NEW_RECEIVED',
@@ -265,11 +285,13 @@ export class OrderService {
       customerName: data.customerUser.name,
       customerPhone: data.customerUser.phone || '',
       patientName: data.patient.patientName,
+      familyMemberName: data.patient.familyMemberName || '',
       patientAge: data.patient.patientAge,
       patientGender: data.patient.patientGender,
       patientPhone: data.patient.patientPhone,
       diagnosis: data.patient.diagnosis,
       deliveryAddress: data.deliveryAddress,
+      prescriptionPhotoUrl: data.prescriptionPhotoUrl,
       paymentMethod: data.paymentMethod,
       items: data.items.map(i => ({
         medicineId: parseInt(i.medicineId.replace(/\D/g, ''), 10) || 1,
@@ -341,5 +363,14 @@ export class OrderService {
         error: () => {}
       });
     }
+  }
+
+  cancelOrder(orderId: string, reason?: string, cancelledBy?: string): void {
+    this.updateOrderStatus(
+      orderId,
+      'CANCELLED',
+      cancelledBy || 'Customer Self-Service',
+      reason || 'Order cancelled by customer before dispatch'
+    );
   }
 }

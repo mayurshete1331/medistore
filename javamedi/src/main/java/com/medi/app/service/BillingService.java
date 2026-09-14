@@ -11,6 +11,7 @@ import com.medi.app.exception.ResourceNotFoundException;
 import com.medi.app.repository.BatchRepository;
 import com.medi.app.repository.InvoiceRepository;
 import com.medi.app.repository.MedicineRepository;
+import com.medi.app.repository.StoreAffiliationRepository;
 import com.medi.app.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class BillingService {
     private final InventoryService inventoryService;
     private final StoreHistoryService storeHistoryService;
     private final UserRepository userRepository;
+    private final StoreAffiliationRepository storeAffiliationRepository;
 
     public List<Invoice> getAllInvoices() {
         return invoiceRepository.findAllByOrderByTimestampDesc();
@@ -102,9 +104,9 @@ public class BillingService {
 
                 double gross = qty * unitPrice;
                 double discountAmt = (gross * discPct) / 100.0;
-                double lineSubtotal = gross - discountAmt;
-                double lineTax = (lineSubtotal * gst) / 100.0;
-                double lineTotal = lineSubtotal + lineTax;
+                double lineTotal = gross - discountAmt;
+                double lineSubtotal = (gst > 0) ? ((lineTotal * 100.0) / (100.0 + gst)) : lineTotal;
+                double lineTax = lineTotal - lineSubtotal;
 
                 subtotal += lineSubtotal;
                 totalDiscount += discountAmt;
@@ -147,12 +149,13 @@ public class BillingService {
 
                 invoiceItems.add(invoiceItem);
 
-                // Deduct stock safely
+                // Deduct stock safely with loose strip cut-dispensing support
                 Long targetBatchId = batch != null ? batch.getId() : itemDto.getBatchId();
                 if (targetBatchId != null) {
                     try {
-                        int packsDeduct = "FULL_PACK".equalsIgnoreCase(sType) ? qty : 1;
-                        inventoryService.deductStock(targetBatchId, packsDeduct);
+                        int unitsPerPack = (med != null && med.getUnitsPerPack() != null && med.getUnitsPerPack() > 1) 
+                                ? med.getUnitsPerPack() : 1;
+                        inventoryService.deductStock(targetBatchId, sType, qty, unitsPerPack);
                     } catch (Exception ex) {
                         log.warn("Batch stock deduction skipped for batch {}: {}", targetBatchId, ex.getMessage());
                     }
@@ -195,6 +198,11 @@ public class BillingService {
         }
         invoice.setItems(invoiceItems);
         Invoice saved = invoiceRepository.save(invoice);
+
+        // Update customer Khata balance if billed under credit
+        if ("KHATA".equalsIgnoreCase(saved.getPaymentMode())) {
+            updateCustomerKhataBalance(saved.getCustomerPhone(), saved.getGrandTotal(), true);
+        }
 
         // Record in Store History
         try {
@@ -248,6 +256,7 @@ public class BillingService {
             map.put("address", u.getCustomerAddress());
             map.put("isRegistered", true);
             map.put("pastBillsCount", pastInvs.size());
+            map.put("khataBalance", u.getKhataBalance() != null ? u.getKhataBalance() : 0.0);
             results.add(map);
         }
 
@@ -274,6 +283,7 @@ public class BillingService {
             map.put("doctorRegNo", inv.getDoctorRegNo());
             map.put("isRegistered", false);
             map.put("pastBillsCount", pastInvs.size());
+            map.put("khataBalance", 0.0);
             results.add(map);
         }
 
@@ -287,5 +297,213 @@ public class BillingService {
             return invoiceRepository.findExactCustomerInvoices(cleanName, cleanPhone);
         }
         return Collections.emptyList();
+    }
+
+    @Transactional
+    public void updateCustomerKhataBalance(String phone, double amountDelta, boolean isAddition) {
+        if (phone == null || phone.trim().isEmpty() || amountDelta <= 0) return;
+        String cleanDigits = phone.replaceAll("\\D", "");
+        if (cleanDigits.length() < 3) return;
+
+        List<User> matchedUsers = userRepository.searchCustomers("", cleanDigits);
+        for (User u : matchedUsers) {
+            double current = u.getKhataBalance() != null ? u.getKhataBalance() : 0.0;
+            double updated = isAddition ? (current + amountDelta) : Math.max(0.0, current - amountDelta);
+            u.setKhataBalance(Math.round(updated * 100.0) / 100.0);
+            userRepository.save(u);
+
+            storeAffiliationRepository.findByStoreIdAndUserId(1L, u.getId()).ifPresent(aff -> {
+                aff.setOutstandingKhataBalance(u.getKhataBalance());
+                storeAffiliationRepository.save(aff);
+            });
+        }
+    }
+
+    @Transactional
+    public Invoice processSalesReturn(BillingDtos.SalesReturnRequest req) {
+        Invoice invoice = null;
+        if (req.getInvoiceNumber() != null && !req.getInvoiceNumber().trim().isEmpty()) {
+            invoice = getInvoiceByNumber(req.getInvoiceNumber().trim());
+        } else if (req.getInvoiceId() != null) {
+            invoice = invoiceRepository.findById(req.getInvoiceId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Invoice not found with ID: " + req.getInvoiceId()));
+        } else {
+            throw new IllegalArgumentException("Invoice number or ID is required for processing return");
+        }
+
+        if (req.getReturnedItems() == null || req.getReturnedItems().isEmpty()) {
+            throw new IllegalArgumentException("At least one item must be specified for return");
+        }
+
+        double totalRefund = 0.0;
+        LocalDateTime now = LocalDateTime.now();
+
+        for (BillingDtos.ReturnItemDto retItem : req.getReturnedItems()) {
+            if (retItem.getReturnQuantity() == null || retItem.getReturnQuantity() <= 0) continue;
+
+            InvoiceItem targetItem = null;
+            if (retItem.getInvoiceItemId() != null && invoice.getItems() != null) {
+                targetItem = invoice.getItems().stream()
+                        .filter(it -> it.getId() != null && it.getId().equals(retItem.getInvoiceItemId()))
+                        .findFirst().orElse(null);
+            }
+            if (targetItem == null && retItem.getMedicineId() != null && invoice.getItems() != null) {
+                targetItem = invoice.getItems().stream()
+                        .filter(it -> it.getMedicineId() != null && it.getMedicineId().equals(retItem.getMedicineId()))
+                        .findFirst().orElse(null);
+            }
+            if (targetItem == null) continue;
+
+            int alreadyReturned = targetItem.getReturnedQuantity() != null ? targetItem.getReturnedQuantity() : 0;
+            int maxReturnable = targetItem.getQuantity() - alreadyReturned;
+            int actualReturnQty = Math.min(retItem.getReturnQuantity(), maxReturnable);
+            if (actualReturnQty <= 0) continue;
+
+            targetItem.setReturnedQuantity(alreadyReturned + actualReturnQty);
+            if (targetItem.getReturnedQuantity() >= targetItem.getQuantity()) {
+                targetItem.setIsReturned(true);
+            }
+
+            double unitPrice = targetItem.getUnitPrice() != null ? targetItem.getUnitPrice() : 0.0;
+            double discPct = targetItem.getDiscountPercent() != null ? targetItem.getDiscountPercent() : 0.0;
+            double itemRefund = actualReturnQty * unitPrice * (1.0 - (discPct / 100.0));
+            totalRefund += itemRefund;
+
+            // Replenish batch stock
+            Long medId = targetItem.getMedicineId();
+            Medicine med = medId != null ? medicineRepository.findById(medId).orElse(null) : null;
+            int unitsPerPack = (med != null && med.getUnitsPerPack() != null && med.getUnitsPerPack() > 1) ? med.getUnitsPerPack() : 1;
+
+            String itemBatchNum = targetItem.getBatchNumber();
+            List<Batch> batches = medId != null ? batchRepository.findByMedicineId(medId) : Collections.emptyList();
+            Batch targetBatch = batches.stream()
+                    .filter(b -> itemBatchNum != null && b.getBatchNumber() != null && b.getBatchNumber().equalsIgnoreCase(itemBatchNum))
+                    .findFirst().orElse(!batches.isEmpty() ? batches.get(0) : null);
+
+            if (targetBatch != null) {
+                inventoryService.replenishStock(targetBatch.getId(), targetItem.getSaleType(), actualReturnQty, unitsPerPack);
+            }
+        }
+
+        totalRefund = Math.round(totalRefund * 100.0) / 100.0;
+        double currentReturnAmt = invoice.getReturnAmount() != null ? invoice.getReturnAmount() : 0.0;
+        invoice.setIsReturned(true);
+        invoice.setReturnAmount(Math.round((currentReturnAmt + totalRefund) * 100.0) / 100.0);
+        invoice.setReturnReason(req.getReturnReason() != null ? req.getReturnReason() : "Customer Return");
+        invoice.setReturnTimestamp(now);
+        if (invoice.getCreditNoteNumber() == null || invoice.getCreditNoteNumber().isEmpty()) {
+            invoice.setCreditNoteNumber("CN-" + invoice.getInvoiceNumber() + "-" + (System.currentTimeMillis() % 10000));
+        }
+
+        if ("KHATA_CREDIT".equalsIgnoreCase(req.getRefundMode()) && invoice.getCustomerPhone() != null) {
+            updateCustomerKhataBalance(invoice.getCustomerPhone(), totalRefund, false);
+        }
+
+        Invoice saved = invoiceRepository.save(invoice);
+
+        try {
+            storeHistoryService.recordLog(
+                    1L,
+                    "SALES_RETURN",
+                    "Sales Return: " + saved.getCreditNoteNumber(),
+                    "Returned items for invoice " + saved.getInvoiceNumber() + ". Refunded ₹" + totalRefund + " (" + (req.getRefundMode() != null ? req.getRefundMode() : "CASH") + ") Reason: " + saved.getReturnReason(),
+                    req.getProcessedBy() != null ? req.getProcessedBy() : "Store Pharmacist",
+                    saved.getCreditNoteNumber(),
+                    -totalRefund
+            );
+        } catch (Exception ex) {
+            log.warn("Failed recording sales return history log: {}", ex.getMessage());
+        }
+
+        return saved;
+    }
+
+    @Transactional
+    public Map<String, Object> recordKhataPayment(BillingDtos.KhataPaymentRequest req) {
+        double amount = req.getPaymentAmount() != null ? req.getPaymentAmount() : 0.0;
+        User customer = null;
+        if (req.getCustomerId() != null) {
+            customer = userRepository.findById(req.getCustomerId()).orElse(null);
+        }
+        if (customer == null && req.getCustomerPhone() != null && !req.getCustomerPhone().trim().isEmpty()) {
+            String clean = req.getCustomerPhone().replaceAll("\\D", "");
+            List<User> list = userRepository.searchCustomers("", clean);
+            if (!list.isEmpty()) customer = list.get(0);
+        }
+
+        double previousBalance = 0.0;
+        double newBalance = 0.0;
+        String custName = "Customer";
+
+        if (customer != null) {
+            custName = customer.getName();
+            previousBalance = customer.getKhataBalance() != null ? customer.getKhataBalance() : 0.0;
+            newBalance = Math.max(0.0, Math.round((previousBalance - amount) * 100.0) / 100.0);
+            customer.setKhataBalance(newBalance);
+            userRepository.save(customer);
+
+            final double finalBal = newBalance;
+            storeAffiliationRepository.findByStoreIdAndUserId(1L, customer.getId()).ifPresent(aff -> {
+                aff.setOutstandingKhataBalance(finalBal);
+                storeAffiliationRepository.save(aff);
+            });
+        }
+
+        try {
+            storeHistoryService.recordLog(
+                    1L,
+                    "KHATA_PAYMENT",
+                    "Khata Settlement: " + custName + " (₹" + amount + ")",
+                    "Received ₹" + amount + " via " + (req.getPaymentMode() != null ? req.getPaymentMode() : "CASH") + ". New balance: ₹" + newBalance + (req.getNotes() != null ? " Notes: " + req.getNotes() : ""),
+                    req.getReceivedBy() != null ? req.getReceivedBy() : "Counter 1",
+                    "KHATA-RCV-" + (System.currentTimeMillis() % 100000),
+                    amount
+            );
+        } catch (Exception ex) {
+            log.warn("Failed recording khata payment history log: {}", ex.getMessage());
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("customerName", custName);
+        response.put("amountPaid", amount);
+        response.put("previousBalance", previousBalance);
+        response.put("newBalance", newBalance);
+        response.put("paymentMode", req.getPaymentMode() != null ? req.getPaymentMode() : "CASH");
+        response.put("timestamp", LocalDateTime.now().toString());
+        return response;
+    }
+
+    public List<Map<String, Object>> getScheduleH1Register() {
+        List<Invoice> invoices = invoiceRepository.findByHasScheduleHTrueOrderByTimestampDesc();
+        List<Map<String, Object>> records = new ArrayList<>();
+        for (Invoice inv : invoices) {
+            if (inv.getItems() == null) continue;
+            for (InvoiceItem item : inv.getItems()) {
+                Medicine med = item.getMedicineId() != null ? medicineRepository.findById(item.getMedicineId()).orElse(null) : null;
+                boolean isH1 = med != null && (Boolean.TRUE.equals(med.getIsScheduleH1()) || Boolean.TRUE.equals(med.getIsScheduleH()) || Boolean.TRUE.equals(med.getIsNarcotic()));
+                if (isH1 || Boolean.TRUE.equals(inv.getHasScheduleH())) {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("invoiceNumber", inv.getInvoiceNumber());
+                    row.put("timestamp", inv.getTimestamp());
+                    row.put("customerName", inv.getCustomerName());
+                    row.put("customerPhone", inv.getCustomerPhone());
+                    row.put("doctorName", inv.getDoctorName());
+                    row.put("doctorRegNo", inv.getDoctorRegNo());
+                    row.put("medicineName", item.getMedicineName());
+                    row.put("genericName", item.getGenericName());
+                    row.put("batchNumber", item.getBatchNumber());
+                    row.put("expiryDate", item.getExpiryDate());
+                    row.put("quantity", item.getQuantity());
+                    row.put("dispensedBy", inv.getDispensedBy());
+                    String sched = "Schedule H";
+                    if (med != null && Boolean.TRUE.equals(med.getIsScheduleH1())) sched = "Schedule H1";
+                    else if (med != null && Boolean.TRUE.equals(med.getIsNarcotic())) sched = "Narcotic";
+                    row.put("scheduleType", sched);
+                    records.add(row);
+                }
+            }
+        }
+        return records;
     }
 }

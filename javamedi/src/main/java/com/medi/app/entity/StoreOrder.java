@@ -44,11 +44,22 @@ public class StoreOrder {
     private String patientGender;
     private String patientPhone;
     private String diagnosis;
+    private String familyMemberName;
+
+    // Clinical Patient Vitals (OPD Examination)
+    private String patientVitalsBp;
+    private String patientVitalsPulse;
+    private String patientVitalsWeight;
+    private String patientVitalsTemp;
+    private String patientVitalsSpo2;
 
     @Column(length = 1000)
     private String prescriptionNotes;
 
     private String deliveryAddress;
+
+    @Column(columnDefinition = "LONGTEXT")
+    private String prescriptionPhotoUrl;
 
     // Payment details
     @Column(nullable = false)

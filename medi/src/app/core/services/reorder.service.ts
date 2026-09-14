@@ -105,6 +105,64 @@ export class ReorderService {
     return [];
   }
 
+  saveSuppliers(suppliersList: Supplier[]): void {
+    this.suppliers.set(suppliersList);
+    try {
+      localStorage.setItem(this.SUPPLIER_STORAGE, JSON.stringify(suppliersList));
+    } catch (e) {
+      console.error('Failed to save suppliers to localStorage', e);
+    }
+  }
+
+  addSupplier(data: { name: string; contactPerson: string; phone: string; whatsappNumber: string; email: string; gstin?: string; drugLicenseNo?: string; address?: string }): void {
+    const newSupplier: Supplier = {
+      id: 'sup-' + Date.now(),
+      name: data.name,
+      contactPerson: data.contactPerson || data.name,
+      phone: data.phone || data.whatsappNumber,
+      whatsappNumber: data.whatsappNumber || data.phone,
+      email: data.email,
+      gstin: data.gstin || '27AABCM1122D1Z9',
+      drugLicenseNo: data.drugLicenseNo || 'MH-MZ4-20B-10928',
+      address: data.address || 'Local Distributor Market',
+      rating: 4.8,
+      leadTimeDays: 1
+    };
+
+    const updated = [...this.suppliers(), newSupplier];
+    this.saveSuppliers(updated);
+
+    this.api.addSupplier(newSupplier).subscribe({
+      next: (saved) => {
+        if (saved && saved.id) {
+          const mapped = this.suppliers().map(s => s.id === newSupplier.id ? { ...s, id: String(saved.id) } : s);
+          this.saveSuppliers(mapped);
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  updateSupplierDetails(id: string, data: Partial<Supplier>): void {
+    const updated = this.suppliers().map(s => s.id === id ? { ...s, ...data } : s);
+    this.saveSuppliers(updated);
+
+    const target = updated.find(s => s.id === id);
+    if (target) {
+      this.api.updateSupplier(id, target).subscribe({
+        error: () => {}
+      });
+    }
+  }
+
+  deleteSupplier(id: string): void {
+    const updated = this.suppliers().filter(s => s.id !== id);
+    this.saveSuppliers(updated);
+    this.api.deleteSupplier(id).subscribe({
+      error: () => {}
+    });
+  }
+
   private loadOverrides(): Record<string, { customQty: number; supplierId: string; notes: string; approved: boolean }> {
     try {
       const saved = localStorage.getItem(this.REORDER_STORAGE);

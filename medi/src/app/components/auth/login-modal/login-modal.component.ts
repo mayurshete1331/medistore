@@ -28,8 +28,8 @@ export class LoginModalComponent {
 
   roleFilter: 'ALL' | UserRole = 'ALL';
   activeTab: UserRole = 'STORE_OWNER';
-  email = 'owner@medicare.com';
-  password = 'password123';
+  email = '';
+  password = '';
   loginError = '';
 
   selectUser(user: User): void {

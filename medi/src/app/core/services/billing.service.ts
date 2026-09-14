@@ -1,6 +1,7 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
+import { Observable, tap } from 'rxjs';
 import { Batch, Medicine } from '../models/medicine.model';
-import { CartItem, CustomerInfo, Invoice, PaymentMode, SaleUnitType } from '../models/bill.model';
+import { CartItem, CustomerInfo, Invoice, PaymentMode, SaleUnitType, SalesReturnRequest, KhataPaymentRequest, ScheduleH1Record } from '../models/bill.model';
 import { InventoryService } from './inventory.service';
 import { ApiService } from './api.service';
 
@@ -77,7 +78,9 @@ export class BillingService {
               gstRate: item.gstRate,
               taxAmount: item.taxAmount,
               subtotal: item.subtotal,
-              total: item.total
+              total: item.total,
+              isReturned: !!item.isReturned,
+              returnedQuantity: Number(item.returnedQuantity || 0)
             })),
             subtotal: Number(inv.subtotal),
             totalDiscount: Number(inv.totalDiscount),
@@ -91,7 +94,12 @@ export class BillingService {
             paymentMode: inv.paymentMode,
             paymentStatus: inv.paymentStatus,
             hasScheduleH: !!inv.hasScheduleH,
-            dispensedBy: inv.dispensedBy
+            dispensedBy: inv.dispensedBy,
+            isReturned: !!inv.isReturned,
+            returnAmount: Number(inv.returnAmount || 0),
+            returnReason: inv.returnReason,
+            returnTimestamp: inv.returnTimestamp,
+            creditNoteNumber: inv.creditNoteNumber
           }));
           this.invoices.set(mapped);
           this.saveInvoices(mapped);
@@ -269,9 +277,12 @@ export class BillingService {
   private recalculateCartItem(item: CartItem): CartItem {
     const gross = item.quantity * item.unitPrice;
     const discountAmount = (gross * item.discountPercent) / 100;
-    const subtotal = +(gross - discountAmount).toFixed(2);
-    const taxAmount = +((subtotal * item.gstRate) / 100).toFixed(2);
-    const total = +(subtotal + taxAmount).toFixed(2);
+    const total = +(gross - discountAmount).toFixed(2);
+    // Reverse tax calculation for Indian Legal Metrology (MRP is inclusive of GST)
+    const subtotal = item.gstRate > 0
+      ? +((total * 100) / (100 + item.gstRate)).toFixed(2)
+      : total;
+    const taxAmount = +(total - subtotal).toFixed(2);
 
     return {
       ...item,
@@ -320,13 +331,15 @@ export class BillingService {
       dispensedBy: 'Counter 1'
     };
 
-    // Deduct stock from inventory
+    // Deduct stock from inventory with cut-strip dispensing support
     this.cart().forEach(item => {
-      const packsDeducted = item.saleType === 'FULL_PACK'
-        ? item.quantity
-        : +(item.quantity / item.medicine.unitsPerPack).toFixed(2);
-
-      this.inventoryService.deductStock(item.medicine.id, item.selectedBatch.id, packsDeducted);
+      this.inventoryService.deductStock(
+        item.medicine.id,
+        item.selectedBatch.id,
+        item.saleType,
+        item.quantity,
+        item.medicine.unitsPerPack || 1
+      );
     });
 
     // Save invoice
@@ -423,5 +436,21 @@ export class BillingService {
 
       return false;
     });
+  }
+
+  processSalesReturn(req: SalesReturnRequest): Observable<any> {
+    return this.api.processSalesReturn(req).pipe(
+      tap(() => {
+        this.syncInvoicesFromBackend();
+      })
+    );
+  }
+
+  recordKhataPayment(req: KhataPaymentRequest): Observable<any> {
+    return this.api.recordKhataPayment(req);
+  }
+
+  getScheduleH1Register(): Observable<ScheduleH1Record[]> {
+    return this.api.getScheduleH1Register();
   }
 }

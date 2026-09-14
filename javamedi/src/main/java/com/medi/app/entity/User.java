@@ -38,8 +38,13 @@ public class User {
 
     // Customer specific fields
     private String customerAddress;
+    private Double khataBalance;
 
     // Store Owner specific fields
     private Long storeId;
     private String storeName;
+    private String storeAddress;
+    private String storeDlNumber;
+    private String storeGstin;
 }
+

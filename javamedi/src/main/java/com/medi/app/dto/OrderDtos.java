@@ -33,6 +33,13 @@ public class OrderDtos {
         private String patientPhone;
         private String diagnosis;
 
+        // Clinical Vitals
+        private String patientVitalsBp;
+        private String patientVitalsPulse;
+        private String patientVitalsWeight;
+        private String patientVitalsTemp;
+        private String patientVitalsSpo2;
+
         private String prescriptionNotes;
         private String deliveryAddress;
         private String paymentMethod; // COD or ONLINE_PAID
@@ -45,9 +52,11 @@ public class OrderDtos {
         private String storeName;
         private Long customerUserId;
         private String patientName;
+        private String familyMemberName;
         private String customerPhone;
         private String deliveryAddress;
         private String paymentMethod; // COD or ONLINE_PAID
+        private String prescriptionPhotoUrl;
         private List<PrescribedItemDto> items;
     }
 

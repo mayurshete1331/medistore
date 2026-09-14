@@ -28,7 +28,7 @@
     <div class="kpi-card" (click)="stockFilter.set('ALL')">
       <div class="kpi-icon teal">💊</div>
       <div class="kpi-data">
-        <span class="kpi-label">Total SKUs in Master</span>
+        <span class="kpi-label">Total Medicines in Catalog</span>
         <span class="kpi-val tabular">{{ medicines().length }} Items</span>
       </div>
     </div>
@@ -48,7 +48,7 @@
         <span class="kpi-label">Expiring in < 6 Months</span>
         <span class="kpi-val text-danger tabular">{{ expiringBatches().length }} Batches</span>
       </div>
-      <span class="kpi-hint">FEFO Priority</span>
+      <span class="kpi-hint">Dispense First</span>
     </div>
 
     <div class="kpi-card">
@@ -241,13 +241,13 @@
               </tr>
             }
 
-            <!-- Expanded Batches Details (FEFO View) -->
+            <!-- Expanded Batches Details (Batch Expiry View) -->
             @if (expandedMedId() === med.id) {
               <tr class="batches-detail-row">
                 <td colspan="7">
                   <div class="batches-card">
                     <div class="batches-header">
-                      <span class="title">Active Inward Batches (FEFO Prioritized)</span>
+                      <span class="title">Available Batches (Earliest Expiry First)</span>
                     </div>
 
                     <div class="batch-table-wrap">

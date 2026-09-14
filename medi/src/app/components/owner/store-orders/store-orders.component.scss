@@ -8,130 +8,94 @@
   flex-direction: column;
   gap: 1.25rem;
 
-  .page-header {
-    .badge-row {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 0.35rem;
-    }
-
-    .page-title {
-      font-size: 1.6rem;
-      font-weight: 800;
-      color: var(--slate-900);
-      letter-spacing: -0.02em;
-    }
-
-    .page-subtitle {
-      font-size: 0.88rem;
-      color: var(--slate-500);
-      max-width: 800px;
-      margin-top: 0.2rem;
-    }
-  }
-
-  /* KPI Grid */
-  .kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+  .page-header-row {
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     gap: 1rem;
+    background: #ffffff;
+    border: 1px solid var(--slate-200);
+    border-radius: var(--radius-md);
 
-    .kpi-card {
-      background: #ffffff;
-      border: 1px solid var(--slate-200);
-      border-radius: var(--radius-lg);
-      padding: 1rem 1.25rem;
+    .header-title-box {
       display: flex;
       align-items: center;
-      gap: 1rem;
-      cursor: pointer;
-      position: relative;
-      transition: all 0.2s ease;
+      gap: 0.75rem;
 
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-md);
+      .page-title {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: var(--slate-900);
+        margin: 0;
       }
 
-      &.active-filter {
-        border-color: var(--primary-600);
+      .store-tag {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--primary-700);
         background: var(--primary-50);
-      }
-
-      .kpi-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: var(--radius-md);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.35rem;
-
-        &.teal { background: var(--primary-100); }
-        &.amber { background: var(--warning-bg); }
-        &.blue { background: #dbeafe; }
-        &.green { background: #dcfce7; }
-      }
-
-      .kpi-data {
-        display: flex;
-        flex-direction: column;
-
-        .label {
-          font-size: 0.72rem;
-          font-weight: 700;
-          color: var(--slate-500);
-          text-transform: uppercase;
-        }
-
-        .val {
-          font-size: 1.35rem;
-          font-weight: 800;
-          color: var(--slate-900);
-        }
-      }
-
-      .hint {
-        position: absolute;
-        top: 0.75rem;
-        right: 0.75rem;
-        font-size: 0.65rem;
-        background: var(--slate-100);
-        padding: 2px 6px;
-        border-radius: 4px;
-        color: var(--slate-500);
-        font-weight: 600;
+        border: 1px solid var(--primary-200);
+        padding: 2px 8px;
+        border-radius: 999px;
       }
     }
-  }
 
-  /* Filter Toolbar */
-  .filter-toolbar {
-    padding: 0.6rem 1rem;
-
-    .tabs {
+    .tabs-filter-strip {
       display: flex;
-      gap: 0.5rem;
+      align-items: center;
+      gap: 0.4rem;
 
       .tab-btn {
-        padding: 0.45rem 0.9rem;
+        padding: 0.35rem 0.75rem;
         border: 1px solid var(--slate-300);
         background: #ffffff;
         border-radius: var(--radius-full);
-        font-size: 0.8rem;
-        font-weight: 600;
+        font-size: 0.78rem;
+        font-weight: 700;
         color: var(--slate-600);
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
         transition: all 0.15s ease;
 
         &:hover {
           background: var(--slate-100);
+          color: var(--slate-900);
         }
 
         &.active {
           background: var(--slate-900);
           color: #ffffff;
           border-color: var(--slate-900);
+
+          .tab-count {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+          }
+        }
+
+        .tab-count {
+          font-size: 0.68rem;
+          font-weight: 800;
+          background: var(--slate-100);
+          color: var(--slate-600);
+          padding: 1px 5px;
+          border-radius: 10px;
+
+          &.count-warn {
+            background: #fef3c7;
+            color: #b45309;
+          }
+          &.count-info {
+            background: #dbeafe;
+            color: #1d4ed8;
+          }
+          &.count-success {
+            background: #dcfce7;
+            color: #15803d;
+          }
         }
       }
     }

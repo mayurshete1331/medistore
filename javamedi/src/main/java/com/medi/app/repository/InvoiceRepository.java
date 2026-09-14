@@ -19,6 +19,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     List<Invoice> findByCustomerNameContainingIgnoreCaseOrderByTimestampDesc(String customerName);
 
+    List<Invoice> findByHasScheduleHTrueOrderByTimestampDesc();
+
     @Query("SELECT i FROM Invoice i WHERE " +
            "(:cleanDigits <> '' AND LENGTH(:cleanDigits) >= 3 AND " +
            "REPLACE(REPLACE(REPLACE(COALESCE(i.customerPhone, ''), ' ', ''), '-', ''), '+', '') LIKE CONCAT('%', :cleanDigits, '%')) OR " +

@@ -85,4 +85,34 @@ public class BillingDtos {
             return doctorRegNo != null ? doctorRegNo.trim() : "";
         }
     }
+
+    @Data
+    public static class ReturnItemDto {
+        private Long invoiceItemId;
+        private Long medicineId;
+        private String batchNumber;
+        private String saleType; // FULL_PACK or LOOSE_UNIT
+        private Integer returnQuantity;
+        private Double refundAmount;
+    }
+
+    @Data
+    public static class SalesReturnRequest {
+        private String invoiceNumber;
+        private Long invoiceId;
+        private String returnReason;
+        private String refundMode; // CASH, UPI, KHATA_CREDIT
+        private String processedBy;
+        private List<ReturnItemDto> returnedItems;
+    }
+
+    @Data
+    public static class KhataPaymentRequest {
+        private Long customerId;
+        private String customerPhone;
+        private Double paymentAmount;
+        private String paymentMode; // CASH, UPI
+        private String notes;
+        private String receivedBy;
+    }
 }

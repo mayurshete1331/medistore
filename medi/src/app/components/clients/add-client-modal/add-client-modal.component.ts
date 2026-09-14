@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ApiService } from '../../../core/services/api.service';
@@ -11,7 +11,7 @@ import { AuthService } from '../../../core/services/auth.service';
   templateUrl: './add-client-modal.component.html',
   styleUrls: ['./add-client-modal.component.scss']
 })
-export class AddClientModalComponent {
+export class AddClientModalComponent implements OnInit {
   private fb = inject(FormBuilder);
   private api = inject(ApiService);
   private authService = inject(AuthService);
@@ -23,6 +23,10 @@ export class AddClientModalComponent {
   isSubmitting = signal<boolean>(false);
   successMessage = signal<string | null>(null);
   errorMessage = signal<string | null>(null);
+
+  existingClients = signal<any[]>([]);
+  duplicateCustomerName = signal<string | null>(null);
+  duplicateDoctorName = signal<string | null>(null);
 
   get currentStore() {
     return this.authService.selectedStore();
@@ -63,6 +67,46 @@ export class AddClientModalComponent {
     'Dentist'
   ];
 
+  ngOnInit(): void {
+    this.loadStoreClients();
+
+    this.customerForm.get('phone')?.valueChanges.subscribe(val => {
+      const match = this.findDuplicateClient(val);
+      this.duplicateCustomerName.set(match ? match.name : null);
+    });
+
+    this.doctorForm.get('phone')?.valueChanges.subscribe(val => {
+      const match = this.findDuplicateClient(val);
+      this.duplicateDoctorName.set(match ? match.name : null);
+    });
+  }
+
+  loadStoreClients(): void {
+    const storeId = this.currentStore?.id || '1';
+    this.api.getStoreClients(storeId).subscribe({
+      next: (res) => {
+        const combined = [...(res?.customers || []), ...(res?.doctors || [])];
+        this.existingClients.set(combined);
+      },
+      error: () => {}
+    });
+  }
+
+  findDuplicateClient(phone: string): any | null {
+    if (!phone) return null;
+    const cleanDigits = phone.replace(/\D/g, '');
+    if (cleanDigits.length < 10) return null;
+    const last10 = cleanDigits.slice(-10);
+
+    for (const c of this.existingClients()) {
+      const cPhone = (c.phone || '').replace(/\D/g, '');
+      if (cPhone.slice(-10) === last10) {
+        return c;
+      }
+    }
+    return null;
+  }
+
   setTab(tab: 'CUSTOMER' | 'DOCTOR'): void {
     this.activeTab.set(tab);
     this.errorMessage.set(null);
@@ -72,6 +116,13 @@ export class AddClientModalComponent {
   submitCustomer(): void {
     if (this.customerForm.invalid) {
       this.customerForm.markAllAsTouched();
+      return;
+    }
+
+    const phone = this.customerForm.value.phone;
+    const dup = this.findDuplicateClient(phone);
+    if (dup) {
+      this.errorMessage.set(`⚠️ Mobile "${phone}" is already registered to "${dup.name}". Duplicate phone numbers are not permitted.`);
       return;
     }
 
@@ -93,6 +144,12 @@ export class AddClientModalComponent {
       },
       error: (err) => {
         this.isSubmitting.set(false);
+        if (err.status === 409 || err.headers?.get('X-Conflict-Reason') === 'DUPLICATE_PHONE') {
+          const existing = err.error;
+          const existingName = existing?.name || 'an existing customer';
+          this.errorMessage.set(`⚠️ Mobile "${phone}" is already registered to "${existingName}". Duplicate phone numbers are not permitted.`);
+          return;
+        }
         this.errorMessage.set(err.error?.message || 'Failed to register customer. Please try again.');
       }
     });
@@ -101,6 +158,13 @@ export class AddClientModalComponent {
   submitDoctor(): void {
     if (this.doctorForm.invalid) {
       this.doctorForm.markAllAsTouched();
+      return;
+    }
+
+    const phone = this.doctorForm.value.phone;
+    const dup = this.findDuplicateClient(phone);
+    if (dup) {
+      this.errorMessage.set(`⚠️ Mobile "${phone}" is already registered to "${dup.name}". Duplicate phone numbers are not permitted.`);
       return;
     }
 
@@ -122,6 +186,12 @@ export class AddClientModalComponent {
       },
       error: (err) => {
         this.isSubmitting.set(false);
+        if (err.status === 409 || err.headers?.get('X-Conflict-Reason') === 'DUPLICATE_PHONE') {
+          const existing = err.error;
+          const existingName = existing?.name || 'an existing person';
+          this.errorMessage.set(`⚠️ Mobile "${phone}" is already registered to "${existingName}". Duplicate phone numbers are not permitted.`);
+          return;
+        }
         this.errorMessage.set(err.error?.message || 'Failed to affiliate doctor. Please try again.');
       }
     });

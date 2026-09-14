@@ -131,4 +131,20 @@ export class AuthService {
       this.selectedStore.set(store);
     }
   }
+
+  updateUserProfile(updatedData: Partial<User>): void {
+    const user = this.currentUser();
+    if (!user) return;
+    const updated: User = { ...user, ...updatedData };
+    this.currentUser.set(updated);
+    try {
+      localStorage.setItem(this.USER_STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to update user in localStorage', e);
+    }
+
+    this.api.updateProfile(updatedData).subscribe({
+      error: () => {}
+    });
+  }
 }

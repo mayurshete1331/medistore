@@ -35,4 +35,6 @@ public class StoreAffiliation {
     private String addedBy; // Name of store owner or staff who added them
 
     private String notes;
+
+    private Double outstandingKhataBalance;
 }

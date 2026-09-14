@@ -21,6 +21,7 @@ export interface VerifiedCustomer {
   address?: string;
   isRegistered: boolean;
   pastBillsCount?: number;
+  khataBalance?: number;
 }
 
 @Component({
@@ -52,6 +53,31 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   showAddMedicineModal = signal(false);
   prefillMedicineName = signal('');
 
+  // Khata Settlement Modal State
+  showKhataSettlementModal = signal(false);
+  khataSettlementCustomer = signal<VerifiedCustomer | null>(null);
+  khataPaymentAmount = signal<number>(0);
+  khataPaymentMode = signal<'CASH' | 'UPI'>('CASH');
+  khataNotes = signal('');
+  isSettlingKhata = signal(false);
+  khataSuccessMsg = signal<string | null>(null);
+
+  // Salt / Generic Alternative Substitute Finder State
+  showSaltSubstituteModal = signal(false);
+  saltSubstituteTargetItem = signal<CartItem | null>(null);
+  saltAlternatives = signal<{ medicine: Medicine; batch: Batch; savings: number; packPrice: number; loosePrice: number }[]>([]);
+
+  // Sales Returns Modal State
+  showSalesReturnModal = signal(false);
+  returnInvoiceNumber = signal('');
+  isLookingUpReturnInvoice = signal(false);
+  returnInvoice = signal<Invoice | null>(null);
+  returnItemsMap = signal<{ [itemId: string]: { selected: boolean; returnQty: number; maxQty: number; unitPrice: number; totalRefund: number } }>({});
+  returnReason = signal('Customer Return');
+  returnRefundMode = signal<'CASH' | 'UPI' | 'KHATA_CREDIT'>('CASH');
+  isProcessingReturn = signal(false);
+  returnSuccessMessage = signal<string | null>(null);
+
   // Customer Verification & Directory State
   storeClients = signal<any[]>([]);
   customerSearchQuery = signal('');
@@ -82,6 +108,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   customerPhone = signal('');
   doctorName = signal('');
   doctorRegNo = signal('');
+  showDoctorFields = signal(false);
 
   medicines = this.inventoryService.medicines;
   cart = this.billingService.cart;
@@ -150,9 +177,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       switchMap((query) => {
         const q = (query || '').trim();
         const cleanDigits = q.replace(/\D/g, '');
-        // If numeric search, do not search until 10 digits are typed for exact match
-        const isNumeric = cleanDigits.length > 0 && cleanDigits === q.replace(/[\s\-\+]/g, '');
-        if ((isNumeric && cleanDigits.length < 10) || (!isNumeric && q.length < 2)) {
+        // Allow searching by 3+ digits for phone or 2+ letters for name
+        if (q.length < 2) {
           this.isSearchingCustomer.set(false);
           this.backendCustomerResults.set([]);
           return of([]);
@@ -174,7 +200,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         email: r.email || '',
         address: r.address || r.customerAddress || '',
         isRegistered: r.isRegistered ?? true,
-        pastBillsCount: r.pastBillsCount ?? (r.pastBills ? r.pastBills.length : 0)
+        pastBillsCount: r.pastBillsCount ?? (r.pastBills ? r.pastBills.length : 0),
+        khataBalance: Number(r.khataBalance || r.outstandingKhataBalance || 0)
       }));
 
       // Also merge any store clients matching EXACT criteria
@@ -195,12 +222,24 @@ export class PosScreenComponent implements OnInit, OnDestroy {
             email: client.email,
             address: client.customerAddress || client.address,
             isRegistered: true,
-            pastBillsCount: 0
+            pastBillsCount: 0,
+            khataBalance: Number(client.outstandingKhataBalance || client.khataBalance || 0)
           });
         }
       }
 
       this.backendCustomerResults.set(mapped);
+
+      // Instant Zero-Click Recognition: If 10 digits searched, auto-attach exact phone match and show name
+      if (cleanDigits.length >= 10 && !this.selectedCustomer()) {
+        const exact = mapped.find(m => (m.phone || '').replace(/\D/g, '').slice(-10) === cleanDigits.slice(-10));
+        if (exact) {
+          this.selectCustomer(exact);
+          this.showToast(`✓ Phone recognized: Customer "${exact.name}" auto-attached!`);
+          return;
+        }
+      }
+
       if (this.customerSearchQuery().trim().length >= 2) {
         this.showCustomerDropdown.set(true);
       }
@@ -262,6 +301,72 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Find customer by 10-digit phone across store directory, search results, and billing history
+  findCustomerByPhone(phone: string): VerifiedCustomer | null {
+    if (!phone) return null;
+    const cleanDigits = phone.replace(/\D/g, '');
+    if (cleanDigits.length < 10) return null;
+    const last10 = cleanDigits.slice(-10);
+
+    // 1. Check loaded storeClients
+    for (const client of this.storeClients()) {
+      const cPhone = (client.phone || '').replace(/\D/g, '');
+      const cLast10 = cPhone.slice(-10);
+      if (cLast10 && cLast10 === last10) {
+        return {
+          id: String(client.id || client.userId || ''),
+          name: client.name,
+          phone: client.phone,
+          email: client.email,
+          address: client.customerAddress || client.address,
+          isRegistered: true,
+          pastBillsCount: client.pastBillsCount || 0,
+          khataBalance: Number(client.outstandingKhataBalance || client.khataBalance || 0)
+        };
+      }
+    }
+
+    // 2. Check backend customer search results
+    for (const cust of this.backendCustomerResults()) {
+      const cPhone = (cust.phone || '').replace(/\D/g, '');
+      const cLast10 = cPhone.slice(-10);
+      if (cLast10 && cLast10 === last10) {
+        return cust;
+      }
+    }
+
+    // 3. Check local billingService invoice history
+    const invoices = this.billingService.invoices();
+    for (const inv of invoices) {
+      const invPhone = (inv.customer?.phone || (inv as any).customerPhone || '').replace(/\D/g, '');
+      const invLast10 = invPhone.slice(-10);
+      const custName = inv.customer?.name || (inv as any).customerName || '';
+      if (invLast10 && invLast10 === last10 && custName && !custName.toLowerCase().includes('walk-in')) {
+        return {
+          id: '',
+          name: custName,
+          phone: inv.customer?.phone || (inv as any).customerPhone || '',
+          isRegistered: false,
+          pastBillsCount: 1,
+          khataBalance: 0
+        };
+      }
+    }
+
+    return null;
+  }
+
+  // Real-time duplicate phone check when registering new customer
+  duplicateNewCustomer = computed(() => {
+    return this.findCustomerByPhone(this.newCustomerPhone());
+  });
+
+  // Real-time duplicate phone check on counter strip before attachment
+  duplicateCounterCustomer = computed(() => {
+    if (this.selectedCustomer()) return null;
+    return this.findCustomerByPhone(this.customerPhone());
+  });
+
   // Real-time Customer Search Results
   customerSearchResults = computed(() => {
     return this.backendCustomerResults();
@@ -272,11 +377,21 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     return this.customerPastInvoices().reduce((sum, inv) => sum + (inv.grandTotal || 0), 0);
   });
 
-  // Whether current typed customer can be saved to DB & attached
+  // Whether current typed customer can be saved to DB & attached (strictly blocked if phone already exists)
   canSaveCurrentCustomer = computed(() => {
     if (this.selectedCustomer()) return false;
+    if (this.duplicateCounterCustomer()) return false;
     const digits = this.customerPhone().replace(/\D/g, '');
     return digits.length >= 10 && this.customerName().trim().length > 0;
+  });
+
+  // Block new customer registration if phone is duplicate or invalid
+  canRegisterNewCustomer = computed(() => {
+    if (this.isRegistering()) return false;
+    if (this.duplicateNewCustomer()) return false;
+    const name = this.newCustomerName().trim();
+    const digits = this.newCustomerPhone().replace(/\D/g, '');
+    return name.length > 0 && digits.length >= 10;
   });
 
   // Search Results for Medicines combining DB query results and active inventory
@@ -370,7 +485,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       this.onSelectMedicine(newMed, newMed.batches[0]);
       this.showToast(`✅ Added "${newMed.brandName}" to active bill!`);
     } else {
-      this.showToast(`✅ "${newMed.brandName}" registered in Database!`);
+      this.showToast(`✅ "${newMed.brandName}" added to inventory!`);
     }
   }
 
@@ -403,16 +518,31 @@ export class PosScreenComponent implements OnInit, OnDestroy {
 
   onCustomerNameInput(name: string): void {
     this.customerName.set(name);
+    if (!this.selectedCustomer() && name.trim().length >= 2) {
+      this.customerSearchQuery.set(name.trim());
+      this.showCustomerDropdown.set(true);
+      this.customerSearchSubject.next(name.trim());
+    }
   }
 
   onCustomerPhoneInput(phone: string): void {
     this.customerPhone.set(phone);
     const digits = phone.replace(/\D/g, '');
-    // Exact match trigger: when full 10-digit number is typed
-    if (!this.selectedCustomer() && digits.length === 10) {
-      this.customerSearchQuery.set(phone);
+
+    // Instant Zero-Click Recognition if 10 digits match existing customer
+    if (digits.length >= 10) {
+      const match = this.findCustomerByPhone(phone);
+      if (match) {
+        this.selectCustomer(match);
+        this.showToast(`✓ Phone recognized: Customer "${match.name}" auto-attached!`);
+        return;
+      }
+    }
+
+    if (!this.selectedCustomer() && (digits.length >= 3 || phone.trim().length >= 2)) {
+      this.customerSearchQuery.set(phone.trim());
       this.showCustomerDropdown.set(true);
-      this.customerSearchSubject.next(phone);
+      this.customerSearchSubject.next(phone.trim());
     }
   }
 
@@ -427,6 +557,14 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     }
     if (digits.length < 10) {
       this.showToast('⚠️ Please enter a valid 10-digit mobile number');
+      return;
+    }
+
+    // Do not permit duplicate phone numbers
+    const duplicate = this.findCustomerByPhone(phone);
+    if (duplicate) {
+      this.showToast(`⚠️ Mobile ${phone} is already registered to "${duplicate.name}". Duplicate phone numbers are not permitted.`);
+      this.selectCustomer(duplicate);
       return;
     }
 
@@ -450,10 +588,27 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         };
         this.storeClients.update(list => [created, ...list]);
         this.selectCustomer(created);
-        this.showToast(`✅ Customer "${name}" registered in Database & attached!`);
+        this.showToast(`✅ Customer "${name}" registered & attached to bill!`);
       },
-      error: () => {
+      error: (err) => {
         this.isRegistering.set(false);
+        if (err.status === 409 || err.headers?.get('X-Conflict-Reason') === 'DUPLICATE_PHONE') {
+          const existing = err.error;
+          const existingName = existing?.name || 'an existing customer';
+          this.showToast(`⚠️ Mobile ${phone} is already registered to "${existingName}". Duplicate phone numbers are not permitted.`);
+          if (existing) {
+            this.selectCustomer({
+              id: String(existing.id || ''),
+              name: existing.name,
+              phone: existing.phone || phone,
+              email: existing.email,
+              address: existing.customerAddress || existing.address,
+              isRegistered: true,
+              pastBillsCount: 0
+            });
+          }
+          return;
+        }
         const created: VerifiedCustomer = {
           name,
           phone,
@@ -545,6 +700,14 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Do not permit duplicate phone numbers
+    const duplicate = this.findCustomerByPhone(phone);
+    if (duplicate) {
+      this.showToast(`⚠️ Mobile ${phone} is already registered to "${duplicate.name}". Duplicate phone numbers are not permitted.`);
+      this.selectCustomer(duplicate);
+      return;
+    }
+
     this.isRegistering.set(true);
     const storeId = this.authService.currentUser()?.storeId || '1';
 
@@ -570,8 +733,25 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         this.selectCustomer(created);
         this.showToast(`✅ Customer ${name} registered & attached to bill!`);
       },
-      error: () => {
+      error: (err) => {
         this.isRegistering.set(false);
+        if (err.status === 409 || err.headers?.get('X-Conflict-Reason') === 'DUPLICATE_PHONE') {
+          const existing = err.error;
+          const existingName = existing?.name || 'an existing customer';
+          this.showToast(`⚠️ Mobile ${phone} is already registered to "${existingName}". Duplicate phone numbers are not permitted.`);
+          if (existing) {
+            this.selectCustomer({
+              id: String(existing.id || ''),
+              name: existing.name,
+              phone: existing.phone || phone,
+              email: existing.email,
+              address: existing.customerAddress || existing.address,
+              isRegistered: true,
+              pastBillsCount: 0
+            });
+          }
+          return;
+        }
         // Resilient fallback: attach to bill even if backend is offline
         const created: VerifiedCustomer = {
           name,
@@ -786,5 +966,263 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     } catch (err: any) {
       this.showToast('⛔ Billing Failed: ' + (err.message || 'Compliance Violation'));
     }
+  }
+
+  // ==========================================
+  // Near Expiry Warning Helper (<60 days)
+  // ==========================================
+  isNearExpiry(dateStr?: string): boolean {
+    if (!dateStr) return false;
+    try {
+      const parts = dateStr.split('-');
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parts.length > 2 ? parseInt(parts[2], 10) : 28;
+      const exp = new Date(year, month, day);
+      const now = new Date();
+      const diffDays = Math.round((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays <= 60 && diffDays >= 0;
+    } catch {
+      return false;
+    }
+  }
+
+  // ==========================================
+  // Khata Settlement & WhatsApp Reminders
+  // ==========================================
+  openKhataSettlement(cust: VerifiedCustomer): void {
+    this.khataSettlementCustomer.set(cust);
+    this.khataPaymentAmount.set(cust.khataBalance || 0);
+    this.khataPaymentMode.set('CASH');
+    this.khataNotes.set('');
+    this.khataSuccessMsg.set(null);
+    this.showKhataSettlementModal.set(true);
+  }
+
+  submitKhataSettlement(): void {
+    const cust = this.khataSettlementCustomer();
+    if (!cust || this.khataPaymentAmount() <= 0) return;
+    this.isSettlingKhata.set(true);
+
+    const custIdNum = cust.id ? parseInt(cust.id.replace(/\D/g, ''), 10) || null : null;
+    this.billingService.recordKhataPayment({
+      customerId: custIdNum || undefined,
+      customerPhone: cust.phone,
+      paymentAmount: this.khataPaymentAmount(),
+      paymentMode: this.khataPaymentMode(),
+      notes: this.khataNotes(),
+      receivedBy: 'Counter 1'
+    }).subscribe({
+      next: (res: any) => {
+        this.isSettlingKhata.set(false);
+        const newBal = res?.newBalance ?? Math.max(0, (cust.khataBalance || 0) - this.khataPaymentAmount());
+        cust.khataBalance = newBal;
+        if (this.selectedCustomer()?.phone === cust.phone) {
+          this.selectedCustomer.set({ ...cust, khataBalance: newBal });
+        }
+        this.khataSuccessMsg.set(`Payment of ₹${this.khataPaymentAmount()} recorded! Remaining: ₹${newBal}`);
+        setTimeout(() => {
+          this.showKhataSettlementModal.set(false);
+        }, 1500);
+      },
+      error: () => {
+        this.isSettlingKhata.set(false);
+        cust.khataBalance = Math.max(0, (cust.khataBalance || 0) - this.khataPaymentAmount());
+        this.khataSuccessMsg.set(`Recorded offline. Remaining Khata: ₹${cust.khataBalance}`);
+        setTimeout(() => {
+          this.showKhataSettlementModal.set(false);
+        }, 1500);
+      }
+    });
+  }
+
+  getKhataWhatsAppReminderUrl(cust: VerifiedCustomer): string {
+    const cleanPhone = (cust.phone || '').replace(/\D/g, '');
+    const phoneWithCode = cleanPhone.startsWith('91') ? cleanPhone : ('91' + cleanPhone);
+    const store = this.authService.selectedStore()?.name || 'MediCare Pharmacy';
+    const text = `Hello ${cust.name}, this is a gentle reminder from ${store} regarding your outstanding credit (Khata) balance of ₹${cust.khataBalance || 0}. Please settle at your convenience. Thank you!`;
+    return `https://wa.me/${phoneWithCode}?text=${encodeURIComponent(text)}`;
+  }
+
+  // ==========================================
+  // Generic / Salt Substitute Finder
+  // ==========================================
+  openSaltSubstitutes(item: CartItem): void {
+    this.saltSubstituteTargetItem.set(item);
+    const gen = (item.medicine.genericName || '').trim().toLowerCase();
+    if (!gen) {
+      this.saltAlternatives.set([]);
+      this.showSaltSubstituteModal.set(true);
+      return;
+    }
+
+    const currentPrice = item.unitPrice;
+    const matches: { medicine: Medicine; batch: Batch; savings: number; packPrice: number; loosePrice: number }[] = [];
+
+    for (const m of this.inventoryService.medicines()) {
+      if (m.id === item.medicine.id) continue;
+      const mGen = (m.genericName || '').trim().toLowerCase();
+      if (mGen && (mGen.includes(gen) || gen.includes(mGen))) {
+        const batch = (m.batches || []).find(b => b.stockPacks > 0) || m.batches?.[0];
+        if (batch) {
+          const packPrice = batch.salePrice || batch.mrp || 0;
+          const upp = m.unitsPerPack && m.unitsPerPack > 1 ? m.unitsPerPack : 1;
+          const loosePrice = +(packPrice / upp).toFixed(2);
+          const effectivePrice = item.saleType === 'LOOSE_UNIT' ? loosePrice : packPrice;
+          const savings = +(currentPrice - effectivePrice).toFixed(2);
+          matches.push({ medicine: m, batch, savings, packPrice, loosePrice });
+        }
+      }
+    }
+
+    matches.sort((a, b) => b.savings - a.savings);
+    this.saltAlternatives.set(matches);
+    this.showSaltSubstituteModal.set(true);
+  }
+
+  replaceItemWithSubstitute(alt: { medicine: Medicine; batch: Batch }): void {
+    const orig = this.saltSubstituteTargetItem();
+    if (!orig) return;
+    this.billingService.removeFromCart(orig.id);
+    this.billingService.addToCart(alt.medicine, alt.batch, orig.saleType, orig.quantity);
+    this.showSaltSubstituteModal.set(false);
+    this.showToast(`Substituted with ${alt.medicine.brandName} (Saved ₹${orig.unitPrice - (alt.batch.salePrice || alt.batch.mrp || 0)}/unit)`);
+  }
+
+  // ==========================================
+  // Sales Returns & Refunds
+  // ==========================================
+  openSalesReturnModal(): void {
+    this.returnInvoiceNumber.set('');
+    this.returnInvoice.set(null);
+    this.returnItemsMap.set({});
+    this.returnReason.set('Customer Return');
+    this.returnRefundMode.set('CASH');
+    this.returnSuccessMessage.set(null);
+    this.showSalesReturnModal.set(true);
+  }
+
+  lookupReturnInvoice(): void {
+    const invNum = this.returnInvoiceNumber().trim();
+    if (!invNum) return;
+    this.isLookingUpReturnInvoice.set(true);
+
+    const found = this.billingService.invoices().find(i => i.invoiceNumber.toLowerCase() === invNum.toLowerCase());
+    if (found) {
+      this.populateReturnInvoice(found);
+      this.isLookingUpReturnInvoice.set(false);
+      return;
+    }
+
+    this.apiService.getInvoiceByNumber(invNum).subscribe({
+      next: (res: any) => {
+        this.isLookingUpReturnInvoice.set(false);
+        if (res && res.invoiceNumber) {
+          this.populateReturnInvoice(res);
+        } else {
+          this.showToast('Invoice not found: ' + invNum);
+        }
+      },
+      error: () => {
+        this.isLookingUpReturnInvoice.set(false);
+        this.showToast('Invoice not found: ' + invNum);
+      }
+    });
+  }
+
+  private populateReturnInvoice(inv: any): void {
+    this.returnInvoice.set(inv);
+    const map: { [itemId: string]: { selected: boolean; returnQty: number; maxQty: number; unitPrice: number; totalRefund: number } } = {};
+    for (const item of (inv.items || [])) {
+      const id = String(item.id || item.medicineId);
+      const alreadyReturned = Number(item.returnedQuantity || 0);
+      const max = Math.max(0, item.quantity - alreadyReturned);
+      map[id] = {
+        selected: false,
+        returnQty: max > 0 ? 1 : 0,
+        maxQty: max,
+        unitPrice: Number(item.unitPrice || 0),
+        totalRefund: Number(item.unitPrice || 0)
+      };
+    }
+    this.returnItemsMap.set(map);
+  }
+
+  toggleReturnItemSelection(itemId: string): void {
+    const map = { ...this.returnItemsMap() };
+    if (map[itemId]) {
+      map[itemId].selected = !map[itemId].selected;
+      this.returnItemsMap.set(map);
+    }
+  }
+
+  updateReturnItemQty(itemId: string, newQty: number): void {
+    const map = { ...this.returnItemsMap() };
+    if (map[itemId]) {
+      const q = Math.max(1, Math.min(newQty, map[itemId].maxQty));
+      map[itemId].returnQty = q;
+      map[itemId].totalRefund = +(q * map[itemId].unitPrice).toFixed(2);
+      this.returnItemsMap.set(map);
+    }
+  }
+
+  get returnTotalRefundAmount(): number {
+    const map = this.returnItemsMap();
+    return Object.keys(map).reduce((sum, k) => {
+      return map[k].selected ? sum + map[k].totalRefund : sum;
+    }, 0);
+  }
+
+  submitSalesReturn(): void {
+    const inv = this.returnInvoice();
+    if (!inv) return;
+    const map = this.returnItemsMap();
+    const selectedItemIds = Object.keys(map).filter(k => map[k].selected && map[k].returnQty > 0);
+
+    if (selectedItemIds.length === 0) {
+      alert('Please select at least one item to return.');
+      return;
+    }
+
+    this.isProcessingReturn.set(true);
+
+    const returnedItems = selectedItemIds.map(k => {
+      const origItem = (inv.items || []).find((i: any) => String(i.id) === k);
+      const medIdNum = parseInt(String(origItem?.medicine?.id || '').replace(/\D/g, ''), 10) || undefined;
+      const itemIdNum = parseInt(String(origItem?.id || '').replace(/\D/g, ''), 10) || undefined;
+      return {
+        invoiceItemId: itemIdNum,
+        medicineId: medIdNum,
+        batchNumber: origItem?.selectedBatch?.batchNumber || 'N/A',
+        saleType: origItem?.saleType || 'FULL_PACK',
+        returnQuantity: map[k].returnQty,
+        refundAmount: map[k].totalRefund
+      };
+    });
+
+    const returnReq: any = {
+      invoiceNumber: inv.invoiceNumber,
+      returnReason: this.returnReason(),
+      refundMode: this.returnRefundMode(),
+      processedBy: 'Counter 1',
+      returnedItems
+    };
+
+    this.billingService.processSalesReturn(returnReq).subscribe({
+      next: (res: any) => {
+        this.isProcessingReturn.set(false);
+        this.returnSuccessMessage.set(`Return processed! Credit Note: ${res?.creditNoteNumber || 'Generated'}. Refund of ₹${this.returnTotalRefundAmount} issued via ${this.returnRefundMode()}. Stock replenished.`);
+        setTimeout(() => {
+          this.showSalesReturnModal.set(false);
+        }, 2000);
+      },
+      error: () => {
+        this.isProcessingReturn.set(false);
+        this.returnSuccessMessage.set(`Return processed locally! Refund of ₹${this.returnTotalRefundAmount} recorded.`);
+        setTimeout(() => {
+          this.showSalesReturnModal.set(false);
+        }, 2000);
+      }
+    });
   }
 }

@@ -58,9 +58,31 @@ public class StoreClientController {
         String addedBy = req.get("addedBy") != null ? req.get("addedBy").trim() : "Store Owner";
         String notes = req.get("notes");
 
-        User user = (phone != null && !phone.isEmpty())
-                ? userRepository.findByPhone(phone).orElseGet(() -> userRepository.findByEmail(email).orElse(null))
-                : userRepository.findByEmail(email).orElse(null);
+        // Strict Duplicate Phone Prevention: Check if phone already belongs to any registered person
+        if (phone != null && !phone.trim().isEmpty()) {
+            String cleanDigits = phone.replaceAll("\\D", "");
+            if (cleanDigits.length() >= 10) {
+                String last10 = cleanDigits.substring(cleanDigits.length() - 10);
+                List<User> matchedUsers = userRepository.searchCustomers("", last10);
+                for (User existing : matchedUsers) {
+                    String existingPhoneDigits = existing.getPhone() != null ? existing.getPhone().replaceAll("\\D", "") : "";
+                    String existingLast10 = existingPhoneDigits.length() >= 10 
+                            ? existingPhoneDigits.substring(existingPhoneDigits.length() - 10) 
+                            : existingPhoneDigits;
+                    if (last10.equals(existingLast10)) {
+                        // Phone is already registered to this person - do not permit duplicate phone
+                        return ResponseEntity.status(HttpStatus.CONFLICT)
+                                .header("X-Conflict-Reason", "DUPLICATE_PHONE")
+                                .body(existing);
+                    }
+                }
+            }
+        }
+
+        User user = null;
+        if (email != null && !email.isEmpty()) {
+            user = userRepository.findByEmail(email).orElse(null);
+        }
 
         if (user == null) {
             user = User.builder()
@@ -128,6 +150,26 @@ public class StoreClientController {
         String clinicAddress = req.get("clinicAddress") != null ? req.get("clinicAddress").trim() : "";
         String addedBy = req.get("addedBy") != null ? req.get("addedBy").trim() : "Store Owner";
         String notes = req.get("notes");
+
+        // Strict Duplicate Phone Prevention
+        if (!phone.isEmpty()) {
+            String cleanDigits = phone.replaceAll("\\D", "");
+            if (cleanDigits.length() >= 10) {
+                String last10 = cleanDigits.substring(cleanDigits.length() - 10);
+                List<User> matchedUsers = userRepository.searchCustomers("", last10);
+                for (User existing : matchedUsers) {
+                    String existingPhoneDigits = existing.getPhone() != null ? existing.getPhone().replaceAll("\\D", "") : "";
+                    String existingLast10 = existingPhoneDigits.length() >= 10 
+                            ? existingPhoneDigits.substring(existingPhoneDigits.length() - 10) 
+                            : existingPhoneDigits;
+                    if (last10.equals(existingLast10)) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT)
+                                .header("X-Conflict-Reason", "DUPLICATE_PHONE")
+                                .body(existing);
+                    }
+                }
+            }
+        }
 
         User user = userRepository.findByEmail(email).orElseGet(() -> {
             User newUser = User.builder()

@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: javamedi
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 25MB
+      max-request-size: 30MB
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+# Base JWT Configuration (HS512 Key)
+jwt:
+  secret: ${JWT_SECRET:2k9GqvR3TNiQ6enPkKlLgLmEBqehwd4OJKJc7gn5kFD8GskSWg//tJZ2q8qot8WpqwLqTbY/QN62fiTqXYYJIg==}
+  expiration: 86400000 # 24 hours
+  refresh:
+    expiration: 2592000000 # 30 days
+
+# Application Notifications & Business Config
+app:
+  gst:
+    rate: 0.18
+  notifications:
+    email:
+      enabled: false
+      admin: ${ADMIN_EMAIL:admin@medicare.com}
+
+# Swagger / OpenAPI documentation path
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method
+  api-docs:
+    path: /v3/api-docs

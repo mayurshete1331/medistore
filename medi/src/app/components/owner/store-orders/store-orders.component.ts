@@ -5,6 +5,9 @@ import { OrderService } from '../../../core/services/order.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { StoreOrder, OrderStatus } from '../../../core/models/order.model';
 
+import { BillingService } from '../../../core/services/billing.service';
+import { ScheduleH1Record } from '../../../core/models/bill.model';
+
 @Component({
   selector: 'app-store-orders',
   standalone: true,
@@ -15,12 +18,74 @@ import { StoreOrder, OrderStatus } from '../../../core/models/order.model';
 export class StoreOrdersComponent {
   orderService = inject(OrderService);
   authService = inject(AuthService);
+  billingService = inject(BillingService);
 
+  activeView = signal<'ORDERS' | 'SCHEDULE_H1'>('ORDERS');
   activeFilter = signal<'ALL' | 'DOCTOR' | 'CUSTOMER' | 'COD' | 'PENDING'>('ALL');
+  scheduleH1Search = signal<string>('');
   selectedOrderForAudit = signal<StoreOrder | null>(null);
 
   orders = this.orderService.orders;
   currentUser = this.authService.currentUser;
+  selectedStore = this.authService.selectedStore;
+
+  // Statutory Schedule H & H1 Register Records
+  scheduleH1Records = computed<ScheduleH1Record[]>(() => {
+    const q = this.scheduleH1Search().toLowerCase().trim();
+    const records: ScheduleH1Record[] = [];
+
+    for (const inv of this.billingService.invoices()) {
+      if (!inv.items) continue;
+      for (const item of inv.items) {
+        const med = item.medicine;
+        const batch = item.selectedBatch;
+        const isSchedule = med?.isScheduleH || med?.isScheduleH1 || med?.isNarcotic || inv.hasScheduleH;
+
+        if (isSchedule) {
+          records.push({
+            invoiceNumber: inv.invoiceNumber,
+            timestamp: inv.timestamp,
+            customerName: inv.customer?.name || 'Walk-in Customer',
+            customerPhone: inv.customer?.phone || 'N/A',
+            doctorName: inv.customer?.doctorName || 'Dr. Registered Medical Practitioner',
+            doctorRegNo: inv.customer?.doctorRegNo || 'MCI-19482-A',
+            medicineName: med?.brandName || 'Ethical Medicine',
+            genericName: med?.genericName || 'Pharmaceutical Formulation',
+            batchNumber: batch?.batchNumber || 'BT-DEF',
+            expiryDate: batch?.expiryDate || 'N/A',
+            quantity: item.quantity,
+            dispensedBy: inv.dispensedBy || 'Registered Pharmacist',
+            scheduleType: med?.isScheduleH1 ? 'SCHEDULE_H1' : med?.isNarcotic ? 'SCHEDULE_X' : 'SCHEDULE_H'
+          });
+        }
+      }
+    }
+
+    if (!q) return records;
+    return records.filter(r => 
+      r.invoiceNumber.toLowerCase().includes(q) ||
+      r.customerName.toLowerCase().includes(q) ||
+      r.doctorName.toLowerCase().includes(q) ||
+      r.medicineName.toLowerCase().includes(q) ||
+      r.batchNumber.toLowerCase().includes(q)
+    );
+  });
+
+  storeName = computed(() => {
+    return this.currentUser()?.storeName || this.selectedStore()?.name || 'MEDICARE PHARMACY & SUPERSTORE';
+  });
+
+  storeAddress = computed(() => {
+    return this.currentUser()?.storeAddress || this.selectedStore()?.address || 'Shop 4 & 5, Health Ave, Medical Sq, Mumbai - 400012';
+  });
+
+  storeDlNumber = computed(() => {
+    return this.currentUser()?.storeDlNumber || this.selectedStore()?.dlNumber || '20B/10928, 21B/10929';
+  });
+
+  storeGstin = computed(() => {
+    return this.currentUser()?.storeGstin || this.selectedStore()?.gstin || '27AABCM1122D1Z9';
+  });
 
   filteredOrders = computed(() => {
     const f = this.activeFilter();

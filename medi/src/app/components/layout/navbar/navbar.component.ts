@@ -8,13 +8,14 @@ import { AuthService } from '../../../core/services/auth.service';
 import { OrderService } from '../../../core/services/order.service';
 import { ReorderService } from '../../../core/services/reorder.service';
 import { ApiService } from '../../../core/services/api.service';
+import { FormsModule } from '@angular/forms';
 import { AddClientModalComponent } from '../../clients/add-client-modal/add-client-modal.component';
 import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive, AddClientModalComponent],
+  imports: [CommonModule, RouterLink, RouterLinkActive, FormsModule, AddClientModalComponent],
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.scss']
 })
@@ -31,6 +32,53 @@ export class NavbarComponent {
   showAddClientModal = signal(false);
   isProfileOpen = signal(false);
   isCollapsed = signal<boolean>(typeof window !== 'undefined' && localStorage.getItem('medi_sidebar_collapsed') === 'true');
+
+  showProfileModal = signal(false);
+  profileForm = {
+    name: '',
+    email: '',
+    phone: '',
+    storeName: '',
+    storeAddress: '',
+    storeDlNumber: '',
+    storeGstin: ''
+  };
+
+  openEditProfileModal(): void {
+    const user = this.currentUser();
+    this.profileForm = {
+      name: user?.name || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      storeName: user?.storeName || '',
+      storeAddress: user?.storeAddress || '',
+      storeDlNumber: user?.storeDlNumber || '',
+      storeGstin: user?.storeGstin || ''
+    };
+    this.isProfileOpen.set(false);
+    this.showProfileModal.set(true);
+  }
+
+  closeProfileModal(): void {
+    this.showProfileModal.set(false);
+  }
+
+  saveProfile(): void {
+    if (!this.profileForm.name.trim()) {
+      alert('Name cannot be empty');
+      return;
+    }
+    this.authService.updateUserProfile({
+      name: this.profileForm.name.trim(),
+      email: this.profileForm.email.trim(),
+      phone: this.profileForm.phone.trim(),
+      storeName: this.profileForm.storeName.trim(),
+      storeAddress: this.profileForm.storeAddress.trim(),
+      storeDlNumber: this.profileForm.storeDlNumber.trim(),
+      storeGstin: this.profileForm.storeGstin.trim()
+    });
+    this.closeProfileModal();
+  }
 
   toggleCollapse(): void {
     this.isCollapsed.update(v => !v);

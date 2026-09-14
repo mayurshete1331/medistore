@@ -113,20 +113,52 @@ public class InventoryService {
 
     @Transactional
     public void deductStock(Long batchId, Integer packsToDeduct) {
+        deductStock(batchId, "FULL_PACK", packsToDeduct, 1);
+    }
+
+    @Transactional
+    public void deductStock(Long batchId, String saleType, Integer quantity, Integer unitsPerPack) {
         Batch batch = batchRepository.findById(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Batch not found with ID: " + batchId));
 
         if (batch.getVersion() == null) {
             batch.setVersion(0L);
         }
-
-        if (batch.getStockPacks() < packsToDeduct) {
-            throw new InsufficientStockException("Insufficient stock in batch " + batch.getBatchNumber() + 
-                    ". Requested: " + packsToDeduct + ", Available: " + batch.getStockPacks());
+        if (batch.getLooseUnits() == null) {
+            batch.setLooseUnits(0);
         }
 
-        int newStock = Math.max(0, batch.getStockPacks() - packsToDeduct);
-        batch.setStockPacks(newStock);
+        int upp = (unitsPerPack != null && unitsPerPack > 1) ? unitsPerPack : 1;
+        int qty = (quantity != null && quantity > 0) ? quantity : 1;
+
+        if ("LOOSE_TABLETS".equalsIgnoreCase(saleType) || "UNIT".equalsIgnoreCase(saleType)) {
+            if (upp <= 1) {
+                if (batch.getStockPacks() < qty) {
+                    throw new InsufficientStockException("Insufficient stock in batch " + batch.getBatchNumber());
+                }
+                batch.setStockPacks(batch.getStockPacks() - qty);
+            } else {
+                if (batch.getLooseUnits() >= qty) {
+                    batch.setLooseUnits(batch.getLooseUnits() - qty);
+                } else {
+                    int neededFromPacks = qty - batch.getLooseUnits();
+                    int packsToBreak = (int) Math.ceil((double) neededFromPacks / upp);
+                    if (batch.getStockPacks() < packsToBreak) {
+                        throw new InsufficientStockException("Insufficient stock in batch " + batch.getBatchNumber() +
+                                ". Need " + packsToBreak + " packs to satisfy " + qty + " loose units, but only " + batch.getStockPacks() + " available.");
+                    }
+                    batch.setStockPacks(batch.getStockPacks() - packsToBreak);
+                    batch.setLooseUnits(batch.getLooseUnits() + (packsToBreak * upp) - qty);
+                }
+            }
+        } else {
+            if (batch.getStockPacks() < qty) {
+                throw new InsufficientStockException("Insufficient stock in batch " + batch.getBatchNumber() + 
+                        ". Requested: " + qty + ", Available: " + batch.getStockPacks());
+            }
+            batch.setStockPacks(batch.getStockPacks() - qty);
+        }
+
         batchRepository.save(batch);
     }
 
@@ -141,5 +173,30 @@ public class InventoryService {
             batch.setStockPacks(batch.getStockPacks() + packs);
             batchRepository.save(batch);
         }
+    }
+
+    @Transactional
+    public void replenishStock(Long batchId, String saleType, Integer quantity, Integer unitsPerPack) {
+        if (batchId == null || quantity == null || quantity <= 0) return;
+        Batch batch = batchRepository.findById(batchId).orElse(null);
+        if (batch == null) return;
+        if (batch.getVersion() == null) batch.setVersion(0L);
+        if (batch.getLooseUnits() == null) batch.setLooseUnits(0);
+
+        int upp = (unitsPerPack != null && unitsPerPack > 1) ? unitsPerPack : 1;
+        if ("LOOSE_TABLETS".equalsIgnoreCase(saleType) || "UNIT".equalsIgnoreCase(saleType)) {
+            if (upp <= 1) {
+                batch.setStockPacks(batch.getStockPacks() + quantity);
+            } else {
+                int totalLoose = batch.getLooseUnits() + quantity;
+                int fullPacksFromLoose = totalLoose / upp;
+                int remainingLoose = totalLoose % upp;
+                batch.setStockPacks(batch.getStockPacks() + fullPacksFromLoose);
+                batch.setLooseUnits(remainingLoose);
+            }
+        } else {
+            batch.setStockPacks(batch.getStockPacks() + quantity);
+        }
+        batchRepository.save(batch);
     }
 }

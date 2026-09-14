@@ -59,6 +59,13 @@ public class Invoice {
     private Boolean hasScheduleH;
     private String dispensedBy;
 
+    // Sales Return & Credit Note Tracking
+    private Boolean isReturned;
+    private Double returnAmount;
+    private String returnReason;
+    private LocalDateTime returnTimestamp;
+    private String creditNoteNumber;
+
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonManagedReference
     @Builder.Default

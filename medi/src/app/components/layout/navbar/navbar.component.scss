@@ -560,3 +560,112 @@
     }
   }
 }
+
+.flyout-phone {
+  font-size: 0.72rem;
+  color: var(--slate-600);
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+/* Profile Edit Modal */
+.profile-edit-modal-card {
+  width: 100%;
+  max-width: 500px;
+  background: #ffffff;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+
+  .modal-header {
+    background: var(--slate-900);
+    color: #ffffff;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      .header-icon {
+        font-size: 1.5rem;
+      }
+
+      h3 {
+        font-size: 1.05rem;
+        font-weight: 800;
+        margin: 0;
+        color: #ffffff;
+      }
+      .subtitle {
+        font-size: 0.75rem;
+        color: var(--slate-400);
+        margin: 2px 0 0 0;
+      }
+    }
+
+    .btn-close {
+      background: none;
+      border: none;
+      color: var(--slate-400);
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+      }
+    }
+  }
+
+  .modal-body {
+    padding: 1.25rem;
+
+    .form-group {
+      margin-bottom: 1rem;
+
+      label {
+        display: block;
+        font-size: 0.76rem;
+        font-weight: 700;
+        color: var(--slate-700);
+        margin-bottom: 0.35rem;
+      }
+
+      .form-control {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--slate-300);
+        border-radius: var(--radius-sm);
+        font-size: 0.85rem;
+        background: #ffffff;
+        outline: none;
+
+        &:focus {
+          border-color: var(--primary-600);
+          box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.12);
+        }
+      }
+
+      .input-hint {
+        display: block;
+        font-size: 0.68rem;
+        color: var(--slate-400);
+        margin-top: 0.25rem;
+      }
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--slate-200);
+    }
+  }
+}

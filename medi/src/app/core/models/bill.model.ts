@@ -17,6 +17,8 @@ export interface CartItem {
   taxAmount: number;         // Calculated tax
   subtotal: number;          // quantity * unitPrice - discount
   total: number;             // subtotal + taxAmount
+  isReturned?: boolean;
+  returnedQuantity?: number;
 }
 
 export interface CustomerInfo {
@@ -28,6 +30,7 @@ export interface CustomerInfo {
   doctorRegNo?: string;
   patientAge?: number;
   notes?: string;
+  khataBalance?: number;
 }
 
 export interface Invoice {
@@ -49,4 +52,54 @@ export interface Invoice {
   paymentStatus: 'PAID' | 'CREDIT_KHATA';
   hasScheduleH: boolean;     // Whether prescription is mandatory
   dispensedBy: string;
+  isReturned?: boolean;
+  returnAmount?: number;
+  returnReason?: string;
+  returnTimestamp?: string;
+  creditNoteNumber?: string;
+  printFormat?: 'A4' | 'THERMAL_80MM';
 }
+
+export interface ReturnItemDto {
+  invoiceItemId?: number;
+  medicineId?: number;
+  batchNumber?: string;
+  saleType?: string;
+  returnQuantity: number;
+  refundAmount?: number;
+}
+
+export interface SalesReturnRequest {
+  invoiceNumber: string;
+  invoiceId?: number;
+  returnReason: string;
+  refundMode: 'CASH' | 'UPI' | 'KHATA_CREDIT';
+  processedBy?: string;
+  returnedItems: ReturnItemDto[];
+}
+
+export interface KhataPaymentRequest {
+  customerId?: number;
+  customerPhone?: string;
+  paymentAmount: number;
+  paymentMode: 'CASH' | 'UPI';
+  notes?: string;
+  receivedBy?: string;
+}
+
+export interface ScheduleH1Record {
+  invoiceNumber: string;
+  timestamp: string;
+  customerName: string;
+  customerPhone: string;
+  doctorName: string;
+  doctorRegNo: string;
+  medicineName: string;
+  genericName: string;
+  batchNumber: string;
+  expiryDate: string;
+  quantity: number;
+  dispensedBy: string;
+  scheduleType: string;
+}
+

@@ -1,46 +1,79 @@
 .invoice-modal-container {
   width: 100%;
   max-width: 900px;
+  max-height: 90vh;
   background: #ffffff;
   padding: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: var(--slate-300) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--slate-300);
+    border-radius: var(--radius-full);
+
+    &:hover {
+      background: var(--slate-400);
+    }
+  }
 
   .modal-bar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    flex-shrink: 0;
     background: var(--slate-900);
     color: #ffffff;
-    padding: 0.85rem 1.5rem;
+    padding: 0.5rem 1.25rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 
     .success-title {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.5rem;
       font-weight: 700;
-      font-size: 1rem;
+      font-size: 0.88rem;
 
       .check-icon {
-        width: 24px;
-        height: 24px;
+        width: 20px;
+        height: 20px;
         background: var(--success);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.85rem;
+        font-size: 0.75rem;
       }
     }
 
     .btn-group {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.5rem;
+
+      .btn {
+        padding: 0.35rem 0.75rem;
+        font-size: 0.78rem;
+        border-radius: 6px;
+      }
     }
   }
 
   .printable-invoice {
-    padding: 2rem;
+    padding: 1.25rem 1.75rem;
     background: #ffffff;
     color: #0f172a;
     font-size: 0.85rem;
@@ -48,32 +81,35 @@
     .pharma-header {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      gap: 1.5rem;
+      align-items: center;
+      gap: 1rem;
 
       .pharma-brand {
         h1 {
-          font-size: 1.4rem;
+          font-size: 1.12rem;
           font-weight: 800;
           color: var(--primary-800);
-          letter-spacing: -0.02em;
-        }
-        .subtitle {
-          font-size: 0.82rem;
-          font-weight: 600;
-          color: var(--slate-600);
+          letter-spacing: -0.01em;
+          margin: 0;
+          line-height: 1.2;
         }
         .address {
-          font-size: 0.78rem;
+          font-size: 0.74rem;
           color: var(--slate-500);
-          margin-top: 0.2rem;
+          margin-top: 0.15rem;
         }
         .licenses {
-          font-size: 0.75rem;
+          font-size: 0.72rem;
           color: var(--slate-600);
-          margin-top: 0.35rem;
+          margin-top: 0.2rem;
           display: flex;
-          gap: 0.6rem;
+          align-items: center;
+          gap: 0.4rem;
+
+          .dot {
+            color: var(--slate-300);
+            font-weight: 700;
+          }
         }
       }
 
@@ -81,78 +117,93 @@
         text-align: right;
         background: var(--slate-50);
         border: 1px solid var(--slate-200);
-        padding: 0.65rem 1rem;
-        border-radius: var(--radius-md);
+        padding: 0.35rem 0.75rem;
+        border-radius: var(--radius-sm);
 
         .invoice-type {
-          font-size: 0.72rem;
+          font-size: 0.65rem;
           font-weight: 800;
           color: var(--primary-700);
-          letter-spacing: 0.05em;
+          letter-spacing: 0.04em;
         }
         .inv-no {
-          font-size: 1.15rem;
+          font-size: 0.98rem;
           font-weight: 800;
           color: var(--slate-900);
-          margin: 0.15rem 0;
+          margin: 0.05rem 0;
         }
         .inv-date {
-          font-size: 0.72rem;
+          font-size: 0.68rem;
           color: var(--slate-500);
         }
       }
     }
 
     .divider {
-      height: 2px;
+      height: 1px;
       background: var(--slate-200);
-      margin: 1.25rem 0;
+      margin: 0.65rem 0;
     }
 
-    .patient-doc-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
+    .bill-meta-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       background: var(--slate-50);
-      padding: 0.85rem 1rem;
-      border-radius: var(--radius-md);
       border: 1px solid var(--slate-200);
-      margin-bottom: 1rem;
+      border-radius: var(--radius-md);
+      padding: 0.45rem 0.85rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.82rem;
+      gap: 1rem;
+      flex-wrap: wrap;
 
-      .box {
+      .meta-item {
         display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
+        align-items: center;
+        gap: 0.4rem;
 
-        .box-label {
-          font-size: 0.68rem;
+        .meta-label {
+          font-size: 0.72rem;
           font-weight: 700;
-          color: var(--slate-400);
-          letter-spacing: 0.04em;
+          color: var(--slate-500);
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
         }
-        .box-val {
-          font-size: 0.88rem;
+
+        .meta-val {
           color: var(--slate-900);
         }
-        .box-sub {
-          font-size: 0.75rem;
+
+        .meta-sub {
+          font-size: 0.76rem;
           color: var(--slate-500);
         }
 
-        .payment-tag {
-          background: var(--primary-100);
-          color: var(--primary-800);
-          padding: 2px 6px;
-          border-radius: 4px;
-          font-size: 0.75rem;
-          display: inline-block;
-          margin-right: 0.35rem;
+        &.meta-right {
+          margin-left: auto;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
         }
-        .status-tag {
-          font-size: 0.72rem;
-          color: var(--success);
-          font-weight: 700;
-        }
+      }
+
+      .payment-tag {
+        background: var(--primary-100);
+        color: var(--primary-800);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.72rem;
+      }
+
+      .status-tag {
+        font-size: 0.72rem;
+        color: var(--success);
+        font-weight: 700;
+        background: #ecfdf5;
+        padding: 2px 8px;
+        border-radius: 4px;
+        border: 1px solid #a7f3d0;
       }
     }
 
@@ -200,10 +251,25 @@
               font-size: 0.72rem;
               color: var(--slate-500);
             }
-            .item-pack-tag {
-              font-size: 0.68rem;
-              color: var(--primary-700);
-              font-weight: 600;
+            .item-tags {
+              display: flex;
+              align-items: center;
+              gap: 0.4rem;
+              margin-top: 0.2rem;
+
+              .pack-tag {
+                font-size: 0.68rem;
+                color: var(--primary-700);
+                font-weight: 600;
+              }
+
+              .hsn-tag {
+                font-size: 0.65rem;
+                color: var(--slate-400);
+                background: var(--slate-100);
+                padding: 1px 5px;
+                border-radius: 3px;
+              }
             }
           }
         }
@@ -211,6 +277,10 @@
 
       .text-right {
         text-align: right;
+      }
+
+      .text-center {
+        text-align: center;
       }
     }
 
@@ -220,33 +290,64 @@
       gap: 1.5rem;
       margin-bottom: 1.5rem;
 
-      .tax-breakup {
-        .section-title {
-          font-size: 0.75rem;
-          font-weight: 700;
-          color: var(--slate-600);
-          text-transform: uppercase;
-          margin-bottom: 0.4rem;
-        }
-        .tax-subtable {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 0.78rem;
-          border: 1px solid var(--slate-200);
+      .invoice-notes-col {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
 
-          th, td {
-            padding: 0.45rem 0.65rem;
-            border: 1px solid var(--slate-200);
-            text-align: left;
-          }
-          th {
-            background: var(--slate-50);
+        .count-badge {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.78rem;
+          color: var(--slate-700);
+          background: var(--slate-50);
+          padding: 0.35rem 0.75rem;
+          border-radius: var(--radius-sm);
+          border: 1px solid var(--slate-200);
+          width: fit-content;
+
+          .dot {
+            color: var(--slate-300);
+            font-weight: 700;
           }
         }
+
+        .savings-alert {
+          background: #ecfdf5;
+          border: 1px solid #a7f3d0;
+          color: #065f46;
+          padding: 0.4rem 0.8rem;
+          border-radius: var(--radius-sm);
+          font-size: 0.78rem;
+        }
+
+        .tax-summary-strip {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          font-size: 0.74rem;
+          color: var(--slate-600);
+          background: var(--slate-50);
+          padding: 0.4rem 0.75rem;
+          border-radius: var(--radius-sm);
+          border: 1px solid var(--slate-200);
+          flex-wrap: wrap;
+
+          .tax-strip-title {
+            font-weight: 700;
+            color: var(--slate-700);
+          }
+
+          .dot {
+            color: var(--slate-400);
+          }
+        }
+
         .terms {
           font-size: 0.7rem;
           color: var(--slate-400);
-          margin-top: 0.75rem;
+          margin-top: 0.25rem;
           line-height: 1.4;
         }
       }
@@ -295,13 +396,25 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      padding-top: 1.5rem;
+      padding-top: 1.25rem;
       border-top: 1px dashed var(--slate-300);
 
-      .terms-note {
-        font-size: 0.78rem;
-        font-style: italic;
-        color: var(--slate-500);
+      .footer-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+
+        .terms-note {
+          font-size: 0.78rem;
+          font-style: italic;
+          color: var(--slate-600);
+          font-weight: 500;
+        }
+
+        .dispensed-note {
+          font-size: 0.68rem;
+          color: var(--slate-400);
+        }
       }
 
       .sign-box {
@@ -319,5 +432,202 @@
         }
       }
     }
+  }
+}
+
+@media print {
+  .invoice-modal-container {
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  .printable-invoice {
+    padding: 0 !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .invoice-modal-container {
+    max-height: 94vh;
+
+    .modal-bar {
+      padding: 0.75rem 1rem;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.75rem;
+
+      .btn-group {
+        width: 100%;
+        justify-content: flex-end;
+      }
+    }
+
+    .printable-invoice {
+      padding: 1rem;
+
+      .bill-meta-strip {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+
+        .meta-item.meta-right {
+          margin-left: 0;
+        }
+      }
+
+      .invoice-bottom-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  }
+}
+
+/* ==========================================================================
+   3-INCH (80MM) POS THERMAL ROLL RECEIPT STYLING
+   ========================================================================== */
+.printable-thermal-invoice {
+  max-width: 320px;
+  margin: 1rem auto;
+  padding: 12px 10px;
+  background: #ffffff;
+  color: #111827;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  border: 1px dashed #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+
+  .thermal-header {
+    text-align: center;
+    margin-bottom: 8px;
+
+    .thermal-store-name {
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .thermal-address, .thermal-contact, .thermal-licenses {
+      font-size: 10px;
+      color: #374151;
+    }
+
+    .thermal-title {
+      font-size: 12px;
+      font-weight: 800;
+      margin: 4px 0;
+      letter-spacing: 1px;
+    }
+
+    .thermal-meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      margin: 2px 0;
+    }
+  }
+
+  .thermal-dashed {
+    overflow: hidden;
+    white-space: nowrap;
+    letter-spacing: -1px;
+    color: #4b5563;
+    margin: 4px 0;
+    font-size: 10px;
+  }
+
+  .thermal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+
+    th {
+      border-bottom: 1px dashed #4b5563;
+      padding: 3px 0;
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    td {
+      padding: 2px 0;
+    }
+
+    .thermal-item-title {
+      font-weight: bold;
+      padding-top: 4px;
+
+      .thermal-pack {
+        font-weight: normal;
+        font-size: 10px;
+        color: #4b5563;
+      }
+    }
+
+    .thermal-item-sub td {
+      border-bottom: 1px dotted #e2e8f0;
+      padding-bottom: 4px;
+    }
+  }
+
+  .thermal-totals {
+    margin: 6px 0;
+
+    .thermal-total-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      margin: 2px 0;
+    }
+
+    .thermal-grand-total {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 900;
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px solid #111827;
+    }
+  }
+
+  .thermal-terms {
+    font-size: 9.5px;
+    color: #374151;
+    text-align: center;
+    margin-top: 6px;
+
+    p {
+      margin: 2px 0;
+    }
+
+    .thermal-thanks {
+      font-weight: bold;
+      margin-top: 6px;
+      font-size: 10px;
+    }
+  }
+}
+
+@media print {
+  body:has(.printable-thermal-invoice) {
+    @page {
+      size: 80mm auto;
+      margin: 0;
+    }
+  }
+
+  .printable-thermal-invoice {
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 2mm !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 }

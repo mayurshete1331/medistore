@@ -1,38 +1,51 @@
 <div class="customer-portal-container">
   
-  <!-- Store & User Header -->
-  <div class="customer-header medi-card">
-    <div class="user-greeting">
-      <div class="user-avatar">👤</div>
-      <div>
-        <span class="badge badge-teal">Customer Portal</span>
-        <h1 class="user-name">Welcome, {{ currentUser()?.name || 'Customer' }}</h1>
-        <p class="user-sub tabular">Delivering to: {{ deliveryAddress() }}</p>
+  <!-- Compact Pharmacy Navigation Bar -->
+  <div class="customer-nav-bar medi-card">
+    <div class="store-user-meta">
+      <span class="avatar-tag">👤</span>
+      <div class="meta-texts">
+        <span class="user-greeting">Hi, <strong>{{ currentUser()?.name || 'Customer' }}</strong></span>
+        <span class="address-preview tabular">📍 {{ deliveryAddress() || 'Standard Delivery' }}</span>
       </div>
     </div>
 
-    <!-- Store Selector -->
-    <div class="pharmacy-selector-card">
-      <span class="label">Ordering from Partner Medical Store:</span>
+    <!-- Mode Navigation Tabs -->
+    <div class="customer-tabs">
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'CATALOG'"
+        (click)="activeTab.set('CATALOG')">
+        🛍️ Browse Catalog
+      </button>
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'ORDERS'"
+        (click)="activeTab.set('ORDERS')">
+        📦 My Orders & Tracking ({{ myOrders().length }})
+      </button>
+    </div>
+
+    <!-- Compact Partner Store Picker -->
+    <div class="store-selector-compact">
+      <span class="picker-label">🏥 Store:</span>
       <select 
         [ngModel]="selectedStoreId()" 
         (ngModelChange)="selectedStoreId.set($event)"
-        class="store-dropdown">
+        class="store-dropdown-compact">
         @for (store of partnerStores(); track store.id) {
           <option [value]="store.id">
-            {{ store.name }} • {{ store.distance }}
+            {{ store.name }} ({{ store.distance }})
           </option>
         }
       </select>
-      <div class="store-features">
-        <span class="tag">⚡ Express Delivery</span>
-        <span class="tag">💵 COD Available</span>
-        <span class="tag">⭐ {{ selectedStore().rating }} Rating</span>
-      </div>
     </div>
   </div>
 
-  <!-- Layout: Catalog on Left, Cart/Checkout on Right -->
+  <!-- TAB 1: CATALOG & SHOPPING BAG -->
+  @if (activeTab() === 'CATALOG') {
   <div class="portal-body-grid">
     
     <!-- Left: Medicine Browsing & Search -->
@@ -89,49 +102,6 @@
           </div>
         }
       </div>
-
-      <!-- My Orders History Section -->
-      <div class="my-orders-section medi-card">
-        <div class="orders-header">
-          <h2>📦 My Recent Medical Orders</h2>
-          <span class="badge badge-teal">{{ myOrders().length }} Orders Placed</span>
-        </div>
-
-        <div class="orders-table-wrap">
-          @for (ord of myOrders(); track ord.id) {
-            <div class="customer-order-card">
-              <div class="ord-header">
-                <div>
-                  <span class="ord-num tabular font-bold">#{{ ord.orderNumber }}</span>
-                  <span class="store tabular">• {{ ord.storeName }}</span>
-                </div>
-
-                <div class="status-wrap">
-                  <span class="badge" [class.badge-warning]="ord.orderStatus === 'NEW_RECEIVED'" [class.badge-info]="ord.orderStatus === 'PACKED'" [class.badge-success]="ord.orderStatus === 'COMPLETED'">
-                    {{ ord.orderStatus === 'NEW_RECEIVED' ? 'Order Placed (Awaiting Packing)' : (ord.orderStatus === 'PACKED' ? 'Packed & Out for Delivery' : ord.orderStatus) }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="items-summary">
-                @for (item of ord.items; track item.medicineId) {
-                  <span class="item-tag">{{ item.medicineName }} x {{ item.quantity }}</span>
-                }
-              </div>
-
-              <div class="ord-footer tabular">
-                <span>Payment: <strong>{{ ord.paymentMethod === 'COD' ? 'Cash on Delivery (₹' + ord.totalAmount + ')' : 'Prepaid Online (Paid)' }}</strong></span>
-                <span class="total font-bold">Total: ₹{{ ord.totalAmount | number:'1.2-2' }}</span>
-              </div>
-            </div>
-          } @empty {
-            <div class="empty-orders">
-              <p>No orders placed yet. Add medicines above and choose Online Pay or Cash on Delivery.</p>
-            </div>
-          }
-        </div>
-      </div>
-
     </div>
 
     <!-- Right: Customer Shopping Cart & Checkout -->
@@ -170,9 +140,39 @@
         }
       </div>
 
+      <!-- Cheaper Generic Bioequivalent Alternatives Alert in Cart -->
+      @if (genericAlternativesForCart().length > 0) {
+        <div class="generic-savings-alert animate-fade-in" style="margin: 8px 12px; padding: 10px 12px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px;">
+          <div style="font-weight: 700; font-size: 0.82rem; color: #166534; display: flex; align-items: center; gap: 4px;">
+            💡 Cheaper Generic Alternatives Available!
+          </div>
+          @for (s of genericAlternativesForCart(); track s.suggestedMed.id) {
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 0.78rem;">
+              <div>
+                <span>Replace <strong>{{ s.currentMed.brandName }}</strong> with <strong>{{ s.suggestedMed.brandName }}</strong></span>
+                <div style="color: #15803d; font-weight: 600;">Save ₹{{ s.savingsPerUnit | number:'1.2-2' }} per pack</div>
+              </div>
+              <button type="button" (click)="switchCartToGeneric(s.currentMed.id, s.suggestedMed)" style="background: #16a34a; color: white; border: none; border-radius: 4px; padding: 3px 8px; font-size: 0.72rem; font-weight: 700; cursor: pointer;">
+                Switch
+              </button>
+            </div>
+          }
+        </div>
+      }
+
       <!-- Checkout Details Form -->
       @if (cart().length > 0) {
         <div class="checkout-form">
+          <div class="form-group">
+            <label>Ordering For (Patient Name) <span style="font-weight: normal; color: #64748b;">(Optional if family member)</span></label>
+            <input 
+              type="text" 
+              [ngModel]="familyMemberName()" 
+              (ngModelChange)="familyMemberName.set($event)"
+              placeholder="e.g. Mother / Spouse / Child" 
+              class="form-control" 
+            />
+          </div>
           <div class="form-group">
             <label>Delivery Address *</label>
             <input 
@@ -192,6 +192,53 @@
               (ngModelChange)="customerPhone.set($event)"
               class="form-control tabular" 
             />
+          </div>
+
+          <!-- Prescription Upload Block -->
+          <div class="form-group rx-upload-section">
+            <div class="rx-upload-title-row">
+              <label>Doctor's Prescription Slip (Rx)</label>
+              @if (cartHasScheduleH()) {
+                <span class="badge badge-danger">Mandatory (Schedule H)</span>
+              } @else {
+                <span class="badge badge-secondary">Optional (OTC)</span>
+              }
+            </div>
+
+            @if (cartHasScheduleH() && !prescriptionSlip()) {
+              <div class="rx-mandatory-alert">
+                <span class="alert-icon">⚠️</span>
+                <span>Under Drugs & Cosmetics rules, uploading a doctor's prescription is legally mandatory for antibiotics/Schedule H drugs in your bag.</span>
+              </div>
+            }
+
+            @if (!prescriptionSlip()) {
+              <div class="rx-dropzone">
+                <input 
+                  type="file" 
+                  accept="image/*,application/pdf" 
+                  id="customerRxFile"
+                  (change)="onPrescriptionFileSelected($event)"
+                  class="file-input-hidden"
+                />
+                <label for="customerRxFile" class="dropzone-box">
+                  <span class="dz-icon">📷</span>
+                  <span class="dz-text font-bold">Upload Doctor's Prescription (Photo or PDF)</span>
+                  <span class="dz-sub">Take camera snapshot or choose from gallery (Max 5MB)</span>
+                </label>
+              </div>
+            } @else {
+              <div class="rx-preview-box">
+                <div class="thumb-container">
+                  <img [src]="prescriptionSlip()" alt="Prescription Slip" class="rx-thumb-img" />
+                </div>
+                <div class="thumb-info">
+                  <span class="status font-bold text-success">✓ Prescription Slip Attached</span>
+                  <span class="sub">Verified by licensed pharmacist at {{ selectedStore().name }}</span>
+                  <button type="button" class="btn-remove-slip" (click)="removePrescriptionSlip()">✕ Remove / Change</button>
+                </div>
+              </div>
+            }
           </div>
 
           <!-- Payment Options (User Requirement: Online or COD) -->
@@ -251,6 +298,103 @@
     </div>
 
   </div>
+  }
+
+  <!-- TAB 2: MY ORDERS & REAL-TIME TRACKING -->
+  @if (activeTab() === 'ORDERS') {
+    <div class="my-orders-view medi-card animate-fade-in">
+      <div class="orders-header">
+        <div>
+          <h2>📦 My Medical Orders & Delivery Tracking</h2>
+          <p class="sub-text">Real-time prescription verification, pharmacist packaging, and doorstep delivery</p>
+        </div>
+        <span class="badge badge-teal">{{ myOrders().length }} Total Orders</span>
+      </div>
+
+      <div class="orders-cards-list">
+        @for (ord of myOrders(); track ord.id) {
+          <div class="customer-order-card">
+            <div class="ord-header">
+              <div>
+                <span class="ord-num tabular font-bold">#{{ ord.orderNumber }}</span>
+                <span class="store tabular">• Fulfilling Pharmacy: {{ ord.storeName }}</span>
+                @if (ord.prescriptionPhotoUrl) {
+                  <span class="rx-attached-pill">📷 Prescription Slip Attached</span>
+                }
+              </div>
+
+              <div class="status-wrap">
+                <span class="badge" [class.badge-warning]="ord.orderStatus === 'NEW_RECEIVED'" [class.badge-info]="ord.orderStatus === 'PACKED' || ord.orderStatus === 'OUT_FOR_DELIVERY'" [class.badge-success]="ord.orderStatus === 'COMPLETED'" [class.badge-danger]="ord.orderStatus === 'CANCELLED'">
+                  {{ ord.orderStatus === 'NEW_RECEIVED' ? 'Order Placed (Awaiting Packing)' : (ord.orderStatus === 'PACKED' ? 'Packed & Ready' : (ord.orderStatus === 'OUT_FOR_DELIVERY' ? 'Out for Delivery' : (ord.orderStatus === 'CANCELLED' ? 'Order Cancelled' : ord.orderStatus))) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- 4-Stage Fulfillment Tracker -->
+            <div class="tracking-stepper">
+              <div class="step-item active">
+                <div class="step-circle">✓</div>
+                <span class="step-text">Order Placed</span>
+              </div>
+              <div class="step-line" [class.done]="ord.orderStatus !== 'NEW_RECEIVED'"></div>
+              <div class="step-item" [class.active]="ord.orderStatus === 'PACKED' || ord.orderStatus === 'OUT_FOR_DELIVERY' || ord.orderStatus === 'COMPLETED'">
+                <div class="step-circle">{{ ord.orderStatus !== 'NEW_RECEIVED' ? '✓' : '2' }}</div>
+                <span class="step-text">Rx Verified</span>
+              </div>
+              <div class="step-line" [class.done]="ord.orderStatus === 'OUT_FOR_DELIVERY' || ord.orderStatus === 'COMPLETED'"></div>
+              <div class="step-item" [class.active]="ord.orderStatus === 'OUT_FOR_DELIVERY' || ord.orderStatus === 'COMPLETED'">
+                <div class="step-circle">{{ ord.orderStatus === 'OUT_FOR_DELIVERY' || ord.orderStatus === 'COMPLETED' ? '✓' : '3' }}</div>
+                <span class="step-text">Packed</span>
+              </div>
+              <div class="step-line" [class.done]="ord.orderStatus === 'COMPLETED'"></div>
+              <div class="step-item" [class.active]="ord.orderStatus === 'COMPLETED'">
+                <div class="step-circle">{{ ord.orderStatus === 'COMPLETED' ? '✓' : '4' }}</div>
+                <span class="step-text">Delivered</span>
+              </div>
+            </div>
+
+            <div class="items-summary">
+              @for (item of ord.items; track item.medicineId) {
+                <span class="item-tag">{{ item.medicineName }} x {{ item.quantity }}</span>
+              }
+            </div>
+
+            <div class="ord-footer tabular" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <span>Payment: <strong>{{ ord.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Prepaid Online' }}</strong></span>
+                <span class="total font-bold" style="margin-left: 8px;">Total: ₹{{ ord.totalAmount | number:'1.2-2' }}</span>
+                @if (ord.familyMemberName) {
+                  <span style="font-size: 0.72rem; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">
+                    For: {{ ord.familyMemberName }}
+                  </span>
+                }
+              </div>
+
+              <div style="display: flex; gap: 8px;">
+                @if (ord.orderStatus === 'NEW_RECEIVED') {
+                  <button type="button" class="btn btn-sm btn-secondary" (click)="cancelCustomerOrder(ord)" style="color: #dc2626; border-color: #fca5a5; font-size: 0.75rem; padding: 4px 8px;">
+                    ✕ Cancel Order
+                  </button>
+                }
+                <button type="button" class="btn btn-sm btn-primary" (click)="repeatMonthlyRefill(ord)" style="font-size: 0.75rem; padding: 4px 10px; font-weight: 600;">
+                  🔄 1-Click Monthly Refill
+                </button>
+              </div>
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-orders">
+            <span class="empty-icon">📦</span>
+            <h3>No Orders Placed Yet</h3>
+            <p>You haven't placed any pharmacy orders yet. Click below to browse medicines and order.</p>
+            <button type="button" class="btn btn-primary" (click)="activeTab.set('CATALOG')">
+              🛍️ Browse Catalog
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  }
 
   <!-- Order Confirmation Modal -->
   @if (lastPlacedOrder(); as ord) {

@@ -75,7 +75,7 @@
             <span class="sample-icon">💡</span>
             <div>
               <strong>No invoice file on this device?</strong>
-              <p>Test the full Java parser immediately using a simulated Indian pharma distributor invoice.</p>
+              <p>Load a sample distributor invoice to test automated bill scanning.</p>
             </div>
           </div>
           <button type="button" class="btn btn-secondary btn-sm" [disabled]="isParsing()" (click)="loadSampleInvoice()">
@@ -83,12 +83,12 @@
           </button>
         </div>
 
-        <!-- Loading State during Java PDFBox / Parser execution -->
+        <!-- Loading State during Invoice Extraction execution -->
         @if (isParsing()) {
           <div class="parsing-indicator animate-fade-in">
             <div class="spinner"></div>
             <div class="parsing-text">
-              <strong>Processing Bill via Java Engine...</strong>
+              <strong>Scanning & Extracting Invoice Details...</strong>
               <span>Reading table columns: Brand Name, Batch No, Expiry, Qty, Purchase Rate & MRP</span>
             </div>
           </div>
@@ -155,7 +155,7 @@
         <!-- Summary Metric Pills -->
         <div class="summary-metrics-bar">
           <div class="metric-chip">
-            <span class="chip-label">Total SKUs</span>
+            <span class="chip-label">Total Items</span>
             <strong class="chip-val tabular">{{ totalItemsCount() }}</strong>
           </div>
 
@@ -166,12 +166,12 @@
 
           <div class="metric-chip">
             <span class="chip-label">Existing In Master</span>
-            <strong class="chip-val tabular text-success">{{ existingMedicinesCount() }} SKUs</strong>
+            <strong class="chip-val tabular text-success">{{ existingMedicinesCount() }} Existing</strong>
           </div>
 
           <div class="metric-chip">
-            <span class="chip-label">New SKUs to Create</span>
-            <strong class="chip-val tabular text-warning">{{ newMedicinesCount() }} SKUs</strong>
+            <span class="chip-label">New Medicines to Add</span>
+            <strong class="chip-val tabular text-warning">{{ newMedicinesCount() }} New</strong>
           </div>
 
           <div class="metric-chip highlight">
@@ -198,7 +198,7 @@
             <tbody>
               @for (item of items(); track $index) {
                 <tr>
-                  <!-- SKU Status -->
+                  <!-- Item Status -->
                   <td>
                     @if (item.isExisting) {
                       <span class="status-pill status-existing" title="Matched with existing medicine catalog">
@@ -206,7 +206,7 @@
                       </span>
                     } @else {
                       <span class="status-pill status-new" title="New medicine will be registered in catalog">
-                        ✨ New SKU
+                        ✨ New Medicine
                       </span>
                     }
                   </td>
@@ -298,7 +298,7 @@
           <button type="button" class="btn btn-secondary btn-sm" (click)="addNewItem()">
             ➕ Add Line Item
           </button>
-          <span class="verification-hint">💡 Verify batch numbers & quantities above before importing into live database.</span>
+          <span class="verification-hint">💡 Verify batch numbers & quantities above before confirming stock inward.</span>
         </div>
 
         <!-- Step 2 Footer Actions -->
@@ -312,7 +312,7 @@
             [disabled]="items().length === 0 || isCommitting()"
             (click)="commitToStock()">
             @if (isCommitting()) {
-              <span>⏳ Ingesting into Database...</span>
+              <span>⏳ Updating Inventory Stock...</span>
             } @else {
               <span>✓ Import All into Inventory ({{ totalPacksCount() }} Packs)</span>
             }
@@ -329,9 +329,9 @@
           <span class="success-icon">🎉</span>
         </div>
 
-        <h3>Stock Successfully Ingested into Database!</h3>
+        <h3>Stock Successfully Added to Inventory!</h3>
         <p class="success-desc">
-          Your inventory and batch levels have been updated in real-time in the MySQL database under regulatory FEFO records.
+          Your inventory and batch stock levels have been updated in your store records.
         </p>
 
         @if (commitResult(); as res) {
@@ -348,7 +348,7 @@
 
             <div class="summary-stat">
               <span class="stat-num text-warning tabular">{{ res.newMedicinesCreated }}</span>
-              <span class="stat-label">New SKUs Created</span>
+              <span class="stat-label">New Medicines Added</span>
             </div>
 
             <div class="summary-stat">

@@ -52,4 +52,22 @@ public class BillingController {
             @RequestParam(required = false) String name) {
         return ResponseEntity.ok(billingService.getCustomerInvoices(phone, name));
     }
+
+    @PostMapping("/returns")
+    @Operation(summary = "Process sales return, replenish batch stock, and generate Credit Note")
+    public ResponseEntity<Invoice> processSalesReturn(@RequestBody BillingDtos.SalesReturnRequest req) {
+        return ResponseEntity.ok(billingService.processSalesReturn(req));
+    }
+
+    @PostMapping("/khata/payment")
+    @Operation(summary = "Record customer khata credit debt settlement payment")
+    public ResponseEntity<java.util.Map<String, Object>> recordKhataPayment(@RequestBody BillingDtos.KhataPaymentRequest req) {
+        return ResponseEntity.ok(billingService.recordKhataPayment(req));
+    }
+
+    @GetMapping("/schedule-h1")
+    @Operation(summary = "Statutory Schedule H and H1 sales register")
+    public ResponseEntity<java.util.List<java.util.Map<String, Object>>> getScheduleH1Register() {
+        return ResponseEntity.ok(billingService.getScheduleH1Register());
+    }
 }

@@ -77,6 +77,9 @@
           <span class="field-error" *ngIf="customerForm.get('phone')?.touched && customerForm.get('phone')?.invalid">
             Valid 10-digit mobile number required.
           </span>
+          <span class="field-error" *ngIf="duplicateCustomerName()" style="color: #be123c; font-weight: 700; display: block; margin-top: 4px;">
+            ⚠️ Mobile already registered to "{{ duplicateCustomerName() }}". Duplicate phone numbers are not permitted.
+          </span>
         </div>
       </div>
 
@@ -122,7 +125,7 @@
       <!-- Action Footer -->
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
-        <button type="submit" class="btn btn-primary" [disabled]="isSubmitting()">
+        <button type="submit" class="btn btn-primary" [disabled]="isSubmitting() || !!duplicateCustomerName()">
           <span class="spinner" *ngIf="isSubmitting()">⏳</span>
           <span>Save & Affiliate Customer</span>
         </button>
@@ -181,6 +184,9 @@
           <span class="field-error" *ngIf="doctorForm.get('phone')?.touched && doctorForm.get('phone')?.invalid">
             Contact phone number required.
           </span>
+          <span class="field-error" *ngIf="duplicateDoctorName()" style="color: #be123c; font-weight: 700; display: block; margin-top: 4px;">
+            ⚠️ Mobile already registered to "{{ duplicateDoctorName() }}". Duplicate phone numbers are not permitted.
+          </span>
         </div>
 
         <div class="form-group flex-1">
@@ -236,7 +242,7 @@
       <!-- Action Footer -->
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
-        <button type="submit" class="btn btn-primary btn-doctor" [disabled]="isSubmitting()">
+        <button type="submit" class="btn btn-primary btn-doctor" [disabled]="isSubmitting() || !!duplicateDoctorName()">
           <span class="spinner" *ngIf="isSubmitting()">⏳</span>
           <span>Register & Affiliate Doctor</span>
         </button>

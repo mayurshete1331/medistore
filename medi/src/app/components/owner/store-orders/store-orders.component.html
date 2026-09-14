@@ -1,59 +1,45 @@
 <div class="store-orders-container">
   
-  <!-- Header -->
-  <div class="page-header">
-    <div>
+  <!-- Primary Module Mode Switcher: Orders vs Schedule H1 Register -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.75rem;">
+    <div style="display: flex; gap: 0.5rem; background: #e2e8f0; padding: 4px; border-radius: 8px;">
+      <button 
+        type="button" 
+        (click)="activeView.set('ORDERS')"
+        [style.background]="activeView() === 'ORDERS' ? 'var(--primary-700)' : 'transparent'"
+        [style.color]="activeView() === 'ORDERS' ? '#ffffff' : 'var(--slate-700)'"
+        style="border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+        📦 Incoming Store Orders
+        <span [style.background]="activeView() === 'ORDERS' ? 'rgba(255,255,255,0.25)' : '#cbd5e1'" style="padding: 1px 7px; border-radius: 10px; font-size: 0.72rem;">{{ orders().length }}</span>
+      </button>
+
+      <button 
+        type="button" 
+        (click)="activeView.set('SCHEDULE_H1')"
+        [style.background]="activeView() === 'SCHEDULE_H1' ? 'var(--primary-700)' : 'transparent'"
+        [style.color]="activeView() === 'SCHEDULE_H1' ? '#ffffff' : 'var(--slate-700)'"
+        style="border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+        📋 Statutory Schedule H & H1 Register
+        <span [style.background]="activeView() === 'SCHEDULE_H1' ? 'rgba(255,255,255,0.25)' : '#fecaca'" [style.color]="activeView() === 'SCHEDULE_H1' ? '#ffffff' : '#991b1b'" style="padding: 1px 7px; border-radius: 10px; font-size: 0.72rem; font-weight: 800;">{{ scheduleH1Records().length }}</span>
+      </button>
+    </div>
+  </div>
+
+  @if (activeView() === 'ORDERS') {
+  <!-- Header with Integrated Filter Tabs -->
+  <div class="page-header-row medi-card">
+    <div class="header-title-box">
       <h1 class="page-title">Incoming Orders & Prescriptions</h1>
-    </div>
-  </div>
-
-  <!-- KPI Metrics Bar -->
-  <div class="kpi-grid">
-    <div class="kpi-card" [class.active-filter]="activeFilter() === 'ALL'" (click)="activeFilter.set('ALL')">
-      <div class="kpi-icon teal">📦</div>
-      <div class="kpi-data">
-        <span class="label">Total Orders</span>
-        <span class="val tabular">{{ orders().length }}</span>
-      </div>
+      <span class="store-tag tabular">{{ orders().length }} Active Orders</span>
     </div>
 
-    <div class="kpi-card" [class.active-filter]="activeFilter() === 'PENDING'" (click)="activeFilter.set('PENDING')">
-      <div class="kpi-icon amber">⏳</div>
-      <div class="kpi-data">
-        <span class="label">Awaiting Packing</span>
-        <span class="val text-warning tabular">{{ pendingCount() }}</span>
-      </div>
-      <span class="hint">Action Needed</span>
-    </div>
-
-    <div class="kpi-card" [class.active-filter]="activeFilter() === 'DOCTOR'" (click)="activeFilter.set('DOCTOR')">
-      <div class="kpi-icon blue">🩺</div>
-      <div class="kpi-data">
-        <span class="label">Doctor Prescriptions</span>
-        <span class="val text-primary tabular">{{ doctorCount() }}</span>
-      </div>
-      <span class="hint">Rx Verified</span>
-    </div>
-
-    <div class="kpi-card" [class.active-filter]="activeFilter() === 'COD'" (click)="activeFilter.set('COD')">
-      <div class="kpi-icon green">💵</div>
-      <div class="kpi-data">
-        <span class="label">Cash on Delivery (COD)</span>
-        <span class="val text-success tabular">{{ codCount() }}</span>
-      </div>
-      <span class="hint">Collect on Delivery</span>
-    </div>
-  </div>
-
-  <!-- Filter Bar -->
-  <div class="filter-toolbar medi-card">
-    <div class="tabs">
+    <div class="tabs-filter-strip">
       <button 
         type="button" 
         class="tab-btn" 
         [class.active]="activeFilter() === 'ALL'"
         (click)="activeFilter.set('ALL')">
-        All Orders ({{ orders().length }})
+        All Orders <span class="tab-count tabular">{{ orders().length }}</span>
       </button>
 
       <button 
@@ -61,7 +47,7 @@
         class="tab-btn" 
         [class.active]="activeFilter() === 'PENDING'"
         (click)="activeFilter.set('PENDING')">
-        ⏳ Pending Review ({{ pendingCount() }})
+        ⏳ Pending <span class="tab-count count-warn tabular">{{ pendingCount() }}</span>
       </button>
 
       <button 
@@ -69,7 +55,7 @@
         class="tab-btn" 
         [class.active]="activeFilter() === 'DOCTOR'"
         (click)="activeFilter.set('DOCTOR')">
-        🩺 Doctor Prescriptions ({{ doctorCount() }})
+        🩺 Doctor Rx <span class="tab-count count-info tabular">{{ doctorCount() }}</span>
       </button>
 
       <button 
@@ -77,7 +63,7 @@
         class="tab-btn" 
         [class.active]="activeFilter() === 'CUSTOMER'"
         (click)="activeFilter.set('CUSTOMER')">
-        👤 Customer Orders ({{ customerCount() }})
+        👤 Customer <span class="tab-count tabular">{{ customerCount() }}</span>
       </button>
 
       <button 
@@ -85,7 +71,7 @@
         class="tab-btn" 
         [class.active]="activeFilter() === 'COD'"
         (click)="activeFilter.set('COD')">
-        💵 Cash on Delivery ({{ codCount() }})
+        💵 COD <span class="tab-count count-success tabular">{{ codCount() }}</span>
       </button>
     </div>
   </div>
@@ -235,6 +221,107 @@
       </table>
     </div>
   </div>
+  } @else {
+    <!-- Statutory Schedule H & H1 Drug Dispensing Register -->
+    <div class="medi-card" style="background: #ffffff; border-radius: var(--radius-lg); padding: 1.25rem; border: 1px solid var(--slate-200); box-shadow: var(--shadow-sm);">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <h2 style="font-size: 1.3rem; font-weight: 800; color: var(--slate-900); margin: 0;">
+              📋 Statutory Schedule H & H1 Drug Register
+            </h2>
+            <span style="background: #fee2e2; color: #991b1b; font-weight: 800; font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; border: 1px solid #fca5a5;">
+              Rule 65(9) Drug Inspector Audit Log
+            </span>
+          </div>
+          <p style="font-size: 0.82rem; color: var(--slate-500); margin: 4px 0 0 0;">
+            Mandatory inspection record: Tracks every Schedule H & H1 drug dispensed with patient identity, doctor MCI credentials, and batch traceability.
+          </p>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <input 
+            type="text" 
+            [(ngModel)]="scheduleH1Search" 
+            placeholder="🔍 Search Invoice, Patient, Doctor, Batch..."
+            style="padding: 7px 12px; border: 1px solid var(--slate-300); border-radius: 6px; font-size: 0.82rem; width: 260px;">
+          
+          <button 
+            type="button" 
+            (click)="printOrderSlip()" 
+            style="background: var(--primary-700); color: #ffffff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;">
+            🖨️ Print Statutory Register
+          </button>
+        </div>
+      </div>
+
+      <div class="table-responsive" style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; text-align: left;">
+          <thead>
+            <tr style="background: var(--slate-100); border-bottom: 2px solid var(--slate-300);">
+              <th style="padding: 10px 12px; font-weight: 800; color: var(--slate-700);">Date & Time</th>
+              <th style="padding: 10px 12px; font-weight: 800; color: var(--slate-700);">Cash Memo #</th>
+              <th style="padding: 10px 12px; font-weight: 800; color: var(--slate-700);">Patient Name & Mobile</th>
+              <th style="padding: 10px 12px; font-weight: 800; color: var(--slate-700);">Prescribing Doctor & Reg #</th>
+              <th style="padding: 10px 12px; font-weight: 800; color: var(--slate-700);">Medicine & Salt Formula</th>
+              <th style="padding: 10px 12px; font-weight: 800; color: var(--slate-700);">Batch & Expiry</th>
+              <th style="padding: 10px 12px; font-weight: 800; color: var(--slate-700); text-align: center;">Qty Dispensed</th>
+              <th style="padding: 10px 12px; font-weight: 800; color: var(--slate-700);">Dispensing Pharmacist</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (rec of scheduleH1Records(); track rec.invoiceNumber + rec.batchNumber) {
+              <tr style="border-bottom: 1px solid var(--slate-200);">
+                <td style="padding: 10px 12px; font-family: monospace; color: var(--slate-600);">
+                  {{ rec.timestamp | date:'dd MMM yyyy, hh:mm a' }}
+                </td>
+                <td style="padding: 10px 12px; font-weight: 700; color: var(--primary-700); font-family: monospace;">
+                  {{ rec.invoiceNumber }}
+                </td>
+                <td style="padding: 10px 12px;">
+                  <div style="font-weight: 700; color: var(--slate-900);">{{ rec.customerName }}</div>
+                  <div style="font-size: 0.75rem; color: var(--slate-500); font-family: monospace;">📞 {{ rec.customerPhone }}</div>
+                </td>
+                <td style="padding: 10px 12px;">
+                  <div style="font-weight: 700; color: #1e3a8a;">{{ rec.doctorName }}</div>
+                  <div style="font-size: 0.75rem; color: var(--slate-500); font-family: monospace;">MCI / SMC: {{ rec.doctorRegNo }}</div>
+                </td>
+                <td style="padding: 10px 12px;">
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span style="font-weight: 700; color: var(--slate-900);">{{ rec.medicineName }}</span>
+                    <span [style.background]="rec.scheduleType === 'SCHEDULE_H1' ? '#fee2e2' : '#fef3c7'"
+                          [style.color]="rec.scheduleType === 'SCHEDULE_H1' ? '#991b1b' : '#92400e'"
+                          style="font-size: 0.68rem; font-weight: 800; padding: 1px 5px; border-radius: 3px;">
+                      {{ rec.scheduleType }}
+                    </span>
+                  </div>
+                  <div style="font-size: 0.72rem; color: var(--slate-500); font-style: italic;">{{ rec.genericName }}</div>
+                </td>
+                <td style="padding: 10px 12px; font-family: monospace; font-size: 0.78rem;">
+                  <div>Batch: <strong>{{ rec.batchNumber }}</strong></div>
+                  <div style="color: var(--slate-500);">Exp: {{ rec.expiryDate }}</div>
+                </td>
+                <td style="padding: 10px 12px; text-align: center; font-weight: 800; font-family: monospace; font-size: 0.95rem; color: var(--slate-900);">
+                  {{ rec.quantity }}
+                </td>
+                <td style="padding: 10px 12px; font-size: 0.78rem;">
+                  <div style="font-weight: 600; color: var(--slate-700);">{{ rec.dispensedBy }}</div>
+                  <div style="color: #059669; font-size: 0.7rem; font-weight: 700;">✓ Verified & Signed</div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8" style="text-align: center; padding: 2.5rem; color: var(--slate-500);">
+                  No Schedule H / H1 drugs dispensed under current criteria.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
 
   <!-- Detailed Compliance & Audit Modal -->
   @if (selectedOrderForAudit(); as ord) {
@@ -260,8 +347,8 @@
         <div class="audit-body printable-slip">
           <!-- Pharmacy Details -->
           <div class="slip-header">
-            <h3>MEDICARE PHARMACY & SUPERSTORE</h3>
-            <p>Drug License: 20B/MH-MZ4-10928, 21B/MH-MZ4-10929 • GSTIN: 27AABCM1122D1Z9</p>
+            <h3>{{ storeName() }}</h3>
+            <p>{{ storeAddress() }} • Drug License: {{ storeDlNumber() }} • GSTIN: {{ storeGstin() }}</p>
             <div class="order-id-badge tabular font-bold">OFFICIAL DISPENSING RECORD # {{ ord.orderNumber }}</div>
           </div>
 
@@ -289,6 +376,26 @@
               </div>
             </div>
           </div>
+
+          <!-- Prescription Verification Box if uploaded -->
+          @if (ord.prescriptionPhotoUrl) {
+            <div class="audit-section-box rx-inspect-box">
+              <div class="rx-inspect-header">
+                <h4>📷 Customer Attached Doctor's Prescription Slip</h4>
+                <span class="badge badge-teal">Rx Verification Required</span>
+              </div>
+              <div class="rx-inspect-content" style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem; background: #f8fafc; padding: 0.75rem; border-radius: 6px; border: 1px solid #e2e8f0;">
+                <img [src]="ord.prescriptionPhotoUrl" alt="Customer Rx" style="width: 70px; height: 70px; object-fit: cover; border-radius: 4px; border: 1px solid #cbd5e1;" />
+                <div>
+                  <strong style="color: #0f172a; font-size: 0.85rem;">Doctor's Physical Prescription Attached</strong>
+                  <p style="font-size: 0.76rem; color: #64748b; margin: 0.2rem 0 0.4rem 0;">Confirm doctor registration stamp and drug dosages match items before packing.</p>
+                  <a [href]="ord.prescriptionPhotoUrl" target="_blank" class="btn btn-sm btn-secondary" style="font-size: 0.74rem;">
+                    🔍 Open Full Size Image
+                  </a>
+                </div>
+              </div>
+            </div>
+          }
 
           <!-- Patient & Clinical Box -->
           <div class="audit-section-box">

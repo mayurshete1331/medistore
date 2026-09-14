@@ -18,6 +18,7 @@ export interface Batch {
   salePrice: number;      // Store sale price per pack
   stockPacks: number;     // Packs in stock
   stockUnits?: number;    // Calculated loose units
+  looseUnits?: number;    // Open loose units from cut strips
 }
 
 export interface Medicine {

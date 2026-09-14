@@ -38,6 +38,10 @@ public class Batch {
     @Column(nullable = false)
     private Integer stockPacks;
 
+    @Column(name = "loose_units")
+    @Builder.Default
+    private Integer looseUnits = 0;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "medicine_id")
     @JsonBackReference
@@ -51,9 +55,12 @@ public class Batch {
     @PostLoad
     @PrePersist
     @PreUpdate
-    public void ensureVersion() {
+    public void ensureDefaults() {
         if (this.version == null) {
             this.version = 0L;
+        }
+        if (this.looseUnits == null) {
+            this.looseUnits = 0;
         }
     }
 }

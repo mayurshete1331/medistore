@@ -264,14 +264,43 @@ export class InventoryService {
     }
   }
 
-  deductStock(medicineId: string, batchId: string, packsToDeduct: number): void {
+  deductStock(
+    medicineId: string, 
+    batchId: string, 
+    saleType: string = 'FULL_PACK', 
+    quantity: number = 1, 
+    unitsPerPack: number = 1
+  ): void {
     const updated = this.medicines().map(med => {
       if (med.id !== medicineId) return med;
 
+      const upp = (unitsPerPack && unitsPerPack > 1) ? unitsPerPack : (med.unitsPerPack || 1);
+      const qty = Math.max(1, quantity);
+
       const batches = med.batches.map(b => {
         if (b.id !== batchId) return b;
-        const newStock = Math.max(0, b.stockPacks - packsToDeduct);
-        return { ...b, stockPacks: newStock };
+
+        let stockPacks = b.stockPacks;
+        let looseUnits = b.looseUnits || 0;
+
+        if (saleType === 'LOOSE_TABLETS' || saleType === 'UNIT') {
+          if (upp <= 1) {
+            stockPacks = Math.max(0, stockPacks - qty);
+          } else {
+            if (looseUnits >= qty) {
+              looseUnits -= qty;
+            } else {
+              const needed = qty - looseUnits;
+              const packsToBreak = Math.ceil(needed / upp);
+              stockPacks = Math.max(0, stockPacks - packsToBreak);
+              looseUnits = looseUnits + (packsToBreak * upp) - qty;
+            }
+          }
+        } else {
+          stockPacks = Math.max(0, stockPacks - qty);
+        }
+
+        return { ...b, stockPacks, looseUnits };
       });
 
       const totalStockPacks = batches.reduce((sum, b) => sum + b.stockPacks, 0);

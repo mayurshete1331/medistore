@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, map, of } from 'rxjs';
+import { Observable, catchError, forkJoin, map, of } from 'rxjs';
 import { MedicineCategory } from '../models/medicine.model';
 import { environment } from '../../../environments/environment';
 
@@ -33,53 +33,128 @@ export class DrugLookupService {
   private http = inject(HttpClient);
 
   /**
-   * Search drugs querying the live database API
+   * Search drugs dynamically querying:
+   * 1. The store's active database API (/api/medicines?query=...)
+   * 2. The free public US NLM ClinicalTables API for any global drug formulation
    */
   searchDrugs(query: string): Observable<DrugSuggestion[]> {
     const q = (query || '').trim().toLowerCase();
     if (q.length < 2) return of([]);
 
-    // Query Real Database through Spring Boot API
+    // 1. Query Store Database through Spring Boot API
     const dbUrl = `${environment.apiUrl}/medicines?query=${encodeURIComponent(q)}`;
+    const db$ = this.http.get<any[]>(dbUrl).pipe(
+      map(dbMeds => (dbMeds || []).map((m: any) => {
+        const firstBatch = m.batches && m.batches.length > 0 ? m.batches[0] : null;
+        return {
+          brandName: m.brandName,
+          genericName: m.genericName,
+          category: (m.category || 'Tablet') as MedicineCategory,
+          manufacturer: m.manufacturer || '',
+          hsnCode: m.hsnCode || '30049099',
+          gstRate: Number(m.gstRate) || 12,
+          packaging: m.packaging || '10 Tablets/Strip',
+          unitsPerPack: Number(m.unitsPerPack) || 10,
+          unitLabel: m.unitLabel || 'Tab',
+          isScheduleH: !!m.isScheduleH,
+          isScheduleH1: !!m.isScheduleH1,
+          isNarcotic: !!m.isNarcotic,
+          reorderLevel: Number(m.reorderLevel) || 20,
+          defaultReorderQty: Number(m.defaultReorderQty) || 50,
+          mrp: firstBatch ? Number(firstBatch.mrp) : undefined,
+          salePrice: firstBatch ? Number(firstBatch.salePrice) : undefined,
+          purchasePrice: firstBatch ? Number(firstBatch.purchasePrice) : undefined,
+          barcode: m.barcode,
+          source: 'LOCAL_MASTER' as const
+        };
+      })),
+      catchError(() => of([]))
+    );
 
-    return this.http.get<any[]>(dbUrl).pipe(
-      map(dbMeds => {
-        const dbSuggestions: DrugSuggestion[] = (dbMeds || []).map((m: any) => {
-          const firstBatch = m.batches && m.batches.length > 0 ? m.batches[0] : null;
-          return {
-            brandName: m.brandName,
-            genericName: m.genericName,
-            category: (m.category || 'Tablet') as MedicineCategory,
-            manufacturer: m.manufacturer || '',
-            hsnCode: m.hsnCode || '30049099',
-            gstRate: Number(m.gstRate) || 12,
-            packaging: m.packaging || '10 Tablets/Strip',
-            unitsPerPack: Number(m.unitsPerPack) || 10,
-            unitLabel: m.unitLabel || 'Tab',
-            isScheduleH: !!m.isScheduleH,
-            isScheduleH1: !!m.isScheduleH1,
-            isNarcotic: !!m.isNarcotic,
-            reorderLevel: Number(m.reorderLevel) || 20,
-            defaultReorderQty: Number(m.defaultReorderQty) || 50,
-            mrp: firstBatch ? Number(firstBatch.mrp) : undefined,
-            salePrice: firstBatch ? Number(firstBatch.salePrice) : undefined,
-            purchasePrice: firstBatch ? Number(firstBatch.purchasePrice) : undefined,
-            barcode: m.barcode,
-            source: 'LOCAL_MASTER' as const
-          };
-        });
+    // 2. Query Free Public NLM (National Library of Medicine) RxTerms ClinicalTables API
+    const nlmUrl = `https://clinicaltables.nlm.nih.gov/api/rxterms/v3/search?terms=${encodeURIComponent(q)}&ef=STRENGTHS_AND_FORMS`;
+    const nlm$ = this.http.get<any>(nlmUrl).pipe(
+      map(response => {
+        const apiSuggestions: DrugSuggestion[] = [];
+        if (Array.isArray(response) && response.length >= 2 && Array.isArray(response[1])) {
+          const names: string[] = response[1];
+          const extra = response[2]?.STRENGTHS_AND_FORMS || [];
 
-        return dbSuggestions.slice(0, 10);
+          names.slice(0, 8).forEach((fullName: string, idx: number) => {
+            const strengthForm = Array.isArray(extra[idx]) && extra[idx].length > 0 ? extra[idx][0] : '';
+            const category = this.inferCategory(fullName + ' ' + strengthForm);
+            const unitsPerPack = category === 'Syrup' || category === 'Drops' || category === 'Ointment' || category === 'Inhaler' || category === 'Injection' ? 1 : 10;
+            const unitLabel = category === 'Tablet' ? 'Tab' : category === 'Capsule' ? 'Cap' : category === 'Syrup' ? 'Bottle' : category === 'Injection' ? 'Vial' : category === 'Inhaler' ? 'Canister' : 'Unit';
+
+            apiSuggestions.push({
+              brandName: fullName,
+              genericName: fullName + (strengthForm ? ` (${strengthForm})` : ''),
+              category,
+              manufacturer: '',
+              hsnCode: '30049099',
+              gstRate: 12,
+              packaging: category === 'Tablet' ? `${unitsPerPack} Tablets/Strip` : category === 'Capsule' ? `${unitsPerPack} Capsules/Strip` : `${unitsPerPack} Unit/Pack`,
+              unitsPerPack,
+              unitLabel,
+              isScheduleH: true,
+              isScheduleH1: false,
+              isNarcotic: false,
+              reorderLevel: 20,
+              defaultReorderQty: 40,
+              mrp: undefined,
+              salePrice: undefined,
+              purchasePrice: undefined,
+              source: 'NLM_API' as const
+            });
+          });
+        }
+        return apiSuggestions;
       }),
       catchError(() => of([]))
+    );
+
+    // Merge: Store database medicines first, then free public NLM API results
+    return forkJoin({ db: db$, nlm: nlm$ }).pipe(
+      map(({ db, nlm }) => {
+        const seenNames = new Set(db.map(d => d.brandName.toLowerCase()));
+        const uniqueNlm = nlm.filter(n => !seenNames.has(n.brandName.toLowerCase()));
+        return [...db, ...uniqueNlm].slice(0, 10);
+      }),
+      catchError(() => db$)
     );
   }
 
   /**
-   * Return popular presets (empty as dummy catalog has been removed)
+   * Load presets dynamically from the store's real database (Zero hardcoded data)
    */
-  getQuickPresets(): DrugSuggestion[] {
-    return [];
+  getQuickPresets(): Observable<DrugSuggestion[]> {
+    return this.http.get<any[]>(`${environment.apiUrl}/medicines`).pipe(
+      map(meds => (meds || []).slice(0, 8).map(m => {
+        const firstBatch = m.batches && m.batches.length > 0 ? m.batches[0] : null;
+        return {
+          brandName: m.brandName,
+          genericName: m.genericName,
+          category: (m.category || 'Tablet') as MedicineCategory,
+          manufacturer: m.manufacturer || '',
+          hsnCode: m.hsnCode || '30049099',
+          gstRate: Number(m.gstRate) || 12,
+          packaging: m.packaging || '10 Tablets/Strip',
+          unitsPerPack: Number(m.unitsPerPack) || 10,
+          unitLabel: m.unitLabel || 'Tab',
+          isScheduleH: !!m.isScheduleH,
+          isScheduleH1: !!m.isScheduleH1,
+          isNarcotic: !!m.isNarcotic,
+          reorderLevel: Number(m.reorderLevel) || 20,
+          defaultReorderQty: Number(m.defaultReorderQty) || 50,
+          mrp: firstBatch ? Number(firstBatch.mrp) : undefined,
+          salePrice: firstBatch ? Number(firstBatch.salePrice) : undefined,
+          purchasePrice: firstBatch ? Number(firstBatch.purchasePrice) : undefined,
+          barcode: m.barcode,
+          source: 'LOCAL_MASTER' as const
+        };
+      })),
+      catchError(() => of([]))
+    );
   }
 
   inferCategory(text: string): MedicineCategory {

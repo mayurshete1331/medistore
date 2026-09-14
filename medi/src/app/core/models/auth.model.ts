@@ -16,6 +16,9 @@ export interface User {
   // Store Owner specifics
   storeId?: string;
   storeName?: string;
+  storeAddress?: string;
+  storeDlNumber?: string;
+  storeGstin?: string;
 }
 
 export interface PartnerStore {

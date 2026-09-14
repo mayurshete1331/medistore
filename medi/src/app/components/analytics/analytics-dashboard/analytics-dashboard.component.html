@@ -1,9 +1,38 @@
 <div class="analytics-container">
   
   <!-- Header -->
-  <div class="page-header">
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
     <div>
       <h1 class="page-title">Sales & Financial Analytics</h1>
+      <p class="page-subtitle">Real-time revenue, statutory tax liability (GSTR-1), and inventory velocity</p>
+    </div>
+
+    <!-- Date Range Filter Pills -->
+    <div class="date-range-selector" style="display: flex; gap: 0.5rem; background: #e2e8f0; padding: 4px; border-radius: 8px;">
+      <button 
+        type="button" 
+        (click)="selectedDateRange.set('TODAY')" 
+        [style.background]="selectedDateRange() === 'TODAY' ? 'var(--primary-700)' : 'transparent'"
+        [style.color]="selectedDateRange() === 'TODAY' ? '#ffffff' : 'var(--slate-700)'"
+        style="border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">
+        📅 Today
+      </button>
+      <button 
+        type="button" 
+        (click)="selectedDateRange.set('THIS_MONTH')" 
+        [style.background]="selectedDateRange() === 'THIS_MONTH' ? 'var(--primary-700)' : 'transparent'"
+        [style.color]="selectedDateRange() === 'THIS_MONTH' ? '#ffffff' : 'var(--slate-700)'"
+        style="border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">
+        🗓️ This Month
+      </button>
+      <button 
+        type="button" 
+        (click)="selectedDateRange.set('ALL')" 
+        [style.background]="selectedDateRange() === 'ALL' ? 'var(--primary-700)' : 'transparent'"
+        [style.color]="selectedDateRange() === 'ALL' ? '#ffffff' : 'var(--slate-700)'"
+        style="border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">
+        🌐 All-Time
+      </button>
     </div>
   </div>
 
@@ -63,7 +92,7 @@
           <h2 class="chart-title">🏆 Top-Selling Medicines (By Revenue & Volume)</h2>
           <p class="chart-subtitle">Ranked by total retail billing volume and profit contribution</p>
         </div>
-        <span class="badge badge-teal">High Velocity SKUs</span>
+        <span class="badge badge-teal">Fast-Moving Medicines</span>
       </div>
 
       <div class="top-medicines-list">
@@ -255,6 +284,69 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- Statutory GSTR-1 Tax Liability Slabs Breakdown -->
+  <div class="chart-card medi-card" style="margin-top: 0.5rem; background: #ffffff; border: 1px solid var(--slate-200); border-radius: var(--radius-lg); padding: 1.25rem;">
+    <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+      <div>
+        <h2 class="chart-title" style="font-size: 1.15rem; font-weight: 800; color: var(--slate-900); display: flex; align-items: center; gap: 0.5rem;">
+          📑 Statutory GSTR-1 Tax Liability Slabs Breakdown
+        </h2>
+        <p class="chart-subtitle" style="font-size: 0.82rem; color: var(--slate-500); margin: 0;">
+          Prepared for monthly GST return filing (B2C & B2B outward supplies) with exact CGST & SGST segregation
+        </p>
+      </div>
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <span class="badge badge-teal" style="background: var(--primary-100); color: var(--primary-800); font-weight: 700; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem;">
+          HSN 3004 Compliant
+        </span>
+      </div>
+    </div>
+
+    <div class="table-responsive" style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;">
+        <thead>
+          <tr style="background: var(--slate-100); border-bottom: 2px solid var(--slate-300);">
+            <th style="padding: 10px 14px; font-weight: 800; color: var(--slate-700);">GST Slab Rate</th>
+            <th style="padding: 10px 14px; font-weight: 800; color: var(--slate-700); text-align: right;">Taxable Value (Turnover)</th>
+            <th style="padding: 10px 14px; font-weight: 800; color: var(--slate-700); text-align: right;">Central GST (CGST)</th>
+            <th style="padding: 10px 14px; font-weight: 800; color: var(--slate-700); text-align: right;">State GST (SGST)</th>
+            <th style="padding: 10px 14px; font-weight: 800; color: var(--slate-700); text-align: right;">Total Tax Liability</th>
+            <th style="padding: 10px 14px; font-weight: 800; color: var(--slate-700); text-align: right;">Gross Invoiced Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (slab of gstr1Breakdown(); track slab.rate) {
+            <tr style="border-bottom: 1px solid var(--slate-200);">
+              <td style="padding: 12px 14px; font-weight: 700; color: var(--slate-900);">
+                <span [style.background]="slab.rate === 0 ? '#f1f5f9' : slab.rate === 5 ? '#e0f2fe' : slab.rate === 12 ? '#ecfdf5' : '#fef3c7'"
+                      [style.color]="slab.rate === 0 ? '#475569' : slab.rate === 5 ? '#0369a1' : slab.rate === 12 ? '#047857' : '#b45309'"
+                      style="padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 800; margin-right: 6px;">
+                  {{ slab.rate }}%
+                </span>
+                {{ slab.rate === 0 ? 'Exempt / Life Saving' : slab.rate === 5 ? 'Vaccines / Essential Formulations' : slab.rate === 12 ? 'Standard Pharmaceuticals' : 'Diagnostics & Medical Devices' }}
+              </td>
+              <td style="padding: 12px 14px; text-align: right; font-family: monospace; font-weight: 600; color: var(--slate-700);">
+                ₹{{ slab.taxableBase | number:'1.2-2' }}
+              </td>
+              <td style="padding: 12px 14px; text-align: right; font-family: monospace; font-weight: 600; color: var(--slate-600);">
+                ₹{{ slab.cgst | number:'1.2-2' }}
+              </td>
+              <td style="padding: 12px 14px; text-align: right; font-family: monospace; font-weight: 600; color: var(--slate-600);">
+                ₹{{ slab.sgst | number:'1.2-2' }}
+              </td>
+              <td style="padding: 12px 14px; text-align: right; font-family: monospace; font-weight: 700; color: #b45309;">
+                ₹{{ slab.totalTax | number:'1.2-2' }}
+              </td>
+              <td style="padding: 12px 14px; text-align: right; font-family: monospace; font-weight: 800; color: var(--slate-900);">
+                ₹{{ slab.grossTotal | number:'1.2-2' }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
   </div>
 
 </div>

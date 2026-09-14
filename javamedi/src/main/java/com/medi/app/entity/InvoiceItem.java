@@ -35,6 +35,9 @@ public class InvoiceItem {
     private Double subtotal;
     private Double total;
 
+    private Integer returnedQuantity;
+    private Boolean isReturned;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "invoice_id")
     @JsonBackReference
