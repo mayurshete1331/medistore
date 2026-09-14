@@ -80,6 +80,74 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/register/owner")
+    @Operation(summary = "Register a new pharmacy store and store owner account")
+    public ResponseEntity<?> registerOwner(@RequestBody AuthDtos.OwnerRegisterRequest req) {
+        if (req.getName() == null || req.getName().trim().isEmpty() ||
+            req.getEmail() == null || req.getEmail().trim().isEmpty() ||
+            req.getPassword() == null || req.getPassword().trim().length() < 4 ||
+            req.getPhone() == null || req.getPhone().trim().isEmpty() ||
+            req.getStoreName() == null || req.getStoreName().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Mandatory fields missing (Name, Email, Password, Phone, Store Name)"));
+        }
+
+        String email = req.getEmail().trim().toLowerCase();
+        if (userRepository.findByEmail(email).isPresent()) {
+            return ResponseEntity.status(409).body(Map.of("message", "Email address is already registered. Please sign in instead."));
+        }
+
+        String phone = req.getPhone().trim();
+        String digitsOnly = phone.replaceAll("\\D", "");
+        String last10 = digitsOnly.length() >= 10 ? digitsOnly.substring(digitsOnly.length() - 10) : digitsOnly;
+        if (!last10.isEmpty() && !userRepository.searchCustomers("", last10).isEmpty()) {
+            return ResponseEntity.status(409).body(Map.of("message", "Mobile number " + phone + " is already registered with another account."));
+        }
+
+        // 1. Create PartnerStore
+        PartnerStore store = new PartnerStore();
+        store.setName(req.getStoreName().trim());
+        store.setAddress(req.getStoreAddress() != null && !req.getStoreAddress().trim().isEmpty() ? req.getStoreAddress().trim() : "Main Market");
+        store.setPhone(phone);
+        store.setEmail(email);
+        store.setDlNumber(req.getStoreDlNumber() != null && !req.getStoreDlNumber().trim().isEmpty() ? req.getStoreDlNumber().trim() : "20B/MH-PENDING, 21B/MH-PENDING");
+        store.setGstin(req.getStoreGstin() != null ? req.getStoreGstin().trim() : "");
+        store.setDistance("0.1 km");
+        store.setRating(5.0);
+        store.setIsOpen(true);
+        store.setDeliveryAvailable(true);
+        store.setCodAvailable(true);
+        PartnerStore savedStore = partnerStoreRepository.save(store);
+
+        // 2. Create User as STORE_OWNER
+        User user = new User();
+        user.setName(req.getName().trim());
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(req.getPassword().trim()));
+        user.setRole("STORE_OWNER");
+        user.setPhone(phone);
+        user.setAvatarIcon("🏪");
+        user.setStoreId(savedStore.getId());
+        user.setStoreName(savedStore.getName());
+        user.setStoreAddress(savedStore.getAddress());
+        user.setStoreDlNumber(savedStore.getDlNumber());
+        user.setStoreGstin(savedStore.getGstin());
+        User savedUser = userRepository.save(user);
+
+        // 3. Generate Auth Tokens
+        String jwt = jwtUtils.generateToken(savedUser.getEmail(), savedUser.getRole(), savedUser.getId());
+        String refreshToken = jwtUtils.generateRefreshToken(savedUser.getEmail());
+
+        AuthDtos.AuthResponse response = AuthDtos.AuthResponse.builder()
+                .token(jwt)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .expiresIn(jwtUtils.getExpirationMs())
+                .user(savedUser)
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/refresh")
     @Operation(summary = "Refresh an expired JWT token using a valid refresh token")
     public ResponseEntity<AuthDtos.AuthResponse> refreshToken(@RequestBody AuthDtos.RefreshTokenRequest req) {

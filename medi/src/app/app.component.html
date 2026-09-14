@@ -1,6 +1,8 @@
-<div class="medi-app-wrapper">
-  <app-navbar></app-navbar>
-  <main class="medi-main-content">
+<div class="medi-app-wrapper" [class.auth-layout]="isAuthPage()">
+  @if (!isAuthPage()) {
+    <app-navbar></app-navbar>
+  }
+  <main class="medi-main-content" [class.auth-content]="isAuthPage()">
     <router-outlet></router-outlet>
   </main>
 </div>

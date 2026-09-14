@@ -32,4 +32,16 @@ public class AuthDtos {
     public static class RefreshTokenRequest {
         private String refreshToken;
     }
+
+    @Data
+    public static class OwnerRegisterRequest {
+        private String name;
+        private String email;
+        private String password;
+        private String phone;
+        private String storeName;
+        private String storeAddress;
+        private String storeDlNumber;
+        private String storeGstin;
+    }
 }

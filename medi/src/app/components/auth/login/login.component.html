@@ -1,5 +1,5 @@
 <div class="login-wrapper">
-  <div class="login-card">
+  <div class="login-card" [class.register-card]="authMode() === 'REGISTER'">
     
     <!-- Top Brand Header -->
     <div class="card-header">
@@ -9,7 +9,36 @@
         </svg>
       </div>
       <h2>MediStore ERP</h2>
-      <p class="subtitle">Enter your credentials to access your store, clinic, or account</p>
+      <p class="subtitle" *ngIf="authMode() === 'LOGIN'">
+        Enter your credentials to access your store, clinic, or account
+      </p>
+      <p class="subtitle" *ngIf="authMode() === 'REGISTER'">
+        Register your medical store & start managing inventory, FEFO batches & POS billing
+      </p>
+    </div>
+
+    <!-- Auth Mode Switcher Pills -->
+    <div class="auth-tabs">
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="authMode() === 'LOGIN'" 
+        (click)="setAuthMode('LOGIN')">
+        <span>🔐</span> Sign In
+      </button>
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="authMode() === 'REGISTER'" 
+        (click)="setAuthMode('REGISTER')">
+        <span>🏪</span> Register New Store
+      </button>
+    </div>
+
+    <!-- Success Alert -->
+    <div class="alert alert-success" *ngIf="successMessage()">
+      <span class="alert-icon">✅</span>
+      <span>{{ successMessage() }}</span>
     </div>
 
     <!-- Error Alert -->
@@ -18,8 +47,8 @@
       <span>{{ errorMessage() }}</span>
     </div>
 
-    <!-- Login Form -->
-    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+    <!-- ==================== LOGIN FORM ==================== -->
+    <form *ngIf="authMode() === 'LOGIN'" [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
       
       <!-- Email Field -->
       <div class="form-group">
@@ -78,6 +107,169 @@
         <span>{{ isLoading() ? 'Verifying & Signing In...' : 'Sign In to Portal' }}</span>
         <span class="arrow-icon" *ngIf="!isLoading()">→</span>
       </button>
+
+      <!-- Bottom switch prompt -->
+      <div class="switch-prompt">
+        <span>Are you a pharmacy owner without an account?</span>
+        <button type="button" class="btn-link" (click)="setAuthMode('REGISTER')">
+          Register your store here
+        </button>
+      </div>
+    </form>
+
+    <!-- ==================== OWNER SIGN UP FORM ==================== -->
+    <form *ngIf="authMode() === 'REGISTER'" [formGroup]="registerForm" (ngSubmit)="onRegisterSubmit()" class="register-form">
+      
+      <div class="form-grid">
+        <!-- Store Name -->
+        <div class="form-group">
+          <label for="reg-store-name">Pharmacy / Store Name *</label>
+          <div class="input-box">
+            <span class="field-icon">🏥</span>
+            <input 
+              id="reg-store-name" 
+              type="text" 
+              formControlName="storeName" 
+              placeholder="e.g. Apollo Chemist & Druggist" />
+          </div>
+          <span class="field-error" *ngIf="registerForm.get('storeName')?.touched && registerForm.get('storeName')?.invalid">
+            Pharmacy name is required.
+          </span>
+        </div>
+
+        <!-- Owner / Pharmacist Name -->
+        <div class="form-group">
+          <label for="reg-name">Owner / Pharmacist Name *</label>
+          <div class="input-box">
+            <span class="field-icon">👤</span>
+            <input 
+              id="reg-name" 
+              type="text" 
+              formControlName="name" 
+              placeholder="e.g. Rajesh Patil" />
+          </div>
+          <span class="field-error" *ngIf="registerForm.get('name')?.touched && registerForm.get('name')?.invalid">
+            Owner name is required.
+          </span>
+        </div>
+
+        <!-- Mobile / WhatsApp -->
+        <div class="form-group">
+          <label for="reg-phone">Mobile / WhatsApp Number *</label>
+          <div class="input-box">
+            <span class="field-icon">📱</span>
+            <input 
+              id="reg-phone" 
+              type="tel" 
+              formControlName="phone" 
+              placeholder="10-digit mobile number"
+              maxlength="10" />
+          </div>
+          <span class="field-error" *ngIf="registerForm.get('phone')?.touched && registerForm.get('phone')?.invalid">
+            Enter a valid 10-digit mobile number.
+          </span>
+        </div>
+
+        <!-- Email -->
+        <div class="form-group">
+          <label for="reg-email">Login Email Address *</label>
+          <div class="input-box">
+            <span class="field-icon">✉️</span>
+            <input 
+              id="reg-email" 
+              type="email" 
+              formControlName="email" 
+              placeholder="e.g. store@gmail.com" />
+          </div>
+          <span class="field-error" *ngIf="registerForm.get('email')?.touched && registerForm.get('email')?.invalid">
+            Valid email is required.
+          </span>
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <label for="reg-pass">Create Password *</label>
+          <div class="input-box">
+            <span class="field-icon">🔒</span>
+            <input 
+              id="reg-pass" 
+              [type]="showRegisterPassword() ? 'text' : 'password'" 
+              formControlName="password" 
+              placeholder="Min 6 characters" />
+            <button 
+              type="button" 
+              class="btn-toggle-eye" 
+              (click)="toggleRegisterPasswordVisibility()" 
+              [title]="showRegisterPassword() ? 'Hide password' : 'Show password'">
+              {{ showRegisterPassword() ? '👁️' : '👁️‍🗨️' }}
+            </button>
+          </div>
+          <span class="field-error" *ngIf="registerForm.get('password')?.touched && registerForm.get('password')?.invalid">
+            Password must be at least 6 characters.
+          </span>
+        </div>
+
+        <!-- Drug License (DL) Number -->
+        <div class="form-group">
+          <label for="reg-dl">Drug License (DL) Number *</label>
+          <div class="input-box">
+            <span class="field-icon">📜</span>
+            <input 
+              id="reg-dl" 
+              type="text" 
+              formControlName="storeDlNumber" 
+              placeholder="e.g. 20B/MH-12345, 21B/MH-67890" />
+          </div>
+          <span class="field-error" *ngIf="registerForm.get('storeDlNumber')?.touched && registerForm.get('storeDlNumber')?.invalid">
+            Drug License number is required for pharmacies.
+          </span>
+        </div>
+
+        <!-- GSTIN (Optional) -->
+        <div class="form-group">
+          <label for="reg-gst">GSTIN (Optional)</label>
+          <div class="input-box">
+            <span class="field-icon">🏛️</span>
+            <input 
+              id="reg-gst" 
+              type="text" 
+              formControlName="storeGstin" 
+              placeholder="e.g. 27AAAAA0000A1Z5"
+              maxlength="15" />
+          </div>
+        </div>
+
+        <!-- Store Address -->
+        <div class="form-group form-group-full">
+          <label for="reg-addr">Store Address & Location *</label>
+          <div class="input-box">
+            <span class="field-icon">📍</span>
+            <input 
+              id="reg-addr" 
+              type="text" 
+              formControlName="storeAddress" 
+              placeholder="Shop No., Market / Street Name, City, Pincode" />
+          </div>
+          <span class="field-error" *ngIf="registerForm.get('storeAddress')?.touched && registerForm.get('storeAddress')?.invalid">
+            Store address is required.
+          </span>
+        </div>
+      </div>
+
+      <!-- Submit Registration Button -->
+      <button type="submit" class="btn-submit" [disabled]="isLoading()">
+        <span class="spinner" *ngIf="isLoading()">⏳</span>
+        <span>{{ isLoading() ? 'Registering Store & Initializing ERP...' : '🏪 Register Store & Open Portal' }}</span>
+        <span class="arrow-icon" *ngIf="!isLoading()">→</span>
+      </button>
+
+      <!-- Bottom switch prompt -->
+      <div class="switch-prompt">
+        <span>Already have an account?</span>
+        <button type="button" class="btn-link" (click)="setAuthMode('LOGIN')">
+          Sign In to existing store
+        </button>
+      </div>
     </form>
 
     <!-- Security Footer -->

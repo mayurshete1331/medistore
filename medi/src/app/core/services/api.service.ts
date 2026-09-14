@@ -90,6 +90,34 @@ export class ApiService {
     );
   }
 
+  registerOwner(req: {
+    name: string;
+    email: string;
+    password?: string;
+    phone: string;
+    storeName: string;
+    storeAddress?: string;
+    storeDlNumber?: string;
+    storeGstin?: string;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/auth/register/owner`, req).pipe(
+      tap(res => {
+        this.backendStatus.set('ONLINE');
+        if (res?.token) {
+          try {
+            localStorage.setItem('medi_jwt_token', res.token);
+            if (res.refreshToken) {
+              localStorage.setItem('medi_refresh_token', res.refreshToken);
+            }
+          } catch (e) {}
+        }
+      }),
+      catchError(err => {
+        throw err;
+      })
+    );
+  }
+
   // ==========================================
   // Medicine & Inventory Endpoints (/api/medicines)
   // ==========================================

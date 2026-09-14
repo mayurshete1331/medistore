@@ -79,7 +79,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Public authentication & Documentation
-                        .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/register/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/stores").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/system/env").permitAll()
                         .requestMatchers(

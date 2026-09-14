@@ -1,23 +1,29 @@
 .login-wrapper {
-  min-height: calc(100vh - 75px);
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2.5rem 1.5rem;
   background: radial-gradient(circle at 50% 20%, #eff6ff 0%, #f8fafc 100%);
+  box-sizing: border-box;
 }
 
 .login-card {
   width: 100%;
-  max-width: 460px;
+  max-width: 480px;
   background: #ffffff;
   border-radius: 20px;
   box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(226, 232, 240, 0.8);
   padding: 2.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.35rem;
   animation: cardFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &.register-card {
+    max-width: 720px;
+  }
 }
 
 @keyframes cardFadeIn {
@@ -66,6 +72,42 @@
   }
 }
 
+.auth-tabs {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+
+  .tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: none;
+    padding: 0.65rem 0.85rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover:not(.active) {
+      color: #0f172a;
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    &.active {
+      background: #ffffff;
+      color: #0f766e;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    }
+  }
+}
+
 .alert {
   display: flex;
   align-items: center;
@@ -80,12 +122,33 @@
     color: #991b1b;
     border: 1px solid #fecaca;
   }
+
+  &.alert-success {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+  }
 }
 
-.login-form {
+.login-form,
+.register-form {
   display: flex;
   flex-direction: column;
   gap: 1.15rem;
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr;
+    }
+
+    .form-group-full {
+      grid-column: 1 / -1;
+    }
+  }
 
   .form-group {
     display: flex;
@@ -225,6 +288,28 @@
 
     &:hover:not(:disabled) .arrow-icon {
       transform: translateX(3px);
+    }
+  }
+
+  .switch-prompt {
+    text-align: center;
+    font-size: 0.825rem;
+    color: #64748b;
+    margin-top: 0.25rem;
+
+    .btn-link {
+      background: none;
+      border: none;
+      color: #0f766e;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0;
+      margin-left: 0.35rem;
+      text-decoration: underline;
+
+      &:hover {
+        color: #0d9488;
+      }
     }
   }
 }
