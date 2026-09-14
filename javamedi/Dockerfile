@@ -2,14 +2,13 @@
 FROM gradle:8.10-jdk21-alpine AS builder
 WORKDIR /app
 
-# Copy gradle files first for dependency caching
-COPY gradlew build.gradle settings.gradle ./
+# Copy configuration and source code
+COPY build.gradle settings.gradle ./
 COPY gradle ./gradle
-RUN ./gradlew dependencies --no-daemon || true
-
-# Copy source code and build production jar
 COPY src ./src
-RUN ./gradlew bootJar --no-daemon -x test
+
+# Build production jar using container's pre-installed Gradle
+RUN gradle bootJar --no-daemon -x test
 
 # Stage 2: Minimal Java 21 Runtime (Eclipse Temurin JRE)
 FROM eclipse-temurin:21-jre-alpine
