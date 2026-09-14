@@ -23,15 +23,16 @@ public class MedicineController {
     private final InventoryService inventoryService;
 
     @GetMapping
-    @Operation(summary = "Search or filter medicines by brand, generic salt, or category")
+    @Operation(summary = "Search or filter medicines by brand, generic salt, or category, optionally scoped by storeId")
     public ResponseEntity<List<Medicine>> getMedicines(
+            @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) String query,
             @RequestParam(required = false) String category) {
 
         if (category != null && !category.trim().isEmpty() && !"ALL".equalsIgnoreCase(category)) {
-            return ResponseEntity.ok(inventoryService.getMedicinesByCategory(category));
+            return ResponseEntity.ok(inventoryService.getMedicinesByCategory(storeId, category));
         }
-        return ResponseEntity.ok(inventoryService.searchMedicines(query));
+        return ResponseEntity.ok(inventoryService.searchMedicines(storeId, query));
     }
 
     @GetMapping("/{id}")
@@ -48,8 +49,8 @@ public class MedicineController {
 
     @GetMapping("/low-stock")
     @Operation(summary = "Get all medicines with current stock at or below reorder threshold")
-    public ResponseEntity<List<Medicine>> getLowStockMedicines() {
-        return ResponseEntity.ok(inventoryService.getLowStockMedicines());
+    public ResponseEntity<List<Medicine>> getLowStockMedicines(@RequestParam(required = false) Long storeId) {
+        return ResponseEntity.ok(inventoryService.getLowStockMedicines(storeId));
     }
 
     @PostMapping

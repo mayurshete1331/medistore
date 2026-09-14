@@ -53,6 +53,22 @@ public class DataInitializer implements CommandLineRunner {
                                         userRepository.count(), medicineRepository.count());
                 }
 
+                // Migrate any legacy unassigned medicines to Store 1 (MediCare Pharmacy Main Branch)
+                try {
+                        List<Medicine> unassigned = medicineRepository.findAll().stream()
+                                        .filter(m -> m.getStoreId() == null || m.getStoreId() == 0L)
+                                        .toList();
+                        if (!unassigned.isEmpty()) {
+                                for (Medicine m : unassigned) {
+                                        m.setStoreId(1L);
+                                }
+                                medicineRepository.saveAll(unassigned);
+                                log.info("Assigned {} legacy unassigned medicines to Store 1.", unassigned.size());
+                        }
+                } catch (Exception ex) {
+                        log.warn("Could not migrate legacy medicines to Store 1: {}", ex.getMessage());
+                }
+
                 if (storeAffiliationRepository.count() == 0) {
                         log.info("Seeding store affiliations for multi-store scoping...");
                         seedAffiliations();
@@ -350,6 +366,7 @@ public class DataInitializer implements CommandLineRunner {
                         String batchNo, String mfg, String exp, double cost, double mrp, double sale, int stock) {
                 if (medicineRepository.findByBrandName(brand).isEmpty()) {
                         Medicine med = Medicine.builder()
+                                        .storeId(1L)
                                         .brandName(brand)
                                         .genericName(generic)
                                         .category(category)

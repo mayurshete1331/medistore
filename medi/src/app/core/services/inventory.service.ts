@@ -1,24 +1,74 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, signal, computed, inject, effect } from '@angular/core';
 import { Medicine, Batch, MedicineCategory } from '../models/medicine.model';
 import { ApiService } from './api.service';
+import { AuthService } from './auth.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class InventoryService {
-  private readonly STORAGE_KEY = 'medi_inventory_v1';
   private api = inject(ApiService);
+  private authService = inject(AuthService);
 
-  readonly medicines = signal<Medicine[]>(this.loadMedicines());
+  readonly currentStoreId = computed(() => {
+    return this.authService.selectedStore()?.id || this.authService.currentUser()?.storeId || '1';
+  });
+
+  readonly medicines = signal<Medicine[]>([]);
 
   constructor() {
-    this.syncWithBackend();
+    // Purge any old unscoped legacy cache
+    try {
+      localStorage.removeItem('medi_inventory_v1');
+    } catch (e) {}
+
+    // Initialize with active store
+    const initialStoreId = this.currentStoreId();
+    this.medicines.set(this.loadMedicines(initialStoreId));
+    this.syncWithBackend(initialStoreId);
+
+    // Watch for store changes (switching store or logging in as another store owner)
+    effect(() => {
+      const storeId = this.currentStoreId();
+      const local = this.loadMedicines(storeId);
+      this.medicines.set(local);
+      this.syncWithBackend(storeId);
+    }, { allowSignalWrites: true });
   }
 
-  syncWithBackend(): void {
-    this.api.getMedicines().subscribe({
+  private getStorageKey(storeId?: string | number): string {
+    const s = storeId != null && storeId !== '' ? String(storeId) : '1';
+    return `medi_inventory_store_${s}`;
+  }
+
+  private loadMedicines(storeId?: string | number): Medicine[] {
+    try {
+      const key = this.getStorageKey(storeId);
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn('Failed to read from localStorage', e);
+    }
+    return [];
+  }
+
+  private saveMedicines(meds: Medicine[], storeId?: string | number): void {
+    this.medicines.set(meds);
+    try {
+      const key = this.getStorageKey(storeId || this.currentStoreId());
+      localStorage.setItem(key, JSON.stringify(meds));
+    } catch (e) {
+      console.error('Failed to save medicines to localStorage', e);
+    }
+  }
+
+  syncWithBackend(storeId?: string | number): void {
+    const targetStoreId = storeId != null ? storeId : this.currentStoreId();
+    this.api.getMedicines(targetStoreId).subscribe({
       next: (backendMeds) => {
-        if (backendMeds && backendMeds.length > 0) {
+        if (backendMeds) {
           const mapped: Medicine[] = backendMeds.map((m: any) => ({
             id: String(m.id || m.brandName),
             brandName: m.brandName,
@@ -49,7 +99,7 @@ export class InventoryService {
             totalStockPacks: Number(m.totalStockPacks) || 0
           }));
           this.medicines.set(mapped);
-          this.saveMedicines(mapped);
+          this.saveMedicines(mapped, targetStoreId);
         }
       },
       error: () => {
@@ -105,27 +155,6 @@ export class InventoryService {
       return acc + medValuation;
     }, 0);
   });
-
-  private loadMedicines(): Medicine[] {
-    try {
-      const saved = localStorage.getItem(this.STORAGE_KEY);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to read from localStorage, using initial medicines', e);
-    }
-    return [];
-  }
-
-  private saveMedicines(meds: Medicine[]): void {
-    this.medicines.set(meds);
-    try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(meds));
-    } catch (e) {
-      console.error('Failed to save medicines to localStorage', e);
-    }
-  }
 
   addMedicine(data: {
     brandName: string;
@@ -185,11 +214,13 @@ export class InventoryService {
       totalStockPacks: newBatch.stockPacks
     };
 
+    const targetStoreId = this.currentStoreId();
     const updated = [newMedicine, ...this.medicines()];
-    this.saveMedicines(updated);
+    this.saveMedicines(updated, targetStoreId);
 
     // Sync with Spring Boot backend
     this.api.addMedicine({
+      storeId: targetStoreId != null ? Number(targetStoreId) : 1,
       brandName: data.brandName.trim(),
       genericName: data.genericName.trim(),
       category: data.category,
@@ -218,7 +249,7 @@ export class InventoryService {
       next: (created) => {
         if (created?.id) {
           newMedicine.id = String(created.id);
-          this.saveMedicines([...this.medicines()]);
+          this.saveMedicines([...this.medicines()], targetStoreId);
         }
       },
       error: () => {}
@@ -228,6 +259,7 @@ export class InventoryService {
   }
 
   addBatch(medicineId: string, batchData: Omit<Batch, 'id'>): void {
+    const targetStoreId = this.currentStoreId();
     const updated = this.medicines().map(med => {
       if (med.id !== medicineId) return med;
 
@@ -245,7 +277,7 @@ export class InventoryService {
       };
     });
 
-    this.saveMedicines(updated);
+    this.saveMedicines(updated, targetStoreId);
 
     const numericId = parseInt(medicineId.replace(/\D/g, ''), 10);
     if (numericId) {
@@ -271,6 +303,7 @@ export class InventoryService {
     quantity: number = 1, 
     unitsPerPack: number = 1
   ): void {
+    const targetStoreId = this.currentStoreId();
     const updated = this.medicines().map(med => {
       if (med.id !== medicineId) return med;
 
@@ -307,10 +340,11 @@ export class InventoryService {
       return { ...med, batches, totalStockPacks };
     });
 
-    this.saveMedicines(updated);
+    this.saveMedicines(updated, targetStoreId);
   }
 
   restockMedicine(medicineId: string, additionalPacks: number): void {
+    const targetStoreId = this.currentStoreId();
     const updated = this.medicines().map(med => {
       if (med.id !== medicineId) return med;
 
@@ -326,11 +360,12 @@ export class InventoryService {
       return { ...med, batches, totalStockPacks };
     });
 
-    this.saveMedicines(updated);
+    this.saveMedicines(updated, targetStoreId);
   }
 
   resetToDefault(): void {
-    localStorage.removeItem(this.STORAGE_KEY);
-    this.syncWithBackend();
+    const targetStoreId = this.currentStoreId();
+    localStorage.removeItem(this.getStorageKey(targetStoreId));
+    this.syncWithBackend(targetStoreId);
   }
 }

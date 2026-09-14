@@ -20,25 +20,40 @@ public class InventoryService {
     private final MedicineRepository medicineRepository;
     private final BatchRepository batchRepository;
 
-    public List<Medicine> getAllMedicines() {
+    public List<Medicine> getAllMedicines(Long storeId) {
+        if (storeId != null) {
+            return medicineRepository.findByStoreId(storeId);
+        }
         return medicineRepository.findAll();
     }
 
-    public List<Medicine> searchMedicines(String query) {
+    public List<Medicine> searchMedicines(Long storeId, String query) {
+        if (storeId != null) {
+            if (query == null || query.trim().isEmpty()) {
+                return medicineRepository.findByStoreId(storeId);
+            }
+            return medicineRepository.searchMedicinesByStore(storeId, query.trim());
+        }
         if (query == null || query.trim().isEmpty()) {
             return medicineRepository.findAll();
         }
         return medicineRepository.searchMedicines(query.trim());
     }
 
-    public List<Medicine> getMedicinesByCategory(String category) {
+    public List<Medicine> getMedicinesByCategory(Long storeId, String category) {
         if ("ALL".equalsIgnoreCase(category)) {
-            return medicineRepository.findAll();
+            return getAllMedicines(storeId);
+        }
+        if (storeId != null) {
+            return medicineRepository.findByStoreIdAndCategory(storeId, category);
         }
         return medicineRepository.findByCategory(category);
     }
 
-    public List<Medicine> getLowStockMedicines() {
+    public List<Medicine> getLowStockMedicines(Long storeId) {
+        if (storeId != null) {
+            return medicineRepository.findLowStockMedicinesByStore(storeId);
+        }
         return medicineRepository.findLowStockMedicines();
     }
 
@@ -53,7 +68,10 @@ public class InventoryService {
 
     @Transactional
     public Medicine addMedicine(MedicineDtos.CreateMedicineRequest req) {
+        Long targetStoreId = req.getStoreId() != null ? req.getStoreId() : 1L;
+
         Medicine medicine = Medicine.builder()
+                .storeId(targetStoreId)
                 .brandName(req.getBrandName().trim())
                 .genericName(req.getGenericName().trim())
                 .category(req.getCategory())

@@ -5,6 +5,8 @@ import { CartItem, CustomerInfo, Invoice, PaymentMode, SaleUnitType, SalesReturn
 import { InventoryService } from './inventory.service';
 import { ApiService } from './api.service';
 
+import { AuthService } from './auth.service';
+
 @Injectable({
   providedIn: 'root'
 })
@@ -12,6 +14,7 @@ export class BillingService {
   private readonly INVOICE_STORAGE_KEY = 'medi_invoices_v1';
   private inventoryService = inject(InventoryService);
   private api = inject(ApiService);
+  private authService = inject(AuthService);
 
   readonly cart = signal<CartItem[]>([]);
   readonly invoices = signal<Invoice[]>(this.loadInvoices());
@@ -344,10 +347,11 @@ export class BillingService {
 
     // Save invoice
     const updatedInvoices = [invoice, ...this.invoices()];
-    this.saveInvoices(updatedInvoices);
+    const storeIdNum = Number(this.authService.selectedStore()?.id || this.authService.currentUser()?.storeId || 1);
 
     // Sync checkout with Spring Boot backend
     const checkoutReq = {
+      storeId: storeIdNum,
       customer: {
         name: customer.name || 'Walk-in Customer',
         phone: customer.phone || '',

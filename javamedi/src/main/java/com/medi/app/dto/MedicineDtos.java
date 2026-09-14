@@ -8,6 +8,8 @@ public class MedicineDtos {
 
     @Data
     public static class CreateMedicineRequest {
+        private Long storeId;
+
         @NotBlank(message = "Brand name is required")
         private String brandName;
 

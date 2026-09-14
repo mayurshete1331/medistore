@@ -170,7 +170,10 @@ public class BillingService {
         double roundOff = Math.round((roundedGrandTotal - rawGrandTotal) * 100.0) / 100.0;
         double grossProfit = Math.round((subtotal - totalCostPrice) * 100.0) / 100.0;
 
+        Long billStoreId = req.getStoreId() != null ? req.getStoreId() : 1L;
+
         Invoice invoice = Invoice.builder()
+                .storeId(billStoreId)
                 .invoiceNumber(invoiceNumber)
                 .timestamp(now)
                 .customerName(custName)
@@ -208,7 +211,7 @@ public class BillingService {
         try {
             int itemCount = saved.getItems() != null ? saved.getItems().size() : invoiceItems.size();
             storeHistoryService.recordLog(
-                    1L,
+                    billStoreId,
                     "SALE_BILLING",
                     "Counter POS Bill: " + saved.getInvoiceNumber(),
                     "Invoice " + saved.getInvoiceNumber() + " billed for ₹" + saved.getGrandTotal() + " (" + itemCount + " items, " + saved.getPaymentMode() + ") to " + saved.getCustomerName() + ".",

@@ -21,6 +21,9 @@ public class Invoice {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "store_id")
+    private Long storeId;
+
     @Column(nullable = false, unique = true)
     private String invoiceNumber;
 

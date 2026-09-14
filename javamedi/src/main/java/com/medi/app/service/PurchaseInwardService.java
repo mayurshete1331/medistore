@@ -1155,12 +1155,15 @@ public class PurchaseInwardService {
             totalPacksAdded += qty;
             totalValuation += (cost * qty);
 
+            Long effectiveStoreId = storeId != null ? storeId : 1L;
             Medicine targetMed = null;
             if (item.getExistingMedicineId() != null) {
-                targetMed = medicineRepository.findById(item.getExistingMedicineId()).orElse(null);
+                targetMed = medicineRepository.findById(item.getExistingMedicineId())
+                        .filter(m -> m.getStoreId() == null || m.getStoreId().equals(effectiveStoreId))
+                        .orElse(null);
             }
             if (targetMed == null) {
-                List<Medicine> matches = medicineRepository.searchMedicines(item.getMedicineName().trim());
+                List<Medicine> matches = medicineRepository.searchMedicinesByStore(effectiveStoreId, item.getMedicineName().trim());
                 if (!matches.isEmpty()) {
                     targetMed = matches.get(0);
                 }
@@ -1197,6 +1200,7 @@ public class PurchaseInwardService {
                 medicineRepository.save(targetMed);
             } else {
                 Medicine newMed = Medicine.builder()
+                        .storeId(effectiveStoreId)
                         .brandName(item.getMedicineName().trim())
                         .genericName(item.getGenericName() != null ? item.getGenericName().trim() : suggestGenericName(item.getMedicineName()))
                         .category(item.getCategory() != null ? item.getCategory() : "Tablet")

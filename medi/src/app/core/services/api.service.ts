@@ -121,8 +121,9 @@ export class ApiService {
   // ==========================================
   // Medicine & Inventory Endpoints (/api/medicines)
   // ==========================================
-  getMedicines(query?: string, category?: string): Observable<any[]> {
+  getMedicines(storeId?: string | number, query?: string, category?: string): Observable<any[]> {
     let params = new HttpParams();
+    if (storeId != null && storeId !== '') params = params.set('storeId', String(storeId));
     if (query && query.trim()) params = params.set('query', query.trim());
     if (category && category.trim() && category !== 'ALL') params = params.set('category', category.trim());
 
@@ -155,8 +156,10 @@ export class ApiService {
     );
   }
 
-  getLowStockMedicines(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.baseUrl}/medicines/low-stock`).pipe(
+  getLowStockMedicines(storeId?: string | number): Observable<any[]> {
+    let params = new HttpParams();
+    if (storeId != null && storeId !== '') params = params.set('storeId', String(storeId));
+    return this.http.get<any[]>(`${this.baseUrl}/medicines/low-stock`, { params }).pipe(
       tap(() => this.backendStatus.set('ONLINE')),
       catchError(err => {
         this.backendStatus.set('OFFLINE');
@@ -559,8 +562,9 @@ export class ApiService {
     );
   }
 
-  commitPurchaseInward(payload: any, storeId: string = '1'): Observable<any> {
-    const params = new HttpParams().set('storeId', storeId);
+  commitPurchaseInward(payload: any, storeId?: string | number): Observable<any> {
+    const sId = storeId != null && storeId !== '' ? String(storeId) : '1';
+    const params = new HttpParams().set('storeId', sId);
     return this.http.post<any>(`${this.baseUrl}/purchase-inward/commit`, payload, { params }).pipe(
       tap(() => this.backendStatus.set('ONLINE')),
       catchError(err => {

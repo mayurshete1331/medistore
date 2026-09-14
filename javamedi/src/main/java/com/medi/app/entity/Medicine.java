@@ -20,6 +20,9 @@ public class Medicine {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "store_id")
+    private Long storeId;
+
     @Column(nullable = false)
     private String brandName;
 

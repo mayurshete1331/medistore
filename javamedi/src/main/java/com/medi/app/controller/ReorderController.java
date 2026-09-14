@@ -24,9 +24,9 @@ public class ReorderController {
     private final com.medi.app.repository.SupplierRepository supplierRepository;
 
     @GetMapping("/low-stock")
-    @Operation(summary = "Get all medicines currently below their reorder threshold")
-    public ResponseEntity<List<Medicine>> getLowStockMedicines() {
-        return ResponseEntity.ok(reorderService.getLowStockMedicines());
+    @Operation(summary = "Get all medicines currently below their reorder threshold, optionally filtered by storeId")
+    public ResponseEntity<List<Medicine>> getLowStockMedicines(@RequestParam(required = false) Long storeId) {
+        return ResponseEntity.ok(reorderService.getLowStockMedicines(storeId));
     }
 
     @GetMapping("/suppliers")

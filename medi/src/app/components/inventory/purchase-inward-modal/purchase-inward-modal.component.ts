@@ -23,6 +23,8 @@ export interface InwardTableItem {
   matchedBrandName?: string;
 }
 
+import { AuthService } from '../../../core/services/auth.service';
+
 @Component({
   selector: 'app-purchase-inward-modal',
   standalone: true,
@@ -33,6 +35,7 @@ export interface InwardTableItem {
 export class PurchaseInwardModalComponent {
   private apiService = inject(ApiService);
   private inventoryService = inject(InventoryService);
+  private authService = inject(AuthService);
 
   @Output() closed = new EventEmitter<void>();
   @Output() stockImported = new EventEmitter<any>();
@@ -245,13 +248,15 @@ MONTEK LC TAB 10'S           3004     MT4441    07/27   35    85.00   162.00   1
       items: this.items()
     };
 
-    this.apiService.commitPurchaseInward(payload).subscribe({
+    const storeId = this.authService.selectedStore()?.id || this.authService.currentUser()?.storeId || '1';
+
+    this.apiService.commitPurchaseInward(payload, storeId).subscribe({
       next: (res) => {
         this.isCommitting.set(false);
         this.commitResult.set(res);
         this.currentStep.set('SUCCESS');
         // Refresh live inventory signals in frontend
-        this.inventoryService.syncWithBackend();
+        this.inventoryService.syncWithBackend(storeId);
         this.stockImported.emit(res);
       },
       error: (err) => {

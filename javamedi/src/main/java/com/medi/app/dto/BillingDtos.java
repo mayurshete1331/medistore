@@ -40,6 +40,7 @@ public class BillingDtos {
 
     @Data
     public static class CheckoutRequest {
+        private Long storeId;
         private CustomerInfoDto customer;
         
         // Flat compatibility fields

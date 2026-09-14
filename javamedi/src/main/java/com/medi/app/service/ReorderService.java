@@ -19,7 +19,10 @@ public class ReorderService {
     private final MedicineRepository medicineRepository;
     private final SupplierRepository supplierRepository;
 
-    public List<Medicine> getLowStockMedicines() {
+    public List<Medicine> getLowStockMedicines(Long storeId) {
+        if (storeId != null) {
+            return medicineRepository.findLowStockMedicinesByStore(storeId);
+        }
         return medicineRepository.findLowStockMedicines();
     }
 
