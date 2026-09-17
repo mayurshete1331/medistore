@@ -7,10 +7,16 @@ spring:
       on-profile: prod
 
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:medi_db_prod}?createDatabaseIfNotExist=true&useSSL=${DB_SSL:false}&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:4000}/${DB_NAME:medi_db}?useSSL=${DB_SSL:true}&requireSSL=true&verifyServerCertificate=false&enabledTLSProtocols=TLSv1.2,TLSv1.3&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 5
+      minimum-idle: 1
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   jpa:
     hibernate:
@@ -29,6 +35,7 @@ app:
 
 logging:
   level:
-    com.medi.app: WARN
-    org.springframework.security: WARN
-    org.springframework.web: WARN
+    com.medi.app: INFO
+    org.springframework.security: INFO
+    org.springframework.web: INFO
+    org.hibernate: WARN
