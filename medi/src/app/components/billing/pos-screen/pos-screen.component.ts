@@ -262,7 +262,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
           return of([]);
         }
         this.isSearchingMedicines.set(true);
-        return this.apiService.getMedicines(q).pipe(
+        const storeId = this.authService.currentUser()?.storeId;
+        return this.apiService.getMedicines(storeId, q).pipe(
           catchError(() => of([])),
           finalize(() => this.isSearchingMedicines.set(false))
         );

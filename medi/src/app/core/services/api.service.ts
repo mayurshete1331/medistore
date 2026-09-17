@@ -123,9 +123,23 @@ export class ApiService {
   // ==========================================
   getMedicines(storeId?: string | number, query?: string, category?: string): Observable<any[]> {
     let params = new HttpParams();
-    if (storeId != null && storeId !== '') params = params.set('storeId', String(storeId));
-    if (query && query.trim()) params = params.set('query', query.trim());
-    if (category && category.trim() && category !== 'ALL') params = params.set('category', category.trim());
+
+    let effectiveStoreId = storeId;
+    let effectiveQuery = query;
+    if (typeof storeId === 'string' && isNaN(Number(storeId)) && query === undefined) {
+      effectiveQuery = storeId;
+      effectiveStoreId = undefined;
+    }
+
+    if (effectiveStoreId != null && effectiveStoreId !== '' && !isNaN(Number(effectiveStoreId))) {
+      params = params.set('storeId', String(effectiveStoreId));
+    }
+    if (effectiveQuery && effectiveQuery.trim()) {
+      params = params.set('query', effectiveQuery.trim());
+    }
+    if (category && category.trim() && category !== 'ALL') {
+      params = params.set('category', category.trim());
+    }
 
     return this.http.get<any[]>(`${this.baseUrl}/medicines`, { params }).pipe(
       tap(() => this.backendStatus.set('ONLINE')),

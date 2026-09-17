@@ -73,6 +73,14 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE", "Uploaded file exceeds the maximum limit of 25MB. Please upload a smaller file.", request.getRequestURI());
     }
 
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleTypeMismatch(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        String param = ex.getName();
+        String type = ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "valid format";
+        String msg = String.format("Invalid value '%s' for parameter '%s'. Expected %s.", ex.getValue(), param, type);
+        return buildResponse(HttpStatus.BAD_REQUEST, "INVALID_PARAMETER", msg, request.getRequestURI());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex, HttpServletRequest request) {
         log.error("Unhandled exception at [{}]: ", request.getRequestURI(), ex);
