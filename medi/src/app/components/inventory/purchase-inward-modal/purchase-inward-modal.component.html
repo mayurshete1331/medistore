@@ -1,268 +1,290 @@
-<div class="modal-overlay animate-fade-in" (click)="close()">
-  <div class="modal-container inward-modal" (click)="$event.stopPropagation()">
-    
-    <!-- Modal Header -->
-    <div class="modal-header">
-      <div class="header-title-group">
-        <span class="header-icon">📄</span>
-        <div>
-          <h3>Smart Purchase Bill Inward</h3>
-          <p class="subtitle">Extract tablet & medicine stock directly from distributor purchase bill PDFs or images</p>
+<div class="inward-workstation-overlay">
+  <div class="inward-workstation-container">
+
+    <!-- TOP WORKSTATION BAR -->
+    <header class="workstation-top-bar">
+      <div class="bar-left">
+        <button type="button" class="btn-back" (click)="close()" title="Back to Inventory">
+          ← Back to Inventory
+        </button>
+        <div class="title-block">
+          <span class="icon">📦</span>
+          <h2 class="title">Purchase Bill Inward Entry</h2>
         </div>
       </div>
-      <button type="button" class="btn-close" (click)="close()" title="Close">✕</button>
-    </div>
+
+      <!-- Quick Stats on Review Step -->
+      @if (currentStep() === 'REVIEW') {
+        <div class="bar-stats">
+          <div class="stat-item">
+            <span class="stat-label">Items:</span>
+            <strong class="stat-val">{{ totalItemsCount() }}</strong>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-label">Total Qty:</span>
+            <strong class="stat-val text-primary">{{ totalPacksCount() }}</strong>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-label">In Master:</span>
+            <strong class="stat-val text-success">{{ existingMedicinesCount() }}</strong>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-label">New To Add:</span>
+            <strong class="stat-val text-warning">{{ newMedicinesCount() }}</strong>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item highlight">
+            <span class="stat-label">Net Total:</span>
+            <strong class="stat-val text-teal">₹{{ totalValuation() | number:'1.2-2' }}</strong>
+          </div>
+        </div>
+      }
+
+      <div class="bar-right">
+        @if (currentStep() === 'REVIEW') {
+          <button type="button" class="btn btn-secondary btn-sm" (click)="currentStep.set('UPLOAD')">
+            📂 Upload Bill
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="addNewItem()">
+            ➕ Add Line
+          </button>
+          <button 
+            type="button" 
+            class="btn btn-primary btn-sm btn-save" 
+            [disabled]="items().length === 0 || isCommitting()" 
+            (click)="commitToStock()">
+            @if (isCommitting()) {
+              <span>⏳ Saving Stock...</span>
+            } @else {
+              <span>✓ Inward Stock ({{ totalPacksCount() }} Packs)</span>
+            }
+          </button>
+        }
+        <button type="button" class="btn-close-compact" (click)="close()" title="Close">✕</button>
+      </div>
+    </header>
 
     <!-- Error Alert Banner -->
     @if (errorMessage()) {
-      <div class="alert-banner text-danger animate-fade-in">
-        <span class="icon">⚠️</span>
-        <span>{{ errorMessage() }}</span>
+      <div class="alert-banner">
+        <span>⚠️ {{ errorMessage() }}</span>
       </div>
     }
 
-    <!-- STEP 1: Upload & Extract Bill -->
+    <!-- STEP 1: UPLOAD SCREEN -->
     @if (currentStep() === 'UPLOAD') {
-      <div class="modal-body upload-step animate-fade-in">
-        
-        <!-- Drag & Drop Zone -->
-        <div 
-          class="dropzone" 
-          [class.drag-over]="isDragging()"
-          (dragover)="onDragOver($event)"
-          (dragleave)="onDragLeave($event)"
-          (drop)="onDrop($event)"
-          (click)="fileInput.click()">
-          
-          <input 
-            type="file" 
-            #fileInput 
-            (change)="onFileSelected($event)" 
-            accept=".pdf,.png,.jpg,.jpeg,.txt" 
-            style="display: none;"
-          />
+      <main class="workstation-content upload-view">
+        <div class="upload-panel">
+          <div 
+            class="dropzone-box" 
+            [class.drag-over]="isDragging()"
+            (dragover)="onDragOver($event)"
+            (dragleave)="onDragLeave($event)"
+            (drop)="onDrop($event)"
+            (click)="fileInput.click()">
 
-          <div class="dropzone-content">
-            <span class="upload-icon">📤</span>
-            <h4>Drag & drop purchase bill here, or <span class="browse-link">browse file</span></h4>
-            <p class="hint">Supports Distributor Invoices in <strong>PDF</strong>, <strong>PNG</strong>, <strong>JPG</strong>, or <strong>JPEG</strong></p>
+            <input 
+              type="file" 
+              #fileInput 
+              (change)="onFileSelected($event)" 
+              accept=".pdf,.png,.jpg,.jpeg" 
+              style="display: none;"
+            />
 
-            <div class="format-badges">
-              <span class="badge-pdf">PDF Document</span>
-              <span class="badge-img">Invoice Photo / Scan</span>
-              <span class="badge-txt">Text / Marg / Tally</span>
+            <div class="dropzone-inner">
+              <span class="upload-icon">📄</span>
+              <h3>Drag & drop purchase invoice PDF / Image here</h3>
+              <p class="subtitle">Or click to browse file from your computer (PDF, PNG, JPG scans supported)</p>
             </div>
+          </div>
+
+          @if (selectedFile(); as file) {
+            <div class="file-chosen-bar">
+              <span>📎 {{ file.name }} ({{ (file.size / 1024).toFixed(1) }} KB)</span>
+              <button type="button" class="btn-clear" (click)="clearFile()">✕</button>
+            </div>
+          }
+
+          @if (isParsing()) {
+            <div class="loading-bar">
+              <div class="spinner-sm"></div>
+              <span>Scanning invoice and reading column data...</span>
+            </div>
+          }
+
+          <div class="upload-actions">
+            <button 
+              type="button" 
+              class="btn btn-primary btn-lg" 
+              [disabled]="!selectedFile() || isParsing()"
+              (click)="parseUploadedBill()">
+              ⚡ Extract Invoice Data
+            </button>
+          </div>
+
+          <div class="manual-entry-bar">
+            <span>Don't have a file right now?</span>
+            <button type="button" class="btn-link" (click)="openManualEntry()">
+              Open Manual Entry Grid &rarr;
+            </button>
           </div>
         </div>
-
-        <!-- Selected File Preview -->
-        @if (selectedFile(); as file) {
-          <div class="selected-file-card animate-fade-in">
-            <div class="file-info">
-              <span class="file-icon">{{ file.name.endsWith('.pdf') ? '📕' : '🖼️' }}</span>
-              <div class="file-details">
-                <strong class="file-name">{{ file.name }}</strong>
-                <span class="file-size tabular">{{ (file.size / 1024).toFixed(1) }} KB</span>
-              </div>
-            </div>
-            <button type="button" class="btn-remove-file" (click)="clearFile()">✕ Change File</button>
-          </div>
-        }
-
-        <!-- Demo / Fast Sample Testing Option -->
-        <div class="sample-hint-box">
-          <div class="sample-info">
-            <span class="sample-icon">💡</span>
-            <div>
-              <strong>No invoice file on this device?</strong>
-              <p>Load a sample distributor invoice to test automated bill scanning.</p>
-            </div>
-          </div>
-          <button type="button" class="btn btn-secondary btn-sm" [disabled]="isParsing()" (click)="loadSampleInvoice()">
-            ⚡ Try Sample Invoice
-          </button>
-        </div>
-
-        <!-- Loading State during Invoice Extraction execution -->
-        @if (isParsing()) {
-          <div class="parsing-indicator animate-fade-in">
-            <div class="spinner"></div>
-            <div class="parsing-text">
-              <strong>Scanning & Extracting Invoice Details...</strong>
-              <span>Reading table columns: Brand Name, Batch No, Expiry, Qty, Purchase Rate & MRP</span>
-            </div>
-          </div>
-        }
-
-        <!-- Step 1 Footer Actions -->
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
-          <button 
-            type="button" 
-            class="btn btn-primary btn-parse" 
-            [disabled]="!selectedFile() || isParsing()"
-            (click)="parseUploadedBill()">
-            @if (isParsing()) {
-              <span>⏳ Extracting Stock...</span>
-            } @else {
-              <span>⚡ Parse & Extract Stock</span>
-            }
-          </button>
-        </div>
-
-      </div>
+      </main>
     }
 
-    <!-- STEP 2: Interactive Review & Verification Grid -->
+    <!-- STEP 2: HIGH-DENSITY EDITABLE GRID -->
     @if (currentStep() === 'REVIEW') {
-      <div class="modal-body review-step animate-fade-in">
-        
-        <!-- Invoice Header Meta Fields -->
-        <div class="invoice-meta-bar">
-          <div class="meta-field">
-            <label>Wholesaler / Distributor</label>
+      <main class="workstation-content grid-view">
+
+        <!-- SLIM INVOICE HEADER ROW -->
+        <div class="invoice-header-strip">
+          <div class="header-input-group flex-2">
+            <label>Distributor / Wholesaler</label>
             <input 
               type="text" 
               [ngModel]="distributorName()" 
               (ngModelChange)="distributorName.set($event)" 
-              placeholder="e.g. Apollo Wholesale Distributors"
-              class="form-control"
+              placeholder="Enter distributor name" 
+              class="grid-input"
             />
           </div>
 
-          <div class="meta-field">
+          <div class="header-input-group flex-1">
             <label>Bill / Invoice #</label>
             <input 
               type="text" 
               [ngModel]="invoiceNumber()" 
               (ngModelChange)="invoiceNumber.set($event)" 
-              placeholder="e.g. INV-2026-9812"
-              class="form-control tabular"
+              placeholder="e.g. CA/MP/1519" 
+              class="grid-input"
             />
           </div>
 
-          <div class="meta-field">
+          <div class="header-input-group flex-1">
             <label>Invoice Date</label>
             <input 
               type="date" 
               [ngModel]="invoiceDate()" 
               (ngModelChange)="invoiceDate.set($event)" 
-              class="form-control tabular"
+              class="grid-input"
             />
           </div>
         </div>
 
-        <!-- Summary Metric Pills -->
-        <div class="summary-metrics-bar">
-          <div class="metric-chip">
-            <span class="chip-label">Total Items</span>
-            <strong class="chip-val tabular">{{ totalItemsCount() }}</strong>
-          </div>
-
-          <div class="metric-chip">
-            <span class="chip-label">Total Packs</span>
-            <strong class="chip-val tabular text-primary">{{ totalPacksCount() }} Packs</strong>
-          </div>
-
-          <div class="metric-chip">
-            <span class="chip-label">Existing In Master</span>
-            <strong class="chip-val tabular text-success">{{ existingMedicinesCount() }} Existing</strong>
-          </div>
-
-          <div class="metric-chip">
-            <span class="chip-label">New Medicines to Add</span>
-            <strong class="chip-val tabular text-warning">{{ newMedicinesCount() }} New</strong>
-          </div>
-
-          <div class="metric-chip highlight">
-            <span class="chip-label">Invoice Inward Valuation</span>
-            <strong class="chip-val tabular text-teal">₹{{ totalValuation() | number:'1.2-2' }}</strong>
-          </div>
-        </div>
-
-        <!-- Interactive Review Table -->
-        <div class="table-container">
-          <table class="review-table">
+        <!-- HIGH-DENSITY EDITABLE TABLE (MARG / EXCEL STYLE) -->
+        <div class="dense-table-wrapper">
+          <table class="dense-grid">
             <thead>
               <tr>
-                <th style="width: 12%;">Status</th>
-                <th style="width: 24%;">Medicine Name</th>
-                <th style="width: 14%;">Batch No</th>
-                <th style="width: 12%;">Expiry (YYYY-MM)</th>
-                <th style="width: 10%;">Qty (Packs)</th>
-                <th style="width: 11%;">Cost Rate (₹)</th>
-                <th style="width: 11%;">MRP (₹)</th>
-                <th style="width: 6%;"></th>
+                <th style="width: 38px;" class="text-center">#</th>
+                <th style="width: 90px;">Master Status</th>
+                <th style="width: 260px;">Product Name</th>
+                <th style="width: 65px;">MFR</th>
+                <th style="width: 75px;">Pack</th>
+                <th style="width: 130px;">Batch No</th>
+                <th style="width: 95px;">Expiry</th>
+                <th style="width: 65px;" class="text-right">Qty</th>
+                <th style="width: 90px;" class="text-right">Rate (₹)</th>
+                <th style="width: 85px;" class="text-right">MRP (₹)</th>
+                <th style="width: 65px;" class="text-right">Disc %</th>
+                <th style="width: 65px;" class="text-right">GST %</th>
+                <th style="width: 100px;" class="text-right">Net Value (₹)</th>
+                <th style="width: 40px;" class="text-center"></th>
               </tr>
             </thead>
             <tbody>
               @for (item of items(); track $index) {
-                <tr>
-                  <!-- Item Status -->
+                <tr [class.is-new-row]="!item.isExisting">
+                  <!-- Row Index -->
+                  <td class="text-center row-idx">{{ $index + 1 }}</td>
+
+                  <!-- Master Status -->
                   <td>
                     @if (item.isExisting) {
-                      <span class="status-pill status-existing" title="Matched with existing medicine catalog">
-                        ✓ Existing
-                      </span>
+                      <span class="badge badge-existing" title="Found in Master Catalog">✓ In Master</span>
                     } @else {
-                      <span class="status-pill status-new" title="New medicine will be registered in catalog">
-                        ✨ New Medicine
-                      </span>
+                      <span class="badge badge-new" title="Will be added to Medicine Master upon save">+ New Master</span>
                     }
                   </td>
 
-                  <!-- Brand Name -->
+                  <!-- Product Name -->
                   <td>
                     <input 
                       type="text" 
                       [ngModel]="item.medicineName" 
                       (ngModelChange)="updateItem($index, 'medicineName', $event)" 
-                      class="table-input med-name-input"
+                      class="cell-input text-bold"
+                      placeholder="Enter Drug / Brand Name"
                     />
-                    <span class="sub-salt">{{ item.genericName }}</span>
                   </td>
 
-                  <!-- Batch Number -->
+                  <!-- MFR -->
+                  <td>
+                    <input 
+                      type="text" 
+                      [ngModel]="item.mfr" 
+                      (ngModelChange)="updateItem($index, 'mfr', $event)" 
+                      class="cell-input text-uppercase"
+                      placeholder="MFR"
+                    />
+                  </td>
+
+                  <!-- Packaging / Pack -->
+                  <td>
+                    <input 
+                      type="text" 
+                      [ngModel]="item.packaging" 
+                      (ngModelChange)="updateItem($index, 'packaging', $event)" 
+                      class="cell-input"
+                      placeholder="10'S"
+                    />
+                  </td>
+
+                  <!-- Batch No -->
                   <td>
                     <input 
                       type="text" 
                       [ngModel]="item.batchNumber" 
                       (ngModelChange)="updateItem($index, 'batchNumber', $event)" 
-                      class="table-input tabular"
+                      class="cell-input tabular text-uppercase"
+                      placeholder="Batch #"
                     />
                   </td>
 
-                  <!-- Expiry Date -->
+                  <!-- Expiry Date (YYYY-MM) -->
                   <td>
                     <input 
                       type="text" 
                       [ngModel]="item.expiryDate" 
                       (ngModelChange)="updateItem($index, 'expiryDate', $event)" 
+                      class="cell-input tabular"
                       placeholder="YYYY-MM"
-                      class="table-input tabular"
                     />
                   </td>
 
-                  <!-- Quantity In Packs -->
+                  <!-- Quantity -->
                   <td>
                     <input 
                       type="number" 
                       [ngModel]="item.quantity" 
                       (ngModelChange)="updateItem($index, 'quantity', $event)" 
                       min="1"
-                      class="table-input tabular font-bold text-center"
+                      class="cell-input tabular text-right text-bold"
                     />
                   </td>
 
-                  <!-- Purchase Cost Price -->
+                  <!-- Purchase Rate -->
                   <td>
                     <input 
                       type="number" 
                       [ngModel]="item.purchasePrice" 
                       (ngModelChange)="updateItem($index, 'purchasePrice', $event)" 
-                      min="0.1"
-                      step="0.5"
-                      class="table-input tabular"
+                      step="0.01"
+                      min="0"
+                      class="cell-input tabular text-right"
                     />
                   </td>
 
@@ -272,21 +294,48 @@
                       type="number" 
                       [ngModel]="item.mrp" 
                       (ngModelChange)="updateItem($index, 'mrp', $event)" 
-                      min="0.1"
-                      step="0.5"
-                      class="table-input tabular"
+                      step="0.01"
+                      min="0"
+                      class="cell-input tabular text-right"
                     />
                   </td>
 
-                  <!-- Remove Row Action -->
+                  <!-- Discount % -->
+                  <td>
+                    <input 
+                      type="number" 
+                      [ngModel]="item.discount" 
+                      (ngModelChange)="updateItem($index, 'discount', $event)" 
+                      step="0.5"
+                      min="0"
+                      class="cell-input tabular text-right"
+                    />
+                  </td>
+
+                  <!-- GST % -->
+                  <td>
+                    <input 
+                      type="number" 
+                      [ngModel]="item.gstRate" 
+                      (ngModelChange)="updateItem($index, 'gstRate', $event)" 
+                      class="cell-input tabular text-right"
+                    />
+                  </td>
+
+                  <!-- Calculated Net Value -->
+                  <td class="text-right tabular text-bold text-teal">
+                    ₹{{ calculateRowTotal(item) | number:'1.2-2' }}
+                  </td>
+
+                  <!-- Delete Row -->
                   <td class="text-center">
-                    <button type="button" class="btn-del-row" (click)="removeItem($index)" title="Remove Line Item">✕</button>
+                    <button type="button" class="btn-del" (click)="removeItem($index)" title="Delete Row">✕</button>
                   </td>
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="8" class="text-center empty-notice">
-                    No medicine items detected. Click "+ Add Line Item" below to add manually.
+                  <td colspan="14" class="empty-state">
+                    No items in table. Click <strong>"+ Add Line"</strong> or upload a bill.
                   </td>
                 </tr>
               }
@@ -294,76 +343,59 @@
           </table>
         </div>
 
-        <div class="review-table-footer">
-          <button type="button" class="btn btn-secondary btn-sm" (click)="addNewItem()">
-            ➕ Add Line Item
-          </button>
-          <span class="verification-hint">💡 Verify batch numbers & quantities above before confirming stock inward.</span>
-        </div>
+        <!-- DENSE FOOTER BAR -->
+        <footer class="grid-footer">
+          <div class="footer-left">
+            <button type="button" class="btn btn-secondary btn-sm" (click)="addNewItem()">
+              ➕ Add Line Item
+            </button>
+            <span class="hint-text">💡 All "New Master" items will be automatically saved into your medicine list upon confirmation.</span>
+          </div>
+          <div class="footer-right">
+            <span class="sum-label">Total Inward Valuation:</span>
+            <strong class="sum-value">₹{{ totalValuation() | number:'1.2-2' }}</strong>
+          </div>
+        </footer>
 
-        <!-- Step 2 Footer Actions -->
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" [disabled]="isCommitting()" (click)="currentStep.set('UPLOAD')">
-            ← Re-upload Bill
-          </button>
-          <button 
-            type="button" 
-            class="btn btn-primary btn-commit" 
-            [disabled]="items().length === 0 || isCommitting()"
-            (click)="commitToStock()">
-            @if (isCommitting()) {
-              <span>⏳ Updating Inventory Stock...</span>
-            } @else {
-              <span>✓ Import All into Inventory ({{ totalPacksCount() }} Packs)</span>
-            }
-          </button>
-        </div>
-
-      </div>
+      </main>
     }
 
-    <!-- STEP 3: Success Recap Screen -->
+    <!-- STEP 3: SUCCESS SCREEN -->
     @if (currentStep() === 'SUCCESS') {
-      <div class="modal-body success-step animate-fade-in">
-        <div class="success-icon-wrap">
-          <span class="success-icon">🎉</span>
-        </div>
+      <main class="workstation-content success-view">
+        <div class="success-card">
+          <span class="big-check">✓</span>
+          <h3>Stock Successfully Inwarded!</h3>
+          <p class="success-msg">Your medicine catalog and batch stock records have been updated.</p>
 
-        <h3>Stock Successfully Added to Inventory!</h3>
-        <p class="success-desc">
-          Your inventory and batch stock levels have been updated in your store records.
-        </p>
-
-        @if (commitResult(); as res) {
-          <div class="success-summary-card">
-            <div class="summary-stat">
-              <span class="stat-num text-primary tabular">{{ res.totalPacksAdded }}</span>
-              <span class="stat-label">Total Packs Added</span>
+          @if (commitResult(); as res) {
+            <div class="summary-stats-box">
+              <div class="stat-box">
+                <span class="stat-number">{{ res.totalPacksAdded }}</span>
+                <span class="stat-text">Packs Added</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-number">{{ res.batchesAdded }}</span>
+                <span class="stat-text">Batches Recorded</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-number">{{ res.newMedicinesCreated }}</span>
+                <span class="stat-text">New Catalog Drugs</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-number text-teal">₹{{ res.totalValuation | number:'1.2-2' }}</span>
+                <span class="stat-text">Total Valuation</span>
+              </div>
             </div>
+          }
 
-            <div class="summary-stat">
-              <span class="stat-num text-success tabular">{{ res.batchesAdded }}</span>
-              <span class="stat-label">New Batches Added</span>
-            </div>
-
-            <div class="summary-stat">
-              <span class="stat-num text-warning tabular">{{ res.newMedicinesCreated }}</span>
-              <span class="stat-label">New Medicines Added</span>
-            </div>
-
-            <div class="summary-stat">
-              <span class="stat-num text-teal tabular">₹{{ res.totalValuation | number:'1.2-2' }}</span>
-              <span class="stat-label">Valuation Inward</span>
-            </div>
+          <div class="success-actions">
+            <button type="button" class="btn btn-primary btn-lg" (click)="close()">
+              ✓ Done - View Inventory
+            </button>
           </div>
-        }
-
-        <div class="modal-footer justify-center">
-          <button type="button" class="btn btn-primary btn-lg" (click)="close()">
-            ✓ View Updated Inventory
-          </button>
         </div>
-      </div>
+      </main>
     }
 
   </div>

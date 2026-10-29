@@ -3,27 +3,28 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../../core/services/api.service';
 import { InventoryService } from '../../../core/services/inventory.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 export interface InwardTableItem {
   medicineName: string;
-  genericName: string;
+  genericName?: string;
+  mfr?: string;
+  packaging?: string;
   batchNumber: string;
   expiryDate: string;
   quantity: number;
   purchasePrice: number;
   mrp: number;
   salePrice: number;
+  discount?: number;
   gstRate: number;
-  hsnCode: string;
-  packaging?: string;
+  hsnCode?: string;
   category?: string;
   rackLocation?: string;
   existingMedicineId?: number | null;
   isExisting?: boolean;
   matchedBrandName?: string;
 }
-
-import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-purchase-inward-modal',
@@ -48,9 +49,9 @@ export class PurchaseInwardModalComponent {
   errorMessage = signal<string | null>(null);
 
   // Extracted & Editable Inward Bill Details
-  distributorName = signal('Sun Pharma Wholesale Distributors');
+  distributorName = signal('');
   invoiceNumber = signal('');
-  invoiceDate = signal('');
+  invoiceDate = signal(new Date().toISOString().split('T')[0]);
   items = signal<InwardTableItem[]>([]);
   commitResult = signal<any | null>(null);
 
@@ -59,9 +60,18 @@ export class PurchaseInwardModalComponent {
   totalPacksCount = computed(() =>
     this.items().reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
   );
+
   totalValuation = computed(() =>
-    this.items().reduce((sum, item) => sum + ((Number(item.purchasePrice) || 0) * (Number(item.quantity) || 0)), 0)
+    this.items().reduce((sum, item) => {
+      const qty = Number(item.quantity) || 0;
+      const rate = Number(item.purchasePrice) || 0;
+      const disc = Number(item.discount) || 0;
+      const gst = Number(item.gstRate) || 0;
+      const base = qty * rate * (1 - disc / 100);
+      return sum + base * (1 + gst / 100);
+    }, 0)
   );
+
   existingMedicinesCount = computed(() =>
     this.items().filter(item => item.isExisting).length
   );
@@ -105,35 +115,10 @@ export class PurchaseInwardModalComponent {
     this.errorMessage.set(null);
   }
 
-  /**
-   * 1-Click Fast Test with a realistic Wholesale Pharmacy Bill
-   */
-  loadSampleInvoice(): void {
-    this.isParsing.set(true);
-    this.errorMessage.set(null);
-
-    const sampleBillText = `APOLLO WHOLESALE DISTRIBUTORS PVT LTD
-TAX INVOICE: WH-2026-9819   Date: 10/09/2026
-GSTIN: 27AABCT8812F1Z9
-Item Description             HSN      Batch     Exp     Qty   Rate     MRP     GST%
-DOLO 650MG TAB 15'S          3004     DL9201    08/27   50    24.50    48.00   12%
-PAN 40MG TAB 10'S            3004     PN5512    11/26   30    42.00    85.50   12%
-AZITHRAL 500 TAB 3'S         3004     AZ9010    05/27   20    65.00   119.00   12%
-AUGMENTIN 625 DUO TAB        3004     AG3024    09/26   15   120.00   204.00   18%
-TELMA 40MG TAB 15'S          3004     TL6631    03/27   25    78.00   145.00   12%
-CETCIP 10MG TAB 10'S         3004     CT8021    12/26   40    14.00    32.00   12%
-MONTEK LC TAB 10'S           3004     MT4441    07/27   35    85.00   162.00   12%`;
-
-    this.apiService.parseRawInvoiceText(sampleBillText, 'Apollo Wholesale Distributors Pvt Ltd').subscribe({
-      next: (res) => {
-        this.isParsing.set(false);
-        this.applyParsedResponse(res);
-      },
-      error: (err) => {
-        this.isParsing.set(false);
-        this.errorMessage.set('Failed to parse invoice: ' + (err.error?.message || err.message));
-      }
-    });
+  openManualEntry(): void {
+    this.items.set([]);
+    this.addNewItem();
+    this.currentStep.set('REVIEW');
   }
 
   /**
@@ -153,37 +138,48 @@ MONTEK LC TAB 10'S           3004     MT4441    07/27   35    85.00   162.00   1
       next: (res) => {
         this.isParsing.set(false);
         if (!res || !res.items || res.items.length === 0) {
-          // If unstructured image, load sample pharma format for smooth experience
-          this.loadSampleInvoice();
+          this.errorMessage.set(res?.message || 'No medicine rows detected from document. You can add items manually in the grid.');
+          this.items.set([]);
+          this.addNewItem();
+          this.currentStep.set('REVIEW');
           return;
         }
         this.applyParsedResponse(res);
       },
       error: (err) => {
         this.isParsing.set(false);
-        // Resilient fallback to sample parsing so pharmacist is never blocked
-        this.loadSampleInvoice();
+        if (err.status === 401 || err.status === 403) {
+          this.errorMessage.set('Your session has expired. Please log out and log in again to continue.');
+          this.authService.logout();
+        } else {
+          this.errorMessage.set('Could not extract text from document: ' + (err.error?.message || err.message || 'Unknown error') + '. Please enter items manually.');
+          this.items.set([]);
+          this.addNewItem();
+          this.currentStep.set('REVIEW');
+        }
       }
     });
   }
 
   private applyParsedResponse(res: any): void {
-    this.distributorName.set(res.distributorName || 'Distributor Agency');
+    this.distributorName.set(res.distributorName || '');
     this.invoiceNumber.set(res.invoiceNumber || ('INV-' + Math.floor(Math.random() * 90000 + 10000)));
     this.invoiceDate.set(res.invoiceDate || new Date().toISOString().split('T')[0]);
 
     const mappedItems: InwardTableItem[] = (res.items || []).map((i: any) => ({
       medicineName: i.medicineName,
       genericName: i.genericName || i.medicineName,
+      mfr: i.mfr || '',
+      packaging: i.packaging || "10'S",
       batchNumber: i.batchNumber || ('B' + Math.floor(Math.random() * 90000 + 10000)),
-      expiryDate: i.expiryDate || '2027-12',
-      quantity: Number(i.quantity) || 10,
+      expiryDate: i.expiryDate || '2028-06',
+      quantity: Number(i.quantity) || 1,
       purchasePrice: Number(i.purchasePrice) || 20.0,
       mrp: Number(i.mrp) || Math.round((Number(i.purchasePrice) || 20) * 1.35 * 100) / 100,
       salePrice: Number(i.salePrice) || Math.round((Number(i.mrp) || 27) * 0.95 * 100) / 100,
-      gstRate: Number(i.gstRate) || 12,
-      hsnCode: i.hsnCode || '3004',
-      packaging: i.packaging || '1x10',
+      discount: Number(i.discount) || 0,
+      gstRate: Number(i.gstRate) || 5,
+      hsnCode: i.hsnCode || '30049039',
       category: i.category || 'Tablet',
       rackLocation: i.rackLocation || 'Rack A-01',
       existingMedicineId: i.existingMedicineId || null,
@@ -211,17 +207,19 @@ MONTEK LC TAB 10'S           3004     MT4441    07/27   35    85.00   162.00   1
 
   addNewItem(): void {
     const newItem: InwardTableItem = {
-      medicineName: 'New Medicine',
-      genericName: 'Salt / Composition',
-      batchNumber: 'B' + Math.floor(Math.random() * 89999 + 10000),
-      expiryDate: '2027-12',
-      quantity: 10,
-      purchasePrice: 20.0,
-      mrp: 35.0,
-      salePrice: 33.25,
-      gstRate: 12,
-      hsnCode: '3004',
-      packaging: '1x10',
+      medicineName: '',
+      genericName: '',
+      mfr: '',
+      packaging: "10'S",
+      batchNumber: '',
+      expiryDate: '2028-06',
+      quantity: 1,
+      purchasePrice: 0,
+      mrp: 0,
+      salePrice: 0,
+      discount: 0,
+      gstRate: 5,
+      hsnCode: '30049039',
       category: 'Tablet',
       rackLocation: 'Rack A-01',
       isExisting: false
@@ -229,9 +227,15 @@ MONTEK LC TAB 10'S           3004     MT4441    07/27   35    85.00   162.00   1
     this.items.update(list => [...list, newItem]);
   }
 
-  /**
-   * Ingest all verified items into live MySQL database
-   */
+  calculateRowTotal(item: InwardTableItem): number {
+    const qty = Number(item.quantity) || 0;
+    const rate = Number(item.purchasePrice) || 0;
+    const disc = Number(item.discount) || 0;
+    const gst = Number(item.gstRate) || 0;
+    const base = qty * rate * (1 - disc / 100);
+    return Math.round(base * (1 + gst / 100) * 100) / 100;
+  }
+
   commitToStock(): void {
     if (this.items().length === 0) {
       this.errorMessage.set('No items in the invoice to import.');
@@ -255,7 +259,6 @@ MONTEK LC TAB 10'S           3004     MT4441    07/27   35    85.00   162.00   1
         this.isCommitting.set(false);
         this.commitResult.set(res);
         this.currentStep.set('SUCCESS');
-        // Refresh live inventory signals in frontend
         this.inventoryService.syncWithBackend(storeId);
         this.stockImported.emit(res);
       },

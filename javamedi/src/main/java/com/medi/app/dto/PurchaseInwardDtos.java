@@ -28,6 +28,9 @@ public class PurchaseInwardDtos {
         private String packaging;
         private String category;
         private String rackLocation;
+        private String mfr;
+        private Double discount;
+        private Double netAmount;
 
         // DB Matching metadata
         private Long existingMedicineId;

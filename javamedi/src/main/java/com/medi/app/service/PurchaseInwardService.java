@@ -61,7 +61,7 @@ public class PurchaseInwardService {
     );
 
     // HSN Pattern (4 to 8 digits, e.g. 30049099, 33049990, 34013019, 3004, 6307)
-    private static final Pattern HSN_PATTERN = Pattern.compile("\\b([39]\\d{5,7}|3004|6307)\\b");
+    private static final Pattern HSN_PATTERN = Pattern.compile("\\b(\\d{6,8}|3004|2106|6307)\\b");
 
     // Known Pharma Manufacturers (for Marg ERP bills with Mfr prefix)
     private static final Set<String> KNOWN_MFRS = new HashSet<>(Arrays.asList(
@@ -70,8 +70,10 @@ public class PurchaseInwardService {
 
     public enum ColumnType {
         INDEX,
+        MFR,
         MEDICINE_NAME,
         HSN,
+        PACK,
         BATCH,
         EXPIRY,
         MRP,
@@ -85,16 +87,18 @@ public class PurchaseInwardService {
     private static final Map<ColumnType, Pattern> COLUMN_HEADER_PATTERNS = new LinkedHashMap<>();
     static {
         COLUMN_HEADER_PATTERNS.put(ColumnType.INDEX, Pattern.compile("(?i)\\b(?:sr\\.?|s\\.?no|sl\\.?no|#|no\\.?)\\b"));
-        COLUMN_HEADER_PATTERNS.put(ColumnType.MEDICINE_NAME, Pattern.compile("(?i)\\b(?:product\\s*name|product\\s*description|item\\s*description|item\\s*name|particulars|description\\s*of\\s*goods|description|medicine\\s*name|medicine|brand\\s*name|drug\\s*name|material\\s*description|article)\\b"));
+        COLUMN_HEADER_PATTERNS.put(ColumnType.MFR, Pattern.compile("(?i)\\b(?:mfr|mfg|co\\.?)\\b"));
         COLUMN_HEADER_PATTERNS.put(ColumnType.HSN, Pattern.compile("(?i)\\b(?:hsn\\s*/\\s*sac|hsn\\s*code|hsn|sac\\s*code|sac|tariff)\\b"));
+        COLUMN_HEADER_PATTERNS.put(ColumnType.MEDICINE_NAME, Pattern.compile("(?i)\\b(?:product(?:\\s*(?:name|description))?|item(?:\\s*(?:description|name))?|particulars|description(?:\\s*of\\s*goods)?|medicine(?:\\s*name)?|brand\\s*name|drug\\s*name|material\\s*description|article)\\b"));
+        COLUMN_HEADER_PATTERNS.put(ColumnType.PACK, Pattern.compile("(?i)\\b(?:pack|pkg|packing)\\b"));
         COLUMN_HEADER_PATTERNS.put(ColumnType.BATCH, Pattern.compile("(?i)\\b(?:batch\\s*no|batch\\s*number|batch\\s*#|batch|b\\.?no|b/n|lot\\s*no|lot\\s*#|lot|batch\\s*/\\s*lot)\\b"));
         COLUMN_HEADER_PATTERNS.put(ColumnType.EXPIRY, Pattern.compile("(?i)\\b(?:expiry\\s*date|expiry|exp\\.?\\s*date|exp\\s*dt|exp\\.?dt|exp|valid\\s*upto|e\\.?d\\.?)\\b"));
         COLUMN_HEADER_PATTERNS.put(ColumnType.MRP, Pattern.compile("(?i)\\b(?:m\\.?r\\.?p\\.?|max\\s*retail\\s*price|retail\\s*price)\\b"));
         COLUMN_HEADER_PATTERNS.put(ColumnType.QTY, Pattern.compile("(?i)\\b(?:qty|quantity|units|packs|pack\\s*qty|total\\s*qty|nos|pcs)\\b"));
         COLUMN_HEADER_PATTERNS.put(ColumnType.PURCHASE_PRICE, Pattern.compile("(?i)\\b(?:list\\s*price|purchase\\s*rate|purchase\\s*price|cost\\s*price|cost|unit\\s*price|basic\\s*rate|net\\s*rate|p\\.?rate|billing\\s*rate|rate|price)\\b"));
-        COLUMN_HEADER_PATTERNS.put(ColumnType.DISCOUNT, Pattern.compile("(?i)\\b(?:disc\\.?|disc\\s*%|discount|trade\\s*disc|sch\\s*%|scheme)\\b"));
-        COLUMN_HEADER_PATTERNS.put(ColumnType.GST_RATE, Pattern.compile("(?i)\\b(?:tax\\s*%|tax\\s*rate|gst\\s*%|gst\\s*rate|tax|gst|igst\\s*%|cgst\\s*%|sgst\\s*%|vat\\s*%)\\b"));
+        COLUMN_HEADER_PATTERNS.put(ColumnType.DISCOUNT, Pattern.compile("(?i)\\b(?:pd%|bd%|disc\\.?|disc\\s*%|discount|trade\\s*disc|sch\\s*%|scheme)\\b"));
         COLUMN_HEADER_PATTERNS.put(ColumnType.AMOUNT, Pattern.compile("(?i)\\b(?:amount\\s*\\(?₹?\\)?|net\\s*amount|total|value|total\\s*value)\\b"));
+        COLUMN_HEADER_PATTERNS.put(ColumnType.GST_RATE, Pattern.compile("(?i)\\b(?:tax\\s*%|tax\\s*rate|gst\\s*%|gst\\s*rate|tax|gst|igst\\s*%|cgst\\s*%|sgst\\s*%|vat\\s*%)\\b"));
     }
 
     private static class HeaderHit implements Comparable<HeaderHit> {
@@ -193,10 +197,15 @@ public class PurchaseInwardService {
 
         log.info("Extracted Raw OCR Text (Length: {} chars):\n{}", rawText != null ? rawText.length() : 0, rawText);
 
-        // If OCR returned empty or failed, fallback to simulated text so user can still see template items
         if (rawText == null || rawText.trim().length() < 15) {
-            log.warn("OCR extracted minimal text. Providing fallback template for pharmacist review.");
-            rawText = generateSimulatedOcrTextFromImage(filename);
+            log.warn("Could not extract text from uploaded file [{}]", filename);
+            return PurchaseInwardDtos.ParsedBillResponse.builder()
+                    .distributorName("")
+                    .invoiceNumber("")
+                    .invoiceDate(LocalDate.now().toString())
+                    .items(new ArrayList<>())
+                    .message("No readable text found in document. Please verify document clarity or enter lines manually.")
+                    .build();
         }
 
         return parseRawText(rawText, null);
@@ -486,11 +495,15 @@ public class PurchaseInwardService {
             }
 
             // Invoice Number
-            if (invoiceNumber == null && !trimmed.toUpperCase().contains("TAX INVOICE ORIGINAL")) {
-                Matcher invMatcher = Pattern.compile("(?i)\\b(?:INVOICE|BILL|INV)\\b\\s*(?:NO|NUMBER)?\\.?\\s*[:#-]?\\s*([0-9A-Z/:-]{3,25})").matcher(trimmed);
+            if (invoiceNumber == null) {
+                Matcher invMatcher = Pattern.compile("(?i)\\b(?:BILL\\s*(?:NO|NUMBER)?|INV(?:OICE)?\\s*(?:NO|NUMBER)?)\\.?\\s*[:#-]?\\s*([0-9A-Z/:-]{3,25})").matcher(trimmed);
                 if (invMatcher.find()) {
-                    String candidate = invMatcher.group(1).trim();
-                    if (!candidate.equalsIgnoreCase("DATE") && !candidate.equalsIgnoreCase("ORIGINAL") && candidate.length() >= 3) {
+                    String candidate = invMatcher.group(1).trim().replaceAll("^[:#\\s.-]+", "");
+                    String candUpper = candidate.toUpperCase();
+                    if (!candUpper.startsWith("OFFICE") && !candUpper.startsWith("COPY") &&
+                        !candUpper.startsWith("ORIGINAL") && !candUpper.startsWith("DUPLICATE") &&
+                        !candUpper.startsWith("DATE") && !candUpper.startsWith("MEMO") &&
+                        !candUpper.startsWith("SUPPLY") && candidate.length() >= 3) {
                         invoiceNumber = candidate;
                     }
                 }
@@ -571,12 +584,18 @@ public class PurchaseInwardService {
     }
 
     private boolean isGenericHeaderTitle(String line) {
-        String upper = line.toUpperCase();
+        String upper = line.trim().toUpperCase();
+        if (upper.equals("TAX") || upper.equals("INVOICE") || upper.equals("TAX INVOICE") ||
+            upper.equals("ORIGINAL") || upper.equals("OFFICE COPY") || upper.equals("BILL") ||
+            upper.equals("BILL NO") || upper.equals("BILL NO.") || upper.equals("MEMO") ||
+            upper.equals("CASH") || upper.equals("CREDIT") || upper.equals("COPY")) {
+            return true;
+        }
         return upper.contains("TAX INVOICE") || upper.contains("PAGE NO") || upper.contains("ORIGINAL COPY") ||
-                upper.contains("BILLING DETAILS") || upper.contains("GSTIN") || upper.contains("ITEM DESCRIPTION") ||
-                upper.contains("PRODUCT NAME") || upper.contains("PARTICULARS") ||
+                upper.contains("OFFICE COPY") || upper.contains("BILLING DETAILS") || upper.contains("GSTIN") ||
+                upper.contains("ITEM DESCRIPTION") || upper.contains("PRODUCT NAME") || upper.contains("PARTICULARS") ||
                 upper.contains("CASH NUMBER") || upper.contains("PLACE OF SUPPLY") || upper.contains("DUE DATE") ||
-                isTableHeaderRow(line);
+                upper.contains("BILL NO") || upper.contains("BILL DATE") || isTableHeaderRow(line);
     }
 
     private boolean hasAddressOrGstinBelow(String[] lines, int currentIndex) {
@@ -599,16 +618,32 @@ public class PurchaseInwardService {
      */
     private PurchaseInwardDtos.ParsedItemDto parseLineToItem(String rawLine, List<Medicine> catalog, List<ColumnType> activeLayout, int currentGstRate) {
         // Replace non-ascii replacement characters (\uFFFD etc.) and quotes with '/'
-        String line = rawLine.replaceAll("[^\\x00-\\x7F]", "/")
-                .replaceAll("['’‘`]", "/")
+        String line = rawLine.replaceAll("[^\\x00-\\x7F]", " ")
+                .replaceAll("[’‘`]", "'")
                 .replace('|', ' ')
                 .replaceAll("\\s+", " ")
                 .trim();
 
         Matcher hsnMatcher = HSN_PATTERN.matcher(line);
-        // Check if Marg ERP format (has an 8-digit HSN or starts with Mfr code)
-        if (hsnMatcher.find() && (line.matches("(?i)^[A-Za-z&()]{2,4}\\s+.*") || hsnMatcher.group(1).length() >= 7)) {
-            return parseMargLineToItem(line, catalog, hsnMatcher, currentGstRate);
+        if (hsnMatcher.find()) {
+            String leftOfHsn = line.substring(0, hsnMatcher.start()).trim();
+            String[] leftTokens = leftOfHsn.isEmpty() ? new String[0] : leftOfHsn.split("\\s+");
+
+            boolean isHsnFirstFormat = (leftTokens.length <= 1) ||
+                    (activeLayout != null && activeLayout.contains(ColumnType.HSN) && activeLayout.contains(ColumnType.MEDICINE_NAME) &&
+                     activeLayout.indexOf(ColumnType.HSN) < activeLayout.indexOf(ColumnType.MEDICINE_NAME));
+
+            if (isHsnFirstFormat) {
+                PurchaseInwardDtos.ParsedItemDto hsnFirstItem = parseHsnFirstLineToItem(line, catalog, hsnMatcher, activeLayout, currentGstRate);
+                if (hsnFirstItem != null) {
+                    return hsnFirstItem;
+                }
+            }
+
+            // Existing Marg ERP format where Medicine Name precedes HSN
+            if (line.matches("(?i)^[A-Za-z&()]{2,4}\\s+.*") || hsnMatcher.group(1).length() >= 7 || leftTokens.length > 1) {
+                return parseMargLineToItem(line, catalog, hsnMatcher, currentGstRate);
+            }
         }
 
         // Check if line has an expiry date anchor
@@ -814,6 +849,152 @@ public class PurchaseInwardService {
      * Specialized parser for Marg ERP invoice rows (common across Indian pharma distribution).
      * Format: [Mfr] [Medicine Name] [HSN] [Pack] [Batch] [Expiry] [MRP] [Qty] [Free] [Rate] [PD%] [BD%] [Value]
      */
+    /**
+     * Specialized parser for Invoices where HSN appears BEFORE the Product Name (e.g. Drogaria Salcete, Goa/South distributors).
+     * Format: [Mfr] [HSN] [Medicine Name] [Pack] [Batch] [Expiry] [MRP] [Qty] [PD%] [Rate] [BD%] [Value] [GST%]
+     */
+    private PurchaseInwardDtos.ParsedItemDto parseHsnFirstLineToItem(
+            String line,
+            List<Medicine> catalog,
+            Matcher hsnMatcher,
+            List<ColumnType> activeLayout,
+            int defaultGst) {
+        try {
+            String hsn = hsnMatcher.group(1);
+            int hsnStart = hsnMatcher.start();
+            int hsnEnd = hsnMatcher.end();
+
+            // MFR is the token before HSN (e.g. AVI, PNG)
+            String mfr = line.substring(0, hsnStart).replaceAll("[^A-Za-z0-9&]", "").trim().toUpperCase();
+
+            // Expiry date must appear after HSN
+            Matcher expMatcher = EXPIRY_PATTERN.matcher(line);
+            if (!expMatcher.find(hsnEnd)) {
+                return null;
+            }
+
+            int expStart = expMatcher.start();
+            int expEnd = expMatcher.end();
+            String rawExp = expMatcher.group(0);
+            String normalizedExpiry = normalizeExpiry(rawExp);
+
+            // Middle segment (between HSN and Expiry): [Product Name] [Pack] [Batch]
+            String midPart = line.substring(hsnEnd, expStart).trim();
+            String[] midTokens = midPart.split("\\s+");
+            if (midTokens.length == 0) return null;
+
+            String batch = "";
+            String pack = "1'S";
+            int nameEndIdx = midTokens.length;
+
+            // 1. Last token in midPart is Batch Number (e.g. CG26-0207C, 6101E68501, 6220C85001)
+            if (midTokens.length >= 1) {
+                batch = midTokens[midTokens.length - 1].replaceAll("[^A-Za-z0-9\\-]", "").toUpperCase();
+                nameEndIdx--;
+            }
+
+            // 2. Second-to-last token in midPart is Pack (e.g. 10'S, 30'S, 200ML, 10T, 100ML)
+            if (nameEndIdx >= 1 && midTokens[nameEndIdx - 1].matches("(?i)\\d+['/]?[A-Za-z]+|\\d+[A-Za-z]+")) {
+                pack = midTokens[nameEndIdx - 1];
+                nameEndIdx--;
+            }
+
+            // 3. Tokens from 0 to nameEndIdx form the clean Medicine Name
+            StringBuilder nameSb = new StringBuilder();
+            for (int i = 0; i < nameEndIdx; i++) {
+                nameSb.append(midTokens[i]).append(" ");
+            }
+            String medName = nameSb.toString().trim();
+            if (medName.isEmpty()) medName = "Medicine " + batch;
+
+            // Right segment (after Expiry): [MRP] [QTY] [PD%] [RATE] [BD%] [VALUE] [GST%]
+            String rightPart = line.substring(expEnd).trim();
+            String[] rightTokens = rightPart.split("\\s+");
+            List<Double> numbers = new ArrayList<>();
+            for (String t : rightTokens) {
+                String clean = t.replace(',', '.').replaceAll("[^0-9.]", "");
+                if (clean.endsWith(".")) clean = clean.substring(0, clean.length() - 1);
+                if (!clean.isEmpty()) {
+                    try {
+                        numbers.add(Double.parseDouble(clean));
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            double mrp = 0.0;
+            int qty = 1;
+            double rate = 20.0;
+            double discount = 0.0;
+            double value = 0.0;
+            int gst = defaultGst;
+
+            // Drogaria Salcete 7-column right part: [MRP=99.00, QTY=10, PD%=0.00, RATE=75.43, BD%=1.00, VALUE=746.76, GST%=5]
+            if (numbers.size() >= 7) {
+                mrp = numbers.get(0);
+                qty = numbers.get(1).intValue();
+                rate = numbers.get(3);
+                discount = numbers.get(4);
+                value = numbers.get(5);
+                gst = numbers.get(6).intValue();
+            } else if (numbers.size() == 6) {
+                mrp = numbers.get(0);
+                qty = numbers.get(1).intValue();
+                rate = numbers.get(2);
+                discount = numbers.get(3);
+                value = numbers.get(4);
+                gst = numbers.get(5).intValue();
+            } else if (numbers.size() >= 4) {
+                mrp = numbers.get(0);
+                qty = numbers.get(1).intValue();
+                rate = numbers.get(2);
+                gst = numbers.get(numbers.size() - 1).intValue();
+            } else if (numbers.size() >= 2) {
+                qty = numbers.get(0).intValue();
+                rate = numbers.get(1);
+                mrp = Math.round(rate * 1.25 * 100.0) / 100.0;
+            }
+
+            if (qty <= 0) qty = 1;
+            if (rate <= 0) rate = 20.0;
+            if (mrp <= 0) mrp = Math.round(rate * 1.25 * 100.0) / 100.0;
+            if (value <= 0) value = Math.round(rate * qty * 100.0) / 100.0;
+
+            Medicine matched = findMatchingMedicine(medName, catalog);
+            boolean isExisting = (matched != null);
+
+            String category = "Tablet";
+            if (medName.toLowerCase().contains("tonic") || medName.toLowerCase().contains("syrup")) category = "Syrup";
+            else if (medName.toLowerCase().contains("gummies") || medName.toLowerCase().contains("gummy")) category = "Supplements";
+            else if (medName.toLowerCase().contains("drop")) category = "Drops";
+            else if (medName.toLowerCase().contains("cream") || medName.toLowerCase().contains("gel")) category = "Ointment";
+
+            return PurchaseInwardDtos.ParsedItemDto.builder()
+                    .medicineName(isExisting ? matched.getBrandName() : medName)
+                    .genericName(isExisting ? matched.getGenericName() : suggestGenericName(medName))
+                    .batchNumber(batch.isEmpty() ? "B" + (int)(Math.random() * 89999 + 10000) : batch)
+                    .expiryDate(normalizedExpiry)
+                    .quantity(qty)
+                    .purchasePrice(rate)
+                    .mrp(mrp)
+                    .salePrice(Math.round(mrp * 0.95 * 100.0) / 100.0)
+                    .gstRate(gst)
+                    .hsnCode(hsn)
+                    .packaging(pack)
+                    .category(isExisting ? matched.getCategory() : category)
+                    .rackLocation(isExisting ? matched.getRackLocation() : "Rack A-01")
+                    .mfr(mfr)
+                    .discount(discount)
+                    .netAmount(value)
+                    .existingMedicineId(isExisting ? matched.getId() : null)
+                    .isExisting(isExisting)
+                    .matchedBrandName(isExisting ? matched.getBrandName() : null)
+                    .build();
+        } catch (Exception e) {
+            log.warn("Failed to parse HSN-first line: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private PurchaseInwardDtos.ParsedItemDto parseMargLineToItem(String line, List<Medicine> catalog, Matcher hsnMatcher, int defaultGst) {
         String hsn = hsnMatcher.group(1);
         if (hsn.equals("94013019")) hsn = "34013019"; // Fix common OCR typo 9 -> 3
@@ -827,7 +1008,7 @@ public class PurchaseInwardService {
         StringBuilder nameBuilder = new StringBuilder();
         for (int i = 0; i < leftTokens.length; i++) {
             String t = leftTokens[i];
-            if (i == 0 && (KNOWN_MFRS.contains(t.toUpperCase()) || t.matches("^[A-Za-z&()]{2,4}$"))) {
+            if (i == 0 && KNOWN_MFRS.contains(t.toUpperCase()) && leftTokens.length > 2) {
                 // skip leading manufacturer code like CIPL, MANK, ABBO...
             } else {
                 nameBuilder.append(t).append(" ");
@@ -873,6 +1054,8 @@ public class PurchaseInwardService {
         for (String tt : textTokens) {
             if (tt.matches("(?i)\\d+['/]?[A-Za-z]+|\\d+[A-Za-z]+")) {
                 pack = tt;
+            } else if (tt.matches("^[A-Za-z]{1,4}\\d+[A-Za-z0-9\\-]*$")) {
+                batch = tt.replaceAll("[^A-Za-z0-9\\-]", "").toUpperCase();
             } else {
                 String normExp = normalizeExpiry(tt);
                 if (normExp != null && !normExp.equals("2027-12")) {
@@ -1102,15 +1285,6 @@ public class PurchaseInwardService {
         return "01";
     }
 
-    private String generateSimulatedOcrTextFromImage(String filename) {
-        return "MY COMPANY\n" +
-                "TAX INVOICE: 0001/25-26   Date: 05/08/2025\n" +
-                "GSTIN: 09AAACH7409R1ZZ\n" +
-                "Item Description             HSN      Batch     Exp     Qty   Rate     MRP     GST%\n" +
-                "Paracetamol 500mg            3004     B1234     12/26   2     20.00    42.00   5%\n" +
-                "Cough Syrup 100ml            3004     C5678     10/25   1     80.00    84.00   12%\n" +
-                "Face Mask (pack of 10)       6307     M9087     11/27   1    100.00   105.00   5%\n";
-    }
 
     /**
      * Commits the reviewed purchase items into the live MySQL database.
@@ -1204,7 +1378,7 @@ public class PurchaseInwardService {
                         .brandName(item.getMedicineName().trim())
                         .genericName(item.getGenericName() != null ? item.getGenericName().trim() : suggestGenericName(item.getMedicineName()))
                         .category(item.getCategory() != null ? item.getCategory() : "Tablet")
-                        .manufacturer(distributor)
+                        .manufacturer(item.getMfr() != null && !item.getMfr().isEmpty() ? item.getMfr() : distributor)
                         .hsnCode(item.getHsnCode() != null ? item.getHsnCode() : "3004")
                         .gstRate(item.getGstRate() != null ? item.getGstRate() : 12)
                         .packaging(item.getPackaging() != null ? item.getPackaging() : "1x10")

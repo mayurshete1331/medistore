@@ -87,11 +87,39 @@ export class AuthService {
     }
   }
 
+  isTokenExpired(token?: string | null): boolean {
+    if (!token) return true;
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return true;
+      const base64Url = parts[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const payload = JSON.parse(jsonPayload);
+      if (!payload.exp) return false;
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  }
+
   private loadInitialUser(): User | null {
     try {
       const saved = localStorage.getItem(this.USER_STORAGE_KEY);
       const token = localStorage.getItem('medi_jwt_token');
       if (saved && token) {
+        if (this.isTokenExpired(token)) {
+          console.warn('Existing JWT token is expired. Clearing stale session.');
+          localStorage.removeItem(this.USER_STORAGE_KEY);
+          localStorage.removeItem('medi_jwt_token');
+          localStorage.removeItem('medi_refresh_token');
+          return null;
+        }
         return JSON.parse(saved);
       }
     } catch (e) {

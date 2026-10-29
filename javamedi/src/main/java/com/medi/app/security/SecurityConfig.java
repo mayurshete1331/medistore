@@ -77,6 +77,13 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Session expired. Please log in again.\"}");
+                        })
+                )
                 .authorizeHttpRequests(auth -> auth
                         // Public authentication & Documentation
                         .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/register/**").permitAll()

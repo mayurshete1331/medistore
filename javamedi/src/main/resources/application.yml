@@ -23,7 +23,7 @@ spring:
 # Base JWT Configuration (HS512 Key)
 jwt:
   secret: ${JWT_SECRET:2k9GqvR3TNiQ6enPkKlLgLmEBqehwd4OJKJc7gn5kFD8GskSWg//tJZ2q8qot8WpqwLqTbY/QN62fiTqXYYJIg==}
-  expiration: 86400000 # 24 hours
+  expiration: 604800000 # 7 days
   refresh:
     expiration: 2592000000 # 30 days
 

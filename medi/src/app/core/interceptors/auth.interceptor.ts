@@ -23,7 +23,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
       // If 401 Unauthorized occurs on an authenticated endpoint, terminate session safely
-      if (error.status === 401 && !req.url.includes('/auth/login')) {
+      if ((error.status === 401 || error.status === 403) && !req.url.includes('/auth/login')) {
         authService.logout();
       }
       return throwError(() => error);
